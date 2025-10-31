@@ -12,34 +12,13 @@ from pywechat4.Uielements import Edits(class)
 searchbar=Edits().SearchEdit#返回值为kwargs字典,可以直接使用**解包
 ```
 '''
-#################################################################
-#微信主界面:
-#==========================================================================================
-#工具栏 |搜索|       |+|添加好友              ···聊天信息按钮  #
-#                                             |
-#|头像|   |          |                            |
-#|聊天|   |          |                            |
-#|通讯录|  | 会话列表     |                            |
-#|收藏|   |          |    聊天界面                    |
-#|聊天文件| |          |                            |
-#|朋友圈|  |          |                            |
-#|视频号|  |          |                            |
-#|看一看|  |          |                            |
-#|搜一搜|  |          |                            |
-#      |          |                            |
-#      |          |                            |
-#      |          |                            | 
-#      |          |---------------------------------------------------------
-#小程序面板 |          |  表情 聊天文件 截图 聊天记录           |
-#|手机|   |          |                            |
-#|设置及其他||          |                            |
-#===========================================================================================
+#目前还不支持其他语言
 
 language='简体中文'
 
 class Buttons():
     '''
-    微信主界面内所有类型为Button的UI控件\n
+    微信主界面内所有类型为Button的UI控件
     '''
     def __init__(self):
         self.MySelfButton={'control_type':'Button','found_index':0}#主界面下的第一个按钮,也就是我自己的头像按钮，必须通过main_window.child_window(**Buttons.MyselfButton)使用!
@@ -141,6 +120,7 @@ class Lists():
         self.MiniProgramList={'title':'小程序','control_type':'List'}#微信聊天记录窗口中选择小程序后的列表
         self.MusicList={'title':'音乐与音频','control_type':'List'}#微信聊天记录窗口中选择音乐与音频后的列表
         self.ChannelList={'title':'视频号','control_type':'List'}#微信聊天记录窗口中选择视频号后的列表
+        
 class Panes():
     def __init__(self):
         self.ContactsManagePane={'title':'全部','control_type':'Pane'}#通讯录管理界面内的全部Pane,之所以用到它是为了获取这个Pane下的总人数
@@ -222,7 +202,7 @@ class SideBar():
 class Main_window():
     '''主界面下所有的第一级Ui\n'''
     def __init__(self):
-        self.MainWindow={'title':'微信','class_name':'mmui::MainWindow'}#微信主界面
+        self.MainWindow={'title':'微信','class_name':'mmui::MainWindow','framework_id':'Qt'}#微信主界面
         self.MySelfButton={'control_type':'Button','found_index':0}#主界面下的第一个按钮,也就是我自己的头像按钮，必须通过main_window.child_window(**Main_window().MySelfButton)使用!
         self.AddTalkMemberWindow={'title':'微信选择成员','control_type':'Window','class_name':"mmui::SessionPickerWindow",'framework_id':'Qt'}#添加新朋友时弹出的窗口
         self.MainWindow={'title':'微信','class_name':'mmui::MainWindow'}#微信主界面
@@ -231,7 +211,7 @@ class Main_window():
         self.Search={'title':'搜索','control_type':'Edit','class_name':"mmui::XValidatorTextEdit"}#主界面顶部的搜索栏
         self.SearchResult={'title':"",'control_type':'List','auto_id':'search_list'}#主界面顶部搜索栏搜索内容的结果列表
         self.ChatToolBar={'title':'','found_index':0,'control_type':'ToolBar'}#主界面右侧聊天窗口内的工具栏(语音视频按钮在其中)
-        self.CurrentChatWindow={'control_type':'Edit','auto_id':'chat_input_field'}#主界面右侧的聊天窗口
+        self.CurrentChatWindow={'control_type':'Edit','title':'Edit'}#主界面右侧的聊天窗口
         self.ProfileWindow={'class_name':"ContactProfileWnd",'control_type':'Pane','framework_id':'Win32'}#从聊天区域打开的好友信息面板
         self.FriendMenu={'control_type':'Menu','title':'','class_name':'CMenuWnd','framework_id':'Win32'}#从聊天区域打开的好友信息面板内右上角三个点点击后的菜单栏
         self.FriendSettingsWindow={'class_name':'SessionChatRoomDetailWnd','control_type':'Pane','framework_id':'Win32'}#好友设置界面
