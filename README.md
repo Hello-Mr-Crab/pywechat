@@ -1,6 +1,6 @@
 # pywechat🥇
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/introduction.jpg)
-## 🍬🍬微信RPA工具,现支持4.1.4.10部分功能具体使用方法见
+## 🍬🍬微信RPA工具,现支持4.1.4.10部分功能具体使用方法见:微信4.0 UI自动化.md
 ### pywechat是一个基于pywinauto实现的Windows系统下PC微信自动化的Python项目。基本实现了PC微信内置的所有功能,支持单线程多任务轮流进行!!
 
 ### 微信版本:3.9.12.57,4.1.4.10
@@ -206,6 +206,7 @@ print(check_new_message())
 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！ 
 
 ###### 作者CSDN主页:https://blog.csdn.net/weixin_73953650?spm=1011.2415.3001.5343
+
 
 
 
