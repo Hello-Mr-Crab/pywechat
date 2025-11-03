@@ -1,9 +1,9 @@
 # pywechat🥇
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/introduction.jpg)
-## 🍬🍬全网最强微信RPA!
+## 🍬🍬微信RPA工具,现支持4.1.4.10部分功能具体使用方法见
 ### pywechat是一个基于pywinauto实现的Windows系统下PC微信自动化的Python项目。基本实现了PC微信内置的所有功能,支持单线程多任务轮流进行!!
 
-### 微信版本:3.9.12.xx
+### 微信版本:3.9.12.57,4.1.4.10
 ### 操作系统:🪟windows 10 🪟windows 11
 ### python版本🐍:3.x
 ### 支持语言:简体中文,English,繁体中文
@@ -31,18 +31,6 @@ pip install pywechat127==1.9.7
 ```
 pip install --upgrade pywechat127
 ```
-<br>
-
-### 添加微信至windows用户环境变量:
-#### pywechat已内置自动添加微信至用户环境变量的方法,运行下列代码即可自动添加微信路径至windows用户变量 :
-```
-from pywechat.WechatTools import Tools
-Tools.set_wechat_as_environ_path()
-```
-
-#### 效果演示:
-![Alt text](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/演示效果.gif)
-<br>
 
 ### WechatTools🌪️🌪️
 #### 模块包括:
@@ -218,6 +206,7 @@ print(check_new_message())
 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！ 
 
 ###### 作者CSDN主页:https://blog.csdn.net/weixin_73953650?spm=1011.2415.3001.5343
+
 
 
 
