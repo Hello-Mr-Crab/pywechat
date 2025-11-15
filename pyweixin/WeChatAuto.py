@@ -14,6 +14,14 @@ Method:
     - `Files`:  两种类型的发送文件功能包括:单人发送与多人发送
     - `Call`: 给某个好友打视频或语音电话
 
+functions:
+=========
+
+    - `dump_sessions`: 导出会话列表中所有聊天对象
+    - `dump_recent_sessions`:  导出会话列表中最近的聊天对象
+    - ·pull_messages: 从聊天页面中获取一定数量的聊天记录
+    - `dump_chat_history`: 导出一定数量的聊天记录
+
 Examples:
 =========
 
@@ -29,6 +37,16 @@ Examples:
 
 Also:
 ====
+    pyweixin内所有方法及函数的位置参数支持全局设定,be like:
+    ```
+        from pyweixin import Navigator,GlobalConfig
+        GlobalConfig.load_delay=1.5
+        GlobalConfig.is_maximize=True
+        GlobalConfig.close_weixin=False
+        Navigator.search_channels(search_content='微信4.0')
+        Navigator.search_miniprogram(name='问卷星')
+        Navigator.search_official_account(name='微信')
+    ```
 
 '''
 
@@ -554,3 +572,74 @@ def dump_recent_sessions(is_maximize:bool=None,close_weixin:bool=None):
     if close_weixin:
         main_window.close()
     return results
+
+def dump_chat_history(friend:str,number:int,is_maximize:bool=None,close_weixin:bool=None)->tuple[list,list]:
+    '''该函数用来获取一定数量的聊天记录
+    Args:
+        friend:好友名称
+        number:获取的消息数量
+        is_maximize:微信界面是否全屏，默认全屏
+        close_weixin:任务结束后是否关闭微信，默认关闭
+    Returns:
+        messages:发送的消息(时间顺序从早到晚)
+        timestamps:每条消息对应的发送时间
+    '''
+    if is_maximize is None:
+        is_maximize=GlobalConfig.is_maximize
+    if close_weixin is None:
+        close_weixin=GlobalConfig.close_weixin
+    messages=[]
+    timestamp_pattern=re.compile(r'(?<=\s)(\d{4}年\d{2}月\d{2}日 \d{2}:\d{2}|\d{2}月\d{2}日 \d{2}:\d{2}|\d{2}:\d{2}|昨天 \d{2}:\d{2}|星期\w \d{2}:\d{2})$')
+    chat_history_window=Navigator.open_chat_history(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin)
+    chat_list=chat_history_window.child_window(**Lists.ChatHistoryList)
+    scrollable=Tools.is_scrollable(chat_list)
+    if not chat_list.children(control_type='ListItem'):
+        warn(message=f"你与{friend}的聊天记录为空,无法获取聊天记录",category=NoChatHistoryWarning)
+    if not scrollable: 
+        ListItems=chat_list.children(control_type='ListItem')
+        messages=[listitem.window_text() for listitem in ListItems if listitem.class_name!='mmui::ChatItemView']  
+    if scrollable:
+        while len(messages)<number:
+            ListItems=chat_list.children(control_type='ListItem')
+            messages.extend([listitem.window_text() for listitem in ListItems])
+            chat_list.type_keys('{PGDN}')
+        chat_list.type_keys('{HOME}')
+    messages=messages[:number][::-1]
+    timestamps=[timestamp_pattern.search(message).group(0) for message in messages]
+    messages=[timestamp_pattern.sub('',message) for message in messages]
+    chat_history_window.close()
+    return messages,timestamps
+
+def pull_messages(friend:str,number:int,is_maximize:bool=None,close_weixin:bool=None):
+    '''
+    该函数用来从聊天界面获取聊天消息,也可当做获取聊天记录
+    Args:
+        friend:好友名称
+        number:获取的消息数量
+        is_maximize:微信界面是否全屏，默认全屏
+        close_weixin:任务结束后是否关闭微信，默认关闭
+    Returns:
+        messages:聊天记录中的消息(时间顺序从早到晚)
+    '''
+    if is_maximize is None:
+        is_maximize=GlobalConfig.is_maximize
+    if close_weixin is None:
+        close_weixin=GlobalConfig.close_weixin
+    messages=[]
+    main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin)
+    chat_list=main_window.child_window(**Lists.FriendChatList)
+    scrollable=Tools.is_scrollable(chat_list,back='end')
+    if not chat_list.children(control_type='ListItem'):
+        warn(message=f"你与{friend}的聊天记录为空,无法获取聊天记录",category=NoChatHistoryWarning)
+    if not scrollable:
+        ListItems=chat_list.children(control_type='ListItem')
+        messages=[listitem.window_text() for listitem in ListItems if listitem.class_name!='mmui::ChatItemView']
+    if scrollable:
+        while len(messages)<number:
+            ListItems=chat_list.children(control_type='ListItem')[::-1]
+            messages.extend([listitem.window_text() for listitem in ListItems])
+            chat_list.type_keys('{PGUP}')
+        chat_list.type_keys('{END}')
+    if close_weixin:
+        main_window.close()
+    return messages[::-1]
