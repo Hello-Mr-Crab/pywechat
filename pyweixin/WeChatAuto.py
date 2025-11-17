@@ -429,10 +429,17 @@ class Call():
         if close_weixin:
             main_window.close()
 
-def dump_sessions(is_maximize:bool=None,close_weixin:bool=None):
-
+def dump_recent_sessions(recent:Literal['Today','Yesterday','Week','Month','Year']='Today',message_only:bool=False,is_maximize:bool=None,close_weixin:bool=None):
+    '''
+    该函数用来获取会话列表内最近的聊天对象的名称,最后聊天时间,以及最后一条聊天消息,使用时建议全屏这样不会有遗漏!
+    Args:
+        recent:获取最近消息的时间节点,可选值为'Today','Yesterday','Week','Month','Year'分别获取当天,昨天,本周,本月,本年
+        message_only:只获取会话列表中有消息的好友(ListItem底部有灰色消息不是空白),默认为False
+        is_maximize:微信界面是否全屏，默认全屏
+        close_weixin:任务结束后是否关闭微信，默认关闭
+    '''
+    #去除列表重复元素
     def remove_duplicates(list):
-        """去除列表重复元素，保持顺序"""
         seen=set()
         result=[]
         for item in list:
@@ -446,27 +453,49 @@ def dump_sessions(is_maximize:bool=None,close_weixin:bool=None):
         name=listitem.automation_id().replace('session_item_','')
         return name
     
+    #正则匹配获取时间
     def get_sending_time(listitem):
-        time=time_pattern.search(listitem.window_text())
-        if time:
-            return time.group(0)
+        timestamp=timestamp_pattern.search(listitem.window_text().replace('消息免打扰 ',''))
+        if timestamp:
+            return timestamp.group(0)
         else:
             return ''
+
+    #获取最后一条消息内容
     def get_latest_message(listitem):
         name=listitem.automation_id().replace('session_item_','')
         res=listitem.window_text().replace(name,'')
-        res=time_pattern.sub(repl='',string=res).replace('已置顶 ','')
+        res=timestamp_pattern.sub(repl='',string=res).replace('已置顶 ','').replace('消息免打扰','')
         return res
-
+    
+    #根据recent筛选和过滤会话
+    def filter_sessions(ListItems):
+        ListItems=[ListItem for ListItem in ListItems if get_sending_time(ListItem)]
+        if recent=='Year' or recent=='Month':
+            ListItems=[ListItem for ListItem in ListItems if lastyear not in get_sending_time(ListItem)]
+        if recent=='Week':
+            ListItems=[ListItem for ListItem in ListItems if '/' not in get_sending_time(ListItem)]
+        if recent=='Today' or recent=='Yesterday':
+            ListItems=[ListItem for ListItem in ListItems if ':' in get_sending_time(ListItem)]
+        if message_only:
+            ListItems=[ListItem for ListItem in ListItems if get_latest_message(ListItem)!='']
+        return ListItems
+    
     if is_maximize is None:
         is_maximize=GlobalConfig.is_maximize
     if close_weixin is None:
         close_weixin=GlobalConfig.close_weixin
+
     #匹配位于句子结尾处,开头是空格,格式是2024/05/06或05/06或11:29的日期
-    names=[]
-    last_sending_times=[]
+    sessions=[]#会话对象 ListItem
+    names=[]#会话名称
+    last_sending_times=[]#最后聊天时间,最右侧的时间戳
     lastest_message=[]
-    time_pattern=re.compile(r'(?<=\s)(\d{4}/\d{2}/\d{2}|\d{2}/\d{2}|\d{2}:\d{2}|昨天 \d{2}:\d{2})$')
+    lastyear=str(int(time.strftime('%y'))-1)+'/'#去年
+    thismonth=str(int(time.strftime('%m')))+'/'#去年
+    yesterday='昨天'
+    #最右侧时间戳正则表达式:五种,2024/05/01,10/25,昨天,星期一,10:59,
+    timestamp_pattern=re.compile(r'(?<=\s)(\d{4}/\d{2}/\d{2}|\d{2}/\d{2}|\d{2}:\d{2}|昨天 \d{2}:\d{2}|星期\w)$')
     main_window=Navigator.open_weixin(is_maximize=is_maximize)
     chats_button=main_window.child_window(**SideBar.Chats)
     message_list_pane=main_window.child_window(**Main_window.ConversationList)
@@ -474,37 +503,63 @@ def dump_sessions(is_maximize:bool=None,close_weixin:bool=None):
         chats_button.click_input()
     if not message_list_pane.is_visible():
         chats_button.click_input()
-    scrollable=Tools.is_scrollable(message_list_pane)
+    scrollable=Tools.is_scrollable(message_list_pane,back='end')
     if not scrollable:
-        names=[get_name(listitem) for listitem in message_list_pane.children(control_type='ListItem')]
-        last_sending_times=[get_sending_time(listitem) for listitem in message_list_pane.children(control_type='ListItem')]
-        lastest_message=[get_latest_message(listitem) for listitem in message_list_pane.children(control_type='ListItem')]
-        results=list(zip(names,last_sending_times,lastest_message))
-        results=remove_duplicates(results)
+        ListItems=message_list_pane.children(control_type='ListItem')
+        ListItems=filter_sessions(ListItems)
+        names.extend([get_name(listitem) for listitem in ListItems])
+        last_sending_times.extend([get_sending_time(listitem) for listitem in ListItems])
+        lastest_message.extend([get_latest_message(listitem)for listitem in ListItems])
     if scrollable:
-        message_list_pane.type_keys('{END}')
-        time.sleep(1)
         last=message_list_pane.children(control_type='ListItem')[-1].window_text()
         message_list_pane.type_keys('{HOME}')
-        while message_list_pane.children(control_type='ListItem')[-1].window_text()!=last:
-            ListItems=list(message_list_pane.children(control_type='ListItem'))
+        time.sleep(1)
+        while True:
+            ListItems=message_list_pane.children(control_type='ListItem',class_name="mmui::ChatSessionCell")
+            ListItems=filter_sessions(ListItems)
+            if not ListItems:
+                break
+            if ListItems[-1].window_text()==last:
+                break
             names.extend([get_name(listitem) for listitem in ListItems])
             last_sending_times.extend([get_sending_time(listitem) for listitem in ListItems])
-            lastest_message.extend([get_latest_message(listitem) for listitem in ListItems])
-            message_list_pane.type_keys('{PGDN}')
-        names.extend([get_name(listitem) for listitem in message_list_pane.children(control_type='ListItem')])
-        last_sending_times.extend([get_sending_time(listitem) for listitem in message_list_pane.children(control_type='ListItem')])
-        lastest_message.extend([get_latest_message(listitem) for listitem in message_list_pane.children(control_type='ListItem')])
-        results=list(zip(names,last_sending_times,lastest_message))
-        results=remove_duplicates(results)
+            lastest_message.extend([get_latest_message(listitem)for listitem in ListItems])
+            message_list_pane.type_keys('{PGDN}') 
+        message_list_pane.type_keys('{HOME}')
+    #list zip为[(发送人,发送时间,最后一条消息)]
+    sessions=list(zip(names,last_sending_times,lastest_message))
+    #去重
+    sessions=remove_duplicates(sessions)
     if close_weixin:
         main_window.close()
-    return results
+    #进一步筛选
+    if recent=='Yesterday':
+        sessions=[session for session in sessions if yesterday in session[1]]
+    if recent=='Today':
+        sessions=[session for session in sessions if yesterday not in session[1]]
+    if recent=='Month':
+        weeek_sessions=[session for session in sessions if '/' not  in session[1]]
+        month_sessions=[session for session in sessions if thismonth in session[1]]
+        sessions=weeek_sessions+month_sessions
+    return sessions
 
-def dump_recent_sessions(is_maximize:bool=None,close_weixin:bool=None):
 
+def dump_sessions(message_only:bool=False,is_maximize:bool=None,close_weixin:bool=None):
+    '''
+    该函数用来获取会话列表内所有聊天对象的名称,最后聊天时间,以及最后一条聊天消息,使用时建议全屏这样不会有遗漏!
+    Args:
+        message_only:只获取会话列表中有消息的好友(ListItem底部有灰色消息不是空白),默认为False
+        is_maximize:微信界面是否全屏，默认全屏
+        close_weixin:任务结束后是否关闭微信，默认关闭
+    '''
+    def filter_sessions(ListItems):
+        ListItems=[ListItem for ListItem in ListItems if get_sending_time(ListItem)]
+        if message_only:
+            ListItems=[ListItem for ListItem in ListItems if get_latest_message(ListItem)!='']
+        return ListItems
+    
     def remove_duplicates(list):
-        """去除列表重复元素，保持顺序"""
+        """去除列表重复元素"""
         seen=set()
         result=[]
         for item in list:
@@ -518,27 +573,31 @@ def dump_recent_sessions(is_maximize:bool=None,close_weixin:bool=None):
         name=listitem.automation_id().replace('session_item_','')
         return name
     
+    #正则匹配获取时间
     def get_sending_time(listitem):
-        time=time_pattern.search(listitem.window_text())
-        if time:
-            return time.group(0)
+        timestamp=timestamp_pattern.search(listitem.window_text().replace('消息免打扰 ',''))
+        if timestamp:
+            return timestamp.group(0)
         else:
             return ''
+
+    #获取最后一条消息内容
     def get_latest_message(listitem):
         name=listitem.automation_id().replace('session_item_','')
         res=listitem.window_text().replace(name,'')
-        res=time_pattern.sub(repl='',string=res).replace('已置顶 ','')
+        res=timestamp_pattern.sub(repl='',string=res).replace('已置顶 ','').replace('消息免打扰','')
         return res
-
+    
     if is_maximize is None:
         is_maximize=GlobalConfig.is_maximize
     if close_weixin is None:
         close_weixin=GlobalConfig.close_weixin
-    #匹配位于句子结尾处,开头是空格,格式是2024/05/06或05/06或11:29的日期
+  
     names=[]
     last_sending_times=[]
     lastest_message=[]
-    time_pattern=re.compile(r'(?<=\s)(\d{4}/\d{2}/\d{2}|\d{2}/\d{2}|\d{2}:\d{2}|昨天 \d{2}:\d{2})$')
+    #最右侧时间戳正则表达式:五种,2024/05/01,10/25,昨天,星期一,10:59,
+    timestamp_pattern=re.compile(r'(?<=\s)(\d{4}/\d{2}/\d{2}|\d{2}/\d{2}|\d{2}:\d{2}|昨天 \d{2}:\d{2}|星期\w)$')
     main_window=Navigator.open_weixin(is_maximize=is_maximize)
     chats_button=main_window.child_window(**SideBar.Chats)
     message_list_pane=main_window.child_window(**Main_window.ConversationList)
@@ -546,35 +605,39 @@ def dump_recent_sessions(is_maximize:bool=None,close_weixin:bool=None):
         chats_button.click_input()
     if not message_list_pane.is_visible():
         chats_button.click_input()
-    scrollable=Tools.is_scrollable(message_list_pane)
+    scrollable=Tools.is_scrollable(message_list_pane,back='end')
     if not scrollable:
         names=[get_name(listitem) for listitem in message_list_pane.children(control_type='ListItem')]
         last_sending_times=[get_sending_time(listitem) for listitem in message_list_pane.children(control_type='ListItem')]
         lastest_message=[get_latest_message(listitem) for listitem in message_list_pane.children(control_type='ListItem')]
-        results=list(zip(names,last_sending_times,lastest_message))
-        results=remove_duplicates(results)
     if scrollable:
-        message_list_pane.type_keys('{END}')
         time.sleep(1)
         last=message_list_pane.children(control_type='ListItem')[-1].window_text()
         message_list_pane.type_keys('{HOME}')
-        while message_list_pane.children(control_type='ListItem')[-1].window_text()!=last:
-            ListItems=list(message_list_pane.children(control_type='ListItem'))
+        while True:
+            ListItems=message_list_pane.children(control_type='ListItem',class_name="mmui::ChatSessionCell")
+            ListItems=filter_sessions(ListItems)
             names.extend([get_name(listitem) for listitem in ListItems])
             last_sending_times.extend([get_sending_time(listitem) for listitem in ListItems])
             lastest_message.extend([get_latest_message(listitem) for listitem in ListItems])
             message_list_pane.type_keys('{PGDN}')
+            if ListItems[-1].window_text()==last:
+                break
         names.extend([get_name(listitem) for listitem in message_list_pane.children(control_type='ListItem')])
         last_sending_times.extend([get_sending_time(listitem) for listitem in message_list_pane.children(control_type='ListItem')])
         lastest_message.extend([get_latest_message(listitem) for listitem in message_list_pane.children(control_type='ListItem')])
-        results=list(zip(names,last_sending_times,lastest_message))
-        results=remove_duplicates(results)
+        message_list_pane.type_keys('{HOME}')
     if close_weixin:
         main_window.close()
-    return results
+    #list zip为[(发送人,发送时间,最后一条消息)]
+    sessions=list(zip(names,last_sending_times,lastest_message))
+    #去重
+    sessions=remove_duplicates(sessions)
+    return sessions
+
 
 def dump_chat_history(friend:str,number:int,is_maximize:bool=None,close_weixin:bool=None)->tuple[list,list]:
-    '''该函数用来获取一定数量的聊天记录
+    '''该函数用来获取一定的聊天记录
     Args:
         friend:好友名称
         number:获取的消息数量
@@ -597,18 +660,19 @@ def dump_chat_history(friend:str,number:int,is_maximize:bool=None,close_weixin:b
         warn(message=f"你与{friend}的聊天记录为空,无法获取聊天记录",category=NoChatHistoryWarning)
     if not scrollable: 
         ListItems=chat_list.children(control_type='ListItem')
-        messages=[listitem.window_text() for listitem in ListItems if listitem.class_name!='mmui::ChatItemView']  
+        messages=[listitem.window_text() for listitem in ListItems]  
     if scrollable:
         while len(messages)<number:
             ListItems=chat_list.children(control_type='ListItem')
             messages.extend([listitem.window_text() for listitem in ListItems])
             chat_list.type_keys('{PGDN}')
         chat_list.type_keys('{HOME}')
+    chat_history_window.close()
     messages=messages[:number][::-1]
     timestamps=[timestamp_pattern.search(message).group(0) for message in messages]
     messages=[timestamp_pattern.sub('',message) for message in messages]
-    chat_history_window.close()
     return messages,timestamps
+
 
 def pull_messages(friend:str,number:int,is_maximize:bool=None,close_weixin:bool=None):
     '''
@@ -626,20 +690,201 @@ def pull_messages(friend:str,number:int,is_maximize:bool=None,close_weixin:bool=
     if close_weixin is None:
         close_weixin=GlobalConfig.close_weixin
     messages=[]
-    main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin)
+    main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize)
     chat_list=main_window.child_window(**Lists.FriendChatList)
     scrollable=Tools.is_scrollable(chat_list,back='end')
     if not chat_list.children(control_type='ListItem'):
         warn(message=f"你与{friend}的聊天记录为空,无法获取聊天记录",category=NoChatHistoryWarning)
     if not scrollable:
         ListItems=chat_list.children(control_type='ListItem')
-        messages=[listitem.window_text() for listitem in ListItems if listitem.class_name!='mmui::ChatItemView']
+        ListItems=[listitem for listitem in ListItems if listitem.class_name()!="mmui::ChatItemView"]
+        messages=[listitem.window_text() for listitem in ListItems]
     if scrollable:
         while len(messages)<number:
             ListItems=chat_list.children(control_type='ListItem')[::-1]
+            ListItems=[listitem for listitem in ListItems if listitem.class_name()!="mmui::ChatItemView"]
             messages.extend([listitem.window_text() for listitem in ListItems])
             chat_list.type_keys('{PGUP}')
         chat_list.type_keys('{END}')
     if close_weixin:
         main_window.close()
-    return messages[::-1]
+    messages=messages[::-1][-number:]
+    return messages
+
+
+def get_new_message_num(is_maximize:bool=None,close_weixin:bool=None):
+    '''
+    该函数用来获取侧边栏左侧微信按钮上的红色新消息总数
+    Args:
+        is_maximize:微信界面是否全屏，默认全屏
+        close_weixin:任务结束后是否关闭微信，默认关闭
+    Returns:
+        new_message_num:新消息总数
+    '''
+    if is_maximize is None:
+        is_maximize=GlobalConfig.is_maximize
+    if close_weixin is None:
+        close_weixin=GlobalConfig.close_weixin
+    main_window=Navigator.open_weixin(is_maximize=is_maximize)
+    chats_button=main_window.child_window(**SideBar.Chats)
+    chats_button.click_input()
+    #左上角微信按钮的红色消息提示(\d+条新消息)在FullDescription属性中,
+    #只能通过id来获取,id是30159，之前是30007,可能是qt组件映射关系不一样
+    full_desc=chats_button.element_info.element.GetCurrentPropertyValue(30159)
+    new_message_num=re.search(r'\d+',full_desc)#正则提取数量
+    if new_message_num:
+        return int(new_message_num.group(0))
+    else:
+        return 0
+
+def scan_for_new_messages(is_maximize:bool=None,close_weixin:bool=None):
+    '''
+    该函数用来扫描检查一遍消息列表中的所有新消息,返回发送对象以及新消息数量
+    Args:
+        is_maximize:微信界面是否全屏，默认全屏
+        close_weixin:任务结束后是否关闭微信，默认关闭
+    Returns:
+        newMessagefriends,newMessageNums:有新消息的好友备注及其对应的新消息数量
+    '''
+    def remove_duplicates(lst):
+        """去除列表重复元素"""
+        return list(dict.fromkeys(lst))
+    
+    def extract_name_and_num(newMessageTips):
+        newMessageTips=remove_duplicates(newMessageTips)
+        newMessageNum=[int(new_message_pattern.search(text).group(1)) for text in newMessageTips]
+        newMessagefriends=[name_pattern.search(text).group(1) for text in newMessageTips]
+        return newMessagefriends,newMessageNum
+
+    def traverse_messsage_list():
+        ListItems=message_list_pane.children(control_type='ListItem')
+        #newMessageTips为newMessagefriends中每个元素的文本:['测试365 5条新消息','一家人已置顶20条新消息']这样的字符串列表
+        newMessageTips=[ListItem.window_text() for ListItem in ListItems if '条未读' in ListItem.window_text()]
+        newMessageTips=[text for text in newMessageTips if '公众号' not in text]
+        newMessageTips=[text for text in newMessageTips if '服务号' not in text]
+        newMessageTips=[text for text in newMessageTips if '消息免打扰' not in text]
+        return newMessageTips
+  
+    if is_maximize is None:
+        is_maximize=GlobalConfig.is_maximize
+    if close_weixin is None:
+        close_weixin=GlobalConfig.close_weixin
+    
+    newMessagefriends=[]
+    newMessageNums=[]
+    main_window=Navigator.open_weixin(is_maximize=is_maximize)
+    chats_button=main_window.child_window(**SideBar.Chats)
+    chats_button.click_input()
+    #左上角微信按钮的红色消息提示(\d+条新消息)在FullDescription属性中,
+    #只能通过id来获取,id是30159，之前是30007,可能是qt组件映射关系不一样
+    full_desc=chats_button.element_info.element.GetCurrentPropertyValue(30159)
+    message_list_pane=main_window.child_window(**Main_window.ConversationList)
+    message_list_pane.type_keys('{HOME}')
+    new_message_num=re.search(r'\d+',full_desc)#正则提取数量
+    #微信会话列表内ListItem标准格式:备注\s(已置顶)\s(\d+)条未读\s最后一条消息内容\s时间
+    new_message_pattern=re.compile(r'\s(\d+)条未读\s')#只给数量分组,.group(1)获取
+    name_pattern=re.compile(r'^([^ ]+)\s')#匹配第一个空格前的所有非空格内容，只给名字分组，.group(1)获取
+    if not new_message_num:
+        print(f'没有新消息')
+        return [],[]
+    if new_message_num:
+        new_message_num=int(new_message_num.group(0))
+        message_list_pane=main_window.child_window(**Main_window.ConversationList)
+    while sum(newMessageNums)<new_message_num:#当最终的新消息总数之和比
+        #遍历获取带有新消息的ListItem
+        newMessageTips=traverse_messsage_list()
+        #提取姓名和数量
+        senders,nums=extract_name_and_num(newMessageTips)
+        newMessageNums.extend(nums)
+        newMessagefriends.extend(senders)
+        message_list_pane.type_keys('{PGDN}')
+    message_list_pane.type_keys('{HOME}')
+    if close_weixin:
+        main_window.close()
+    return newMessagefriends,newMessageNums
+
+def check_new_messages(is_maximize:bool=None,close_weixin:bool=None):
+    check_results=dict()
+    #这四个无法打开
+    taboo_list=['微信支付','微信游戏','腾讯新闻','服务通知']
+    if is_maximize is None:
+        is_maximize=GlobalConfig.is_maximize
+    if close_weixin is None:
+        close_weixin=GlobalConfig.close_weixin
+    main_window=Navigator.open_weixin(is_maximize=is_maximize)
+    chats_button=main_window.child_window(**SideBar.Chats)
+    chats_button.click_input()
+    #左上角微信按钮的红色消息提示(\d+条新消息)在FullDescription属性中,
+    #只能通过id来获取,id是30159，之前是30007,可能是qt组件映射关系不一样
+    full_desc=chats_button.element_info.element.GetCurrentPropertyValue(30159)
+    new_message_num=re.search(r'\d+',full_desc)#正则提取数量
+    if new_message_num:
+        newMessagefriends,newMessageNums=scan_for_new_messages(is_maximize=is_maximize,close_weixin=False)
+        for name,number in zip(newMessagefriends,newMessageNums):
+            if name not in taboo_list:
+                messages=pull_messages(friend=name,number=number,close_weixin=False)    
+                check_results[name]=messages
+    else:
+        print('没有新消息')
+    if close_weixin:
+        main_window.close()
+    return check_results
+
+class Contacts():
+    '''
+    用来获取通讯录联系人的一些方法
+    '''
+    def get_friends_nicknames(is_maximize:bool=None,close_weixin:bool=None):
+        
+        def remove_duplicates(lst):
+            '''用来快速有序去重'''
+            return list(dict.fromkeys(lst))
+        
+        def regex_extract(texts:list):
+            names=[name_pattern.search(text).group(0) for text in texts]
+            texts=[name_pattern.sub('',text) for text in texts]
+            remarks=[name_pattern.search(text).group(0) if text else '' for text in  texts ]
+            tags=[name_pattern.sub('',text) if text else '' for text in texts]
+            return names,remarks,tags
+
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+        #匹配昵称和备注,匹配开头，第一个空格前的所有非空格字符或空格字符
+        name_pattern=re.compile(r'^(?:[^\s]+\s|\s*\s)')
+        #这个逻辑感觉有点左脑搏击右脑，但是不排除有人用空白名作昵称，如果只是[^\s]+\s会匹配不到空白名
+        #此时返回值none,还需要多写一行if判断，来单独匹配空白名
+        #比如说:
+        #'AAAA建材批发王总(昵称) 王总(备注) 生意(标签)'
+        #'  (昵称) 空白名好友(备注) 好友(标签)'
+        #'  (昵称)'
+        #要完整匹配昵称,备注，标签，那么只需要将name_pattern复用即可，先匹配一次昵称,然后re.sub掉名称
+        #此时，开头的便是备注,备注一般不可以设为空格，即使设为空格也无妨使用name_pattern可以匹配，当然如果sub之后为空字符串
+        #也就是只有昵称没有备注，那就结束
+        contacts_info=[]
+        manage_window=Navigator.open_contacts_manage(is_maximize=is_maximize,close_weixin=close_weixin)
+        maximize=manage_window.child_window(control_type='Button',title='最大化',class_name="mmui::XButton")
+        if maximize.exists():
+            maximize.click_input()
+        side_list=manage_window.child_window(**Lists.SideList)
+        total=side_list.children(control_type='ListItem')[0].window_text()
+        total=int(re.search(r'\d+',total).group(0))
+        contact_list=manage_window.child_window(**Lists.ContactsManageList)
+        contact_list.type_keys('{END}')
+        last=contact_list.children(control_type='ListItem')[-1].window_text()
+        contact_list.type_keys('{HOME}')
+        ListItems=contact_list.children(control_type='ListItem')
+        texts=[ListItem.window_text() for ListItem in ListItems]
+        contacts_info.extend(texts)
+        while contact_list.children(control_type='ListItem')[-1].window_text()!=last:
+            contact_list.type_keys('{PGDN}')
+            ListItems=contact_list.children(control_type='ListItem')
+            texts=[ListItem.window_text() for ListItem in ListItems]
+            contacts_info.extend(texts)
+        manage_window.close()
+        contacts_info=remove_duplicates(contacts_info)
+        print(contacts_info)
+        names,remarks,tags=regex_extract(contacts_info)
+        contacts_info=[{'昵称':name,'备注':remark,'标签':tag} for name,remark,tag in zip(names,remarks,tags)]
+        return total,contacts_info
