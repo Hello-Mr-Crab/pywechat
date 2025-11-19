@@ -543,7 +543,6 @@ def dump_recent_sessions(recent:Literal['Today','Yesterday','Week','Month','Year
         sessions=weeek_sessions+month_sessions
     return sessions
 
-
 def dump_sessions(message_only:bool=False,is_maximize:bool=None,close_weixin:bool=None):
     '''
     该函数用来获取会话列表内所有聊天对象的名称,最后聊天时间,以及最后一条聊天消息,使用时建议全屏这样不会有遗漏!
@@ -635,7 +634,6 @@ def dump_sessions(message_only:bool=False,is_maximize:bool=None,close_weixin:boo
     sessions=remove_duplicates(sessions)
     return sessions
 
-
 def dump_chat_history(friend:str,number:int,is_maximize:bool=None,close_weixin:bool=None)->tuple[list,list]:
     '''该函数用来获取一定的聊天记录
     Args:
@@ -660,10 +658,11 @@ def dump_chat_history(friend:str,number:int,is_maximize:bool=None,close_weixin:b
         warn(message=f"你与{friend}的聊天记录为空,无法获取聊天记录",category=NoChatHistoryWarning)
     if not scrollable: 
         ListItems=chat_list.children(control_type='ListItem')
-        messages=[listitem.window_text() for listitem in ListItems]  
+        messages=[listitem.window_text() for listitem in ListItems if listitem.class_name()!="mmui::ChatItemView"]  
     if scrollable:
         while len(messages)<number:
             ListItems=chat_list.children(control_type='ListItem')
+            ListItems=[listitem.window_text() for listitem in ListItems if listitem.class_name()!="mmui::ChatItemView"]  
             messages.extend([listitem.window_text() for listitem in ListItems])
             chat_list.type_keys('{PGDN}')
         chat_list.type_keys('{HOME}')
@@ -672,7 +671,6 @@ def dump_chat_history(friend:str,number:int,is_maximize:bool=None,close_weixin:b
     timestamps=[timestamp_pattern.search(message).group(0) for message in messages]
     messages=[timestamp_pattern.sub('',message) for message in messages]
     return messages,timestamps
-
 
 def pull_messages(friend:str,number:int,is_maximize:bool=None,close_weixin:bool=None):
     '''
@@ -711,7 +709,6 @@ def pull_messages(friend:str,number:int,is_maximize:bool=None,close_weixin:bool=
     messages=messages[::-1][-number:]
     return messages
 
-
 def get_new_message_num(is_maximize:bool=None,close_weixin:bool=None):
     '''
     该函数用来获取侧边栏左侧微信按钮上的红色新消息总数
@@ -732,6 +729,8 @@ def get_new_message_num(is_maximize:bool=None,close_weixin:bool=None):
     #只能通过id来获取,id是30159，之前是30007,可能是qt组件映射关系不一样
     full_desc=chats_button.element_info.element.GetCurrentPropertyValue(30159)
     new_message_num=re.search(r'\d+',full_desc)#正则提取数量
+    if close_weixin:
+        main_window.close()
     if new_message_num:
         return int(new_message_num.group(0))
     else:
@@ -834,57 +833,111 @@ class Contacts():
     '''
     用来获取通讯录联系人的一些方法
     '''
-    def get_friends_nicknames(is_maximize:bool=None,close_weixin:bool=None):
-        
-        def remove_duplicates(lst):
-            '''用来快速有序去重'''
-            return list(dict.fromkeys(lst))
-        
-        def regex_extract(texts:list):
-            names=[name_pattern.search(text).group(0) for text in texts]
-            texts=[name_pattern.sub('',text) for text in texts]
-            remarks=[name_pattern.search(text).group(0) if text else '' for text in  texts ]
-            tags=[name_pattern.sub('',text) if text else '' for text in texts]
-            return names,remarks,tags
-
+    def get_groups_info(myname:str=None,is_maximize:bool=None,close_weixin:bool=None):
+        '''
+        该函数用来获取我加入的所有群聊.原理是搜所mynickname在群聊结果一栏中遍历查找,is_maximize为False时会更快
+        Args:
+            is_maximize:微信界面是否全屏，默认全屏
+            close_weixin:任务结束后是否关闭微信，默认关闭
+        Returns:
+            groups:所有已加入的群聊名称
+        '''
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
-        #匹配昵称和备注,匹配开头，第一个空格前的所有非空格字符或空格字符
-        name_pattern=re.compile(r'^(?:[^\s]+\s|\s*\s)')
-        #这个逻辑感觉有点左脑搏击右脑，但是不排除有人用空白名作昵称，如果只是[^\s]+\s会匹配不到空白名
-        #此时返回值none,还需要多写一行if判断，来单独匹配空白名
-        #比如说:
-        #'AAAA建材批发王总(昵称) 王总(备注) 生意(标签)'
-        #'  (昵称) 空白名好友(备注) 好友(标签)'
-        #'  (昵称)'
-        #要完整匹配昵称,备注，标签，那么只需要将name_pattern复用即可，先匹配一次昵称,然后re.sub掉名称
-        #此时，开头的便是备注,备注一般不可以设为空格，即使设为空格也无妨使用name_pattern可以匹配，当然如果sub之后为空字符串
-        #也就是只有昵称没有备注，那就结束
-        contacts_info=[]
-        manage_window=Navigator.open_contacts_manage(is_maximize=is_maximize,close_weixin=close_weixin)
-        maximize=manage_window.child_window(control_type='Button',title='最大化',class_name="mmui::XButton")
-        if maximize.exists():
-            maximize.click_input()
-        side_list=manage_window.child_window(**Lists.SideList)
-        total=side_list.children(control_type='ListItem')[0].window_text()
-        total=int(re.search(r'\d+',total).group(0))
-        contact_list=manage_window.child_window(**Lists.ContactsManageList)
-        contact_list.type_keys('{END}')
-        last=contact_list.children(control_type='ListItem')[-1].window_text()
-        contact_list.type_keys('{HOME}')
-        ListItems=contact_list.children(control_type='ListItem')
-        texts=[ListItem.window_text() for ListItem in ListItems]
-        contacts_info.extend(texts)
-        while contact_list.children(control_type='ListItem')[-1].window_text()!=last:
-            contact_list.type_keys('{PGDN}')
-            ListItems=contact_list.children(control_type='ListItem')
-            texts=[ListItem.window_text() for ListItem in ListItems]
-            contacts_info.extend(texts)
-        manage_window.close()
-        contacts_info=remove_duplicates(contacts_info)
-        print(contacts_info)
-        names,remarks,tags=regex_extract(contacts_info)
-        contacts_info=[{'昵称':name,'备注':remark,'标签':tag} for name,remark,tag in zip(names,remarks,tags)]
-        return total,contacts_info
+        main_window=Navigator.open_weixin(is_maximize=is_maximize)
+        if not myname:
+            myname=check_my_info(close_weixin=False,is_maximize=is_maximize).get('昵称')
+        groups=[]
+        chat_button=main_window.child_window(**SideBar.Chats)
+        chat_button.click_input()
+        search=main_window.descendants(**Main_window.Search)[0]
+        search.click_input()
+        Systemsettings.copy_text_to_windowsclipboard(myname)
+        pyautogui.hotkey('ctrl','v')
+        time.sleep(1)
+        search_results=main_window.child_window(title='',control_type='List')
+        check_all_buttons=[button for button in search_results.children() if r'查看全部' in button.window_text()]
+        total=int(re.search(r'\d+',check_all_buttons[0].window_text()).group(0))
+        check_all_buttons[0].click_input()
+        pyautogui.press('up',presses=4)
+        for _ in range(total+1):
+            focused_item=[listitem for listitem in search_results.children(control_type='ListItem',class_name="mmui::SearchContentCellView") if listitem.has_keyboard_focus()]
+            if focused_item:
+                groups.append(focused_item[0].window_text())
+                pyautogui.keyDown('down',_pause=False)
+            else:
+                break
+        groups=groups[-total:]
+        if close_weixin:
+            main_window.close()
+        return groups
+
+def change_style(style:Literal['0','1','2'],is_maximize:bool=None,close_weixin:bool=None):
+    '''
+    该函数用来修改微信的主题样式
+    Args:
+        style:主题样式,0:跟随系统,1:浅色模式,2:深色模式
+        is_maximize:微信界面是否全屏，默认全屏
+        close_weixin:任务结束后是否关闭微信，默认关闭
+    '''
+    if is_maximize is None:
+        is_maximize=GlobalConfig.is_maximize
+    if close_weixin is None:
+        close_weixin=GlobalConfig.close_weixin
+    style_map={'0':'跟随系统','1':'浅色模式','2':'深色模式'}
+    settings_window=Navigator.open_settings(is_maximize=is_maximize,close_weixin=close_weixin)
+    general_button=settings_window.child_window(control_type='Button',title='通用')
+    general_button.click_input()
+    outline_text=settings_window.child_window(control_type='Text',title='外观')
+    outline_button=outline_text.parent().children()[1]
+    current_style=outline_button.children(control_type='Text')[0].window_text()
+    outline_button.click_input()
+    #弹出的菜单无论怎么都无法定位到，干脆纯按键操作
+    #顺序是固定的:跟随系统,浅色模式,深色模式
+    #无论怎么说先回到顶部
+    if current_style=='浅色模式':
+        pyautogui.press('up')
+    if current_style=='深色模式':
+        pyautogui.press('up',presses=2)
+    #回到顶部后根据传入的style来选择向下按几次
+    if style=='1':
+        pyautogui.press('down')
+    if style=='2':
+        pyautogui.press('down',presses=2)
+    pyautogui.press('enter')
+    print(f'已将主题设置为{style_map.get(style)}')
+    settings_window.close()
+    
+def check_my_info(is_maximize:bool=None,close_weixin:bool=None):
+    '''
+    该函数用来查看个人信息
+    Args:
+        is_maximize:微信界面是否全屏，默认全屏
+        close_weixin:任务结束后是否关闭微信，默认关闭
+    Returns:
+       myinfo:个人资料{'昵称':,'微信号':,'地区':,'wxid':}
+    '''
+    #思路:鼠标移动到朋友圈顶部右下角,点击头像按钮，激活弹出窗口
+    if is_maximize is None:
+        is_maximize=GlobalConfig.is_maximize
+    if close_weixin is None:
+        close_weixin=GlobalConfig.close_weixin
+    wxid=Tools.get_current_wxid()
+    moments_window=Navigator.open_moments(is_maximize=is_maximize,close_weixin=close_weixin)
+    moments_list=moments_window.child_window(control_type='List',auto_id="sns_list")
+    rec=moments_list.children()[0].rectangle()
+    coords=(rec.right-60,rec.bottom-35)
+    mouse.click(coords=coords)
+    profile_pane=Desktop(backend='uia').window(class_name="mmui::ProfileUniquePop",control_type='Window')
+    group=profile_pane.child_window(control_type='Group',found_index=3).children()[1]
+    texts=group.descendants(control_type='Text')
+    texts=[item.window_text() for item in texts]
+    myinfo={'昵称':texts[0],'微信号':texts[2],'wxid':wxid}
+    if len(texts)==5:
+        myinfo['地区']=texts[4]
+    profile_pane.close()
+    moments_window.close()
+    return myinfo
+
