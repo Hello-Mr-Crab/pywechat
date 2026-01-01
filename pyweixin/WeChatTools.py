@@ -560,7 +560,7 @@ class Navigator():
             chats_button.click_input()
         if not message_list_pane.is_visible():
             chats_button.click_input()
-        current_chat=main_window.child_window(**Edits.CurrentChatEdit)
+        current_chat=main_window.child_window(**Texts.CurrentChatText)
         if current_chat.exists() and current_chat.window_text()==friend:
         #如果当前主界面聊天界面顶部的名称为好友名称，is_find为True,直接返回此时主界面
             is_find=True
@@ -1155,4 +1155,5 @@ class Navigator():
             program_window.close()
 
             return None
+
 
