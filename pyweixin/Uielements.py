@@ -109,6 +109,8 @@ class ListItems():
 class Texts():
     '''微信主界面以及设置界面内所有类型为Text的UI控件'''
     def __init__(self):
+         self.CurrentChatText={'auto_id':"content_view.top_content_view.title_h_view.left_v_view.left_content_v_view.left_ui_.big_title_line_h_view.current_chat_name_label",
+        'control_type':"Text"}#主界面右侧顶部的好友名称
         self.NetWorkError={'title':'网络不可用，请检查你的网络设置','control_type':'Text'}#微信没联网时顶部的红色文本
         self.OutLineText={'title':'外观','control_type':'Text'}#设置界面内的外观文本
         self.LanguageText={'title':'语言','control_type':'Text'}#设置界面内的语言文本
@@ -293,3 +295,4 @@ class Groups():
     def __init__(self):
 
         self.ContactProfileGroup={'class_name':'mmui::XView','auto_id':"contact_profile_view",'control_type':'Group'}#通讯录的好友详细信息所处面板
+
