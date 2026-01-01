@@ -1470,18 +1470,63 @@ class Contacts():
             main_window.close()
         return profile
     
-    def get_groupmember_names(group:str):
+    @staticmethod
+    def get_recent_groups(is_maximize:bool=None,close_weixin:bool=None)->list[tuple[str]]:
         '''
-        该函数用来获取群聊内的群成员名称
+        该函数用来获取最近群聊信息(包括群聊名称与群聊人数)
         Args:
 
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
-            groups:所有已加入的群聊名称
+            recent_groups:最近群聊信息
         '''
-        chatinfo,main_window=Navigator.open_chatinfo(friend=group)
-        chatinfo.dump_tree()
+        def remove_duplicates(list):
+            seen=set()
+            result=[]
+            for item in list:
+                if item not in seen:
+                    seen.add(item)
+                    result.append(item)
+            return result
+    
+        def get_specific_info(texts):
+            nums=[num_pattern.search(text).group(1) for text in texts]
+            names=[num_pattern.sub('',text) for text in texts]
+            return names,nums
+
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+    
+        Texts=[]
+        num_pattern=re.compile(r'\((\d+)\)$')
+        contacts_manage=Navigator.open_contacts_manage(is_maximize=is_maximize,close_weixin=close_weixin)
+        contacts_manage_list=contacts_manage.child_window(**Lists.ContactsManageList)
+        recent_group=contacts_manage.child_window(**ListItems.RecentGroupListItem)
+        Tools.collapse_contact_manage(contacts_manage)
+        if not recent_group.exists(timeout=0.1):
+            print(f'无最近群聊,无法获取!')
+            contacts_manage.close()
+            return []
+        else:
+            recent_group.click_input()
+            contacts_manage_list.type_keys('{END}')
+            last=contacts_manage_list.children(control_type='ListItem',
+            class_name="mmui::ContactsManagerControlSessionCell")[-1].window_text()
+            contacts_manage_list.type_keys('{HOME}')
+            listitems=contacts_manage_list.children(control_type='ListItem',class_name="mmui::ContactsManagerControlSessionCell")
+            Texts.extend([listitem.window_text() for listitem in listitems])
+            while Texts[-1]!=last:
+                contacts_manage_list.type_keys('{PGDN}')
+                listitems=contacts_manage_list.children(control_type='ListItem',class_name="mmui::ContactsManagerControlSessionCell")
+                Texts.extend([listitem.window_text() for listitem in listitems])
+            Texts=remove_duplicates(Texts)#去重,Texts内是群聊+(人数)构成的文本,如果群聊名称与人数都相同那就没法筛选了
+            group_names,member_nums=get_specific_info(Texts)#正则提取与替换便是群名与人数
+            recent_groups=list(zip(group_names,member_nums))#不使用dict(zip)是考虑到可能有相同群聊的,dict key不能有重复
+            contacts_manage.close()
+            return recent_groups
     
 class Settings():
 
@@ -1588,4 +1633,5 @@ class Moments():
 class GroupSettings():
     pass
 class Collections():
+
     pass    
