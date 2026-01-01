@@ -41,7 +41,7 @@ pip install --upgrade pywechat127
 #### 最新版本:1.0
 
 ```
-git clone <项目URL>
+git clone https://github.com/Hello-Mr-Crab/pywechat.git
 ```
 
 ### 模块介绍
@@ -248,6 +248,7 @@ print(check_new_message())
 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！ 
 
 ###### 作者CSDN主页:https://blog.csdn.net/weixin_73953650?spm=1011.2415.3001.5343
+
 
 
 
