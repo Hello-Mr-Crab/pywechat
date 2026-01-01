@@ -96,10 +96,15 @@ class Edits():
         self.RequestContentEdit={'title_re':'我是','control_type':'Edit'}#添加好友(从群里或者是主页)时,发送请求时的内容
         self.SearchGroupMemeberEdit={'title':'搜索群成员','control_type':'Edit'}#添加或删除群成员时,在弹出的界面里顶部的搜索栏
         self.EditWnd={'control_type':'Edit','class_name':'EditWnd','framework_id':'Win32'}#通用的编辑框,主要出现在好友和群聊设置界面里
+
 class ListItems():
     def __init__(self):
         '''微信主界面内所有类型为ListItem的UI控件'''
-        self.SessionLitItem={'control_type':'ListItem','class_name':'mmui::ChatSessionCell'}
+        self.SessionListItem={'control_type':'ListItem','class_name':'mmui::ChatSessionCell'}#微信会话列表中的聊天对象
+        self.RecentUsedListItem={'control_type':'ListItem','class_name':'mmui::XTableCell','title':'最近使用'}#聊天文件中的最近使用
+        self.FriendPrivacyListItem={'control_type':'ListItem','class_name':'mmui::ContactsManagerControlFolderCell','title':'朋友权限'}#通讯录管理界面中的朋友权限
+        self.TagListItem={'control_type':'ListItem','class_name':'mmui::ContactsManagerControlFolderCell','title':'标签'}#通讯录管理界面中的标签
+        self.RecentGroupListItem={'control_type':'ListItem','class_name':'mmui::ContactsManagerControlFolderCell','title':'最近群聊'}#通讯录管理界面中的最近群聊
         
 class Texts():
     '''微信主界面以及设置界面内所有类型为Text的UI控件'''
@@ -145,7 +150,7 @@ class Lists():
         self.MusicList={'title':'音乐与音频','control_type':'List'}#微信聊天记录窗口中选择音乐与音频后的列表
         self.ChannelList={'title':'视频号','control_type':'List'}#微信聊天记录窗口中选择视频号后的列表
         self.SideList={'control_type':'List','class_name':"mmui::ContactsManagerControlView"}#通讯录管理界面左侧侧边栏
-        self.ContactsManageList={'control_type':'List','class_name':"mmui::ContactsManagerDetailView"}#通讯录管理界面右侧好友信息列表
+        self.ContactsManageList={'control_type':'List','class_name':'mmui::ContactsManagerControlView'}#通讯录管理界面左侧列表
 
 class Panes():
     def __init__(self):
@@ -286,4 +291,5 @@ class Independent_window():
 
 class Groups():
     def __init__(self):
+
         self.ContactProfileGroup={'class_name':'mmui::XView','auto_id':"contact_profile_view",'control_type':'Group'}#通讯录的好友详细信息所处面板
