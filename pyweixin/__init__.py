@@ -25,9 +25,9 @@ Modules
 Have fun in WechatAutomation (＾＿－)
 ====
 '''
-from pyweixin.WeChatAuto import *
-from pyweixin.WeChatTools import *
-from pyweixin.WinSettings import *
-from pyweixin.Config import *
+from pyweixin.WeChatAuto import Messages,Contacts,Files,FriendSettings,Moments
+from pyweixin.WeChatTools import Tools,Navigator
+from pyweixin.WinSettings import SystemSettings
+from pyweixin.Config import GlobalConfig
 #Author:Hello-Mr-Crab
-#version:1.9.7
+#version:1.9.6
