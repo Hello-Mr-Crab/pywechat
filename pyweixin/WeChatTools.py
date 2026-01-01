@@ -48,7 +48,7 @@ Examples
 使用该模块的方法时,你可以:
 
     >>> from pyweixin.WeChatTools import Navigator
-    >>> Navigator.open_dialog_window(name='一家人')
+    >>> Navigator.open_dialog_window(friend='一家人')
 
 或者:
 
@@ -192,7 +192,6 @@ class Tools():
                 print("已将微信程序路径复制到剪贴板")
             return weixin_path
         else:
-           
             try:
                 reg_path=r"Software\Tencent\Weixin"
                 with winreg.OpenKey(winreg.HKEY_CURRENT_USER, reg_path) as key:
@@ -356,7 +355,45 @@ class Tools():
         if back=='end':
             list_control.type_keys("{END}")
         return scrollable
-    
+
+    @staticmethod
+    def collapse_contact_manage(contacts_manage:WindowSpecification):
+        '''用来收起通讯录管理界面中每个分区:包括"朋友权限","标签","最近群聊"
+        一般而言通讯录管理界面由这几个部分组成:
+            朋友权限
+            标签
+            最近群聊
+        若任意一个被打开,那么下方的另一个就可能会被挤到最下边,直接遍历查找费时费力
+        这里给出一个解决方法--逐级向上收起,这几个listitem中我们只需要关心其存在的时候
+        假如这个项目被展开,那么他的下一个是listitem与该分区名称所对应的listitem的classname必定不同,
+        (要注意的是这个listitem是否被点击无法通过selected或keyboard_focused等属性判断)
+        那么我们就点击一下即可收起同理,对每一个listitem进行同样的步骤即可逐级收起
+        注意顺序千万不可以打乱，必须按照上边固定的顺序。
+        '''
+        def get_next_item(listitem):
+            '''获取当前listitem的下一个listitem,如果不是最后一个的话'''
+            items=contacts_manage_list.children()
+            for i in range(len(items)):
+                if items[i]==listitem and i<len(items)-1:
+                    return items[i+1]
+            return None
+        contacts_manage_list=contacts_manage.child_window(**Lists.ContactsManageList)
+        friend_privacy_item=contacts_manage.child_window(**ListItems.FriendPrivacyListItem)
+        tag_item=contacts_manage.child_window(**ListItems.TagListItem)
+        recent_group_item=contacts_manage.child_window(**ListItems.RecentGroupListItem)
+        contacts_manage_list.type_keys('{HOME}')
+        if friend_privacy_item.exists(timeout=0.1):
+            if contacts_manage_list.children()[3].class_name()!="mmui::ContactsManagerControlFolderCell":
+                friend_privacy_item.click_input()
+        if tag_item.exists(timeout=0.1):
+            next_item=get_next_item(tag_item)
+            if next_item is not None and next_item.class_name()!="mmui::ContactsManagerControlFolderCell":
+                tag_item.click_input()
+        if recent_group_item.exists(timeout=0.1):
+            next_item=get_next_item(recent_group_item)
+            if next_item is not None and next_item.class_name()!="mmui::ContactsManagerControlFolderCell":
+                recent_group_item.click_input()
+             
     @staticmethod
     def collapse_contacts(main_window,contact_list):
         '''用来收起通讯录中每个分区:包括"新的朋友","群聊","企业微信联系人","联系人"等
@@ -1117,4 +1154,5 @@ class Navigator():
         else:
             print('网络不良,请尝试增加load_delay时长,或更换网络!')
             program_window.close()
+
             return None
