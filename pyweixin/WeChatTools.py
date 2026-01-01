@@ -572,12 +572,11 @@ class Navigator():
                 return is_find,main_window
             message_list_pane.type_keys("{HOME}")
             for _ in range(search_pages):
+                time.sleep(0.1)
                 friend_button,is_last=select_in_messageList(friend)
                 if friend_button:
                     if is_last:
-                        rec=friend_button.rectangle()
-                        mouse.click(coords=(int(rec.left+rec.right)//2,rec.bottom-50))
-                        is_find=current_chat.exists()
+                        is_find=False
                     else:
                         friend_button.click_input()
                         is_find=current_chat.exists()  
@@ -1156,3 +1155,4 @@ class Navigator():
             program_window.close()
 
             return None
+
