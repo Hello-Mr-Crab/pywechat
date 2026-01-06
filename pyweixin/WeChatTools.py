@@ -913,9 +913,9 @@ class Navigator():
         if search_pages:
             is_find,main_window=Navigator.find_friend_in_MessageList(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
             if is_find:#is_find不为False,即说明find_friend_in_MessageList找到了聊天窗口,直接返回结果
-                rec=main_window.rectangle()
-                x,y=rec.right-50,rec.bottom-100
-                mouse.click(coords=(x,y))
+                edit_area=main_window.child_window(**Edits.CurrentChatEdit)
+                if edit_area.exists(timeout=0.1):
+                    edit_area.click_input()
                 Tools.cancel_pin(main_window)
                 return main_window
             #is_find为False没有在会话列表中找到好友,直接在顶部搜索栏中搜索好友
@@ -966,11 +966,11 @@ class Navigator():
                 friend_button=get_searh_result(friend=friend,search_result=search_results)
                 if friend_button:
                     friend_button.click_input()
-                    rec=main_window.rectangle()
-                    x,y=rec.right-50,rec.bottom-100
-                    mouse.click(coords=(x,y))
+                    edit_area=main_window.child_window(**Edits.CurrentChatEdit)
+                    if edit_area.exists(timeout=0.1):
+                        edit_area.click_input()
                     Tools.cancel_pin(main_window)
-                    return main_window#同时返回搜索到的该好友的聊天窗口与主界面！若只需要其中一个需要使用元祖索引获取。
+                    return main_window
                 else:#搜索结果栏中没有关于传入参数friend好友昵称或备注的搜索结果，关闭主界面,引发NosuchFriend异常
                     chat_button.click_input()
                     main_window.close()
@@ -1155,5 +1155,6 @@ class Navigator():
             program_window.close()
 
             return None
+
 
 
