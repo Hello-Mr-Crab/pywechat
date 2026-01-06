@@ -1628,6 +1628,64 @@ class FriendSettings():
         pyautogui.hotkey('ctrl','v')
         pyautogui.press('enter')
 
+class AutoReply():
+    
+    @staticmethod
+    def auto_reply_to_friend(friend:str,duration:str,content:str,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->None:
+        '''
+        该方法用来实现类似QQ的自动回复某个好友指定的消息
+        Args:
+            friend:好友或群聊备注
+            duration:自动回复持续时长,格式:'s','min','h',单位:s/秒,min/分,h/小时
+            content:指定的回复内容,比如:自动回复[微信机器人]:您好,我当前不在,请您稍后再试
+            search_pages:在会话列表中查询查找好友时滚动列表的次数,默认为5,一次可查询5-12人,当search_pages为0时,直接从顶部搜索栏搜索好友信息打开聊天界面\n
+            folder_path:存放聊天记录截屏图片的文件夹路径
+            is_maximize:微信界面是否全屏,默认全屏
+            close_weixin:任务结束后是否关闭微信,默认关闭
+        '''
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+        if search_pages is None:
+            search_pages=GlobalConfig.search_pages
+        duration=Tools.match_duration(duration)#将's','min','h'转换为秒
+        if not duration:#不按照指定的时间格式输入,需要提前中断退出
+            raise ValueError
+        #打开好友的对话框,返回值为编辑消息框和主界面
+        main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
+        #需要判断一下是不是公众号
+        voice_call_button=main_window.child_window(**Buttons.VoiceCallButton)
+        video_call_button=main_window.child_window(**Buttons.VideoCallButton)
+        if not voice_call_button.exists(timeout=0.1):
+            #公众号没有语音聊天按钮
+            main_window.close()
+            raise NotFriendError(f'非正常好友,无法自动回复!')
+        if not video_call_button.exists(timeout=0.1) and voice_call_button.exists(timeout=0.1):
+            main_window.close()
+            raise NotFriendError('auto_reply_to_friend只用来自动回复好友,如需自动回复群聊请使用auto_reply_to_group!')
+        ########################################################################################################
+        chatList=main_window.child_window(**Lists.FriendChatList)#聊天界面内存储所有信息的容器
+        initial_message=chatList.children(control_type='ListItem')[-1]#刚打开聊天界面时的最后一条消息的listitem
+        initial_runtime_id=initial_message.element_info.runtime_id
+        SystemSettings.copy_text_to_windowsclipboard(content)#复制回复内容到剪贴板
+        SystemSettings.open_listening_mode()#开启监听模式,此时电脑只要不断电不会息屏 
+        end_timestamp=time.time()+duration#根据秒数计算截止时间
+        while time.time()<end_timestamp:
+            newMessage=chatList.children(control_type='ListItem')[-1]
+            runtime_id=newMessage.element_info.runtime_id
+            if runtime_id!=initial_runtime_id and newMessage.window_text()!=content: 
+            #消息列表内的最后一条消息(listitem)不等于刚打开聊天界面时的最后一条消息(listitem)
+            #并且最后一条消息的发送者是好友时自动回复
+            #这里我们判断的是两条消息(listitem)是否相等,不是文本是否相等,要是文本相等的话,对方一直重复发送
+            #刚打开聊天界面时的最后一条消息的话那就一直不回复了
+                pyautogui.hotkey('ctrl','v',_pause=False)
+                pyautogui.hotkey('alt','s',_pause=False)
+                initial_runtime_id=runtime_id
+        SystemSettings.close_listening_mode()
+        if close_weixin:
+            main_window.close()
+
 class Moments():
     pass
 class GroupSettings():
@@ -1635,3 +1693,4 @@ class GroupSettings():
 class Collections():
 
     pass    
+
