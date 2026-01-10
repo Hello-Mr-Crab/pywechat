@@ -1,7 +1,7 @@
 '''微信自动化过程中各种可能产生的错误'''
 from pywinauto.findwindows import ElementNotFoundError
 from pywinauto.uia_defines import NoPatternInterfaceError
-class WeChatNotStartError(Exception):
+class NotStartError(Exception):
     def __init__(self, Error='微信未启动,请启动后再调用此函数！'):
         super().__init__(Error)
 class NetWorkNotConnectError(Exception):
@@ -60,9 +60,6 @@ class CantSendEmptyMessageError(Exception):
         super().__init__(Error)
 class CantReplyToOfficialAccountError(Exception):
     def __init__(self, Error='不能自动回复公众号!'):
-        super().__init__(Error)
-class WrongParameterError(Exception):
-    def __init__(self, Error='state的取值应为open或close!'):
         super().__init__(Error)
 class NotInstalledError(Exception):
     def __init__(self, Error='未找到微信注册表路径,可能未安装4.0版本PC微信!'):
