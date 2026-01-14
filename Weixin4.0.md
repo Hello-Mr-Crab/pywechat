@@ -11,6 +11,10 @@
 - WeChatAuto.Messages
 - WeChatAuto.Files
 - WeChatAuto.Call
+- WeChatAuto.Monitor
+- WeChatAuto.Moments
+- WeChatAuto.AutoReply
+- WeChatAuto.Contacts
   
 ## 原理:
 Windows的可访问性API（UI Automation）在设计上必须向屏幕阅读器暴露所有UI元素的信息（包括隐藏、禁用元素）
