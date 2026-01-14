@@ -7,12 +7,13 @@ WechatAuto
 所有的方法都位于这些静态类内,导入后使用XX.yy的方式使用即可
 
     - `AutoReply`:微信自动回复的一些方法
-    - `Messages`: 关于微信消息的一些方法,包括收发消息,获取聊天记录,获取聊天会话等功能
-    - `Files`:  关于微信文件的一些方法,包括发送文件,导出文件等功能
     - `Call`: 给某个好友打视频或语音电话
-    - `Moments`: 与朋友圈相关的一些方法(开发ing...)
     - `Collections`: 与收藏相关的一些方法(开发ing...)
-    - `Settings`: 与微信设置相关的一些方法,更换主题,更换语言等(开发ing...)
+    - `Files`:  关于微信文件的一些方法,包括发送文件,导出文件等功能
+    - `Messages`: 关于微信消息的一些方法,包括收发消息,获取聊天记录,获取聊天会话等功能
+    - `Monitor`: 关于微信监听消息的一些方法,包括监听单个聊天窗口的消息
+    - `Moments`: 与朋友圈相关的一些方法(开发ing...),发布朋友圈
+    - `Settings`: 与微信设置相关的一些方法,更换主题,更换语言,修改自动下载文件大小
     - `FriendSettings`: 与好友设置相关的一些方法(开发ing..)
 
 Examples:
@@ -1532,7 +1533,7 @@ class Moments():
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
         if not texts and not medias:
-            raise ValueError(f'文本与图片至少要有一个!')
+            raise ValueError(f'文本与图片视频至少要有一个!')
         moments=Navigator.open_moments(is_maximize=is_maximize,close_weixin=close_weixin)
         post_button=moments.child_window(**Buttons.PostButton)
         post_button.right_click_input()
@@ -1554,7 +1555,7 @@ class Moments():
             text_input=publish_panel.child_window(**Edits.SnsEdit)
             text_input.click_input()
             text_input.set_text(texts)
-        #不要轻易尝试微信会卡死！
+        #微信会卡死！
         # if at_members:
         #     at_group=publish_panel.child_window(**Groups.AtGroup)
         #     at_group.click_input()
@@ -1565,7 +1566,7 @@ class Moments():
         
     def dump_recent_moments(is_maximize:bool=None,close_weixin:bool=None):
         moments=Navigator.open_moments(is_maximize=is_maximize,close_weixin=close_weixin)
-
+        
 class Messages():
 
     @staticmethod
@@ -2120,7 +2121,7 @@ class Monitor():
     @staticmethod
     def grab_red_packet(dialog_window:WindowSpecification,duration:str,close_dialog_window:bool=True)->int:
         '''
-        该函数用来抢红包
+        该函数用来点击领取好友发送的红包,群聊中的红包,微信的设定是电脑端无法打开因此无法打开
         Args:
             dialog_window:好友单独的聊天窗口,可使用Navigator内的方法打开
             duraiton:监听持续时长
