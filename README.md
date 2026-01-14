@@ -1,6 +1,6 @@
 # pywechat🥇
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/wechat.png)
-## 🍬🍬微信RPA工具,现支持4.1+部分功能具体使用方法见
+## 🍬🍬微信RPA工具,现支持4.1+部分功能具体使用方法见：
 
 https://github.com/Hello-Mr-Crab/pywechat/blob/main/Weixin4.0.md
 
@@ -8,7 +8,7 @@ https://github.com/Hello-Mr-Crab/pywechat/blob/main/Weixin4.0.md
 
 ### 微信版本:3.9+,4.1+
 ### 操作系统:🪟windows 10 🪟windows 11
-### python版本🐍:3.8+(支持TypeHint)
+### python版本🐍:3.9+(支持TypeHint)
 ### 支持语言:简体中文,English,繁体中文
 ### pywechat项目结构：
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/pywechat结构图.png)
@@ -18,9 +18,6 @@ https://github.com/Hello-Mr-Crab/pywechat/blob/main/Weixin4.0.md
   from pyweixin import xx(class)
   class.Method
   ```
-<br>
-
-### 注意:针对未登录的情况,pywechat最新版本会通过查询环境变量,注册表等一些方法尽可能地自动找到微信路径,除非你的微信路径手动修改过,发生了变动的话可能需要将微信路径加入到环境变量或手动传入
 
 <br>
 
@@ -44,7 +41,7 @@ pip install --upgrade pywechat127
 git clone https://github.com/Hello-Mr-Crab/pywechat.git
 ```
 
-### 模块介绍
+### Pywechat模块介绍
 ### (3.9+微信)
 #### WechatTools🌪️🌪️
 ##### 模块包括:
@@ -72,8 +69,8 @@ git clone https://github.com/Hello-Mr-Crab/pywechat.git
 ##### 函数：该模块内所有函数与方法一致。
 <br>
 
-### 模块介绍
-### (4.1+微信)
+### Pyweixin模块介绍
+### 适用于(4.1+微信)
 #### WechatTools🌪️🌪️
 ##### class包括:
 ##### Tools:关于PC微信的一些工具,包括打开PC微信内各个界面的open系列方法。
@@ -84,16 +81,18 @@ git clone https://github.com/Hello-Mr-Crab/pywechat.git
 ##### class包括：
 ###### Messages: 消息发送,聊天记录获取,聊天会话导出等条。 
 ###### Files: 文件发送，聊天文件导出等。
-###### FriendSettings: PC微信针对某个好友的一些操作。
-###### GroupSettings: 未实现,微信在群聊设置界面UI无法被看到。
+###### FriendSettings: PC微信针对某个好友的一些相关设置。
 ###### Contacts: 获取通讯录内好友的信息。
 ###### Call: 给某个好友打视频或语音电话。
-##### Moments:针对微信朋友圈的一些方法,包括数据爬取，发布朋友圈(未实现)
+##### Moments:针对微信朋友圈的一些方法,包括数据爬取，发布朋友圈
+###### Monitor:监听消息操作
+###### AutoReply:自动回复操作
+
 <br>
 
 #### WinSettings🔹🔹
 ##### class包括：
-##### Systemsettings:该模块中提供了一些修改windows系统设置的方法。
+##### SystemSettings:该模块中提供了一些修改windows系统设置的方法(主要用于与微信交互)。
 <br>
 
 
@@ -248,6 +247,7 @@ print(check_new_message())
 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！ 
 
 ###### 作者CSDN主页:https://blog.csdn.net/weixin_73953650?spm=1011.2415.3001.5343
+
 
 
 
