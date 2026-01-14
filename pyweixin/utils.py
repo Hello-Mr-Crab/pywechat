@@ -3,6 +3,7 @@ import time
 import psutil
 import pyautogui
 from functools import wraps
+from pywinauto import WindowSpecification
 from .Config import GlobalConfig
 from .WeChatTools import Navigator,Tools
 from .WinSettings import SystemSettings
@@ -82,7 +83,7 @@ def auto_reply_to_friend_decorator(duration:str,friend:str,search_pages:int=5,is
     return decorator 
 
 
-def get_new_message_num(is_maximize:bool=None,close_weixin:bool=None):
+def get_new_message_num(main_window:WindowSpecification=None,is_maximize:bool=None,close_weixin:bool=None):
     '''
     该函数用来获取侧边栏左侧微信按钮上的红色新消息总数
     Args:
@@ -95,7 +96,8 @@ def get_new_message_num(is_maximize:bool=None,close_weixin:bool=None):
         is_maximize=GlobalConfig.is_maximize
     if close_weixin is None:
         close_weixin=GlobalConfig.close_weixin
-    main_window=Navigator.open_weixin(is_maximize=is_maximize)
+    if main_window is None:
+        main_window=Navigator.open_weixin(is_maximize=is_maximize)
     chats_button=main_window.child_window(**SideBar.Chats)
     chats_button.click_input()
     #左上角微信按钮的红色消息提示(\d+条新消息)在FullDescription属性中,
@@ -109,10 +111,11 @@ def get_new_message_num(is_maximize:bool=None,close_weixin:bool=None):
     else:
         return 0
     
-def scan_for_new_messages(is_maximize:bool=None,close_weixin:bool=None)->dict:
+def scan_for_new_messages(main_window:WindowSpecification=None,is_maximize:bool=None,close_weixin:bool=None)->dict:
     '''
     该函数用来扫描检查一遍消息列表中的所有新消息,返回发送对象以及新消息数量(不包括免打扰)
     Args:
+        main_window:微信主界面实例,可以用于二次开发中直接传入main_window,也可以不传入,不传入自动打开
         is_maximize:微信界面是否全屏，默认不全屏
         close_weixin:任务结束后是否关闭微信，默认关闭
     Returns:
@@ -135,10 +138,11 @@ def scan_for_new_messages(is_maximize:bool=None,close_weixin:bool=None)->dict:
         is_maximize=GlobalConfig.is_maximize
     if close_weixin is None:
         close_weixin=GlobalConfig.close_weixin
-    
+    if main_window is None:
+        main_window=Navigator.open_weixin(is_maximize=is_maximize)
     newMessageSenders=[]
     newMessageNums=[]
-    main_window=Navigator.open_weixin(is_maximize=is_maximize)
+   
     chats_button=main_window.child_window(**SideBar.Chats)
     chats_button.click_input()
     #左上角微信按钮的红色消息提示(\d+条新消息)在FullDescription属性中,
@@ -169,10 +173,9 @@ def scan_for_new_messages(is_maximize:bool=None,close_weixin:bool=None)->dict:
         main_window.close()
     return newMessages_dict
 
-
 def language_detector():
     """
-    通过WechatAppex的命令行参数判断语言版本
+    通过WechatAppex.exe的命令行参数判断语言版本
     Returns:
         lang:简体中文,繁体中文,English
     """
@@ -183,7 +186,6 @@ def language_detector():
             if not cmdline:
                 continue
     cmd_str=' '.join(cmdline).lower()
-    print(cmd_str)
     if '--lang=zh-cn' in cmd_str:
         lang='简体中文'
     if '--lang=zh-tw' in cmd_str:
