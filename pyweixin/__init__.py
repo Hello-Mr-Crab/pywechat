@@ -25,10 +25,11 @@ Modules
 Have fun in WechatAutomation (＾＿－)
 ====
 '''
-from pyweixin.WeChatAuto import Messages,Contacts,Files,FriendSettings,Moments，AutoReply
+from pyweixin.WeChatAuto import Messages,Contacts,Files,FriendSettings,Moments,AutoReply,Monitor
 from pyweixin.WeChatTools import Tools,Navigator
 from pyweixin.WinSettings import SystemSettings
 from pyweixin.Config import GlobalConfig
 #Author:Hello-Mr-Crab
 #version:1.9.6
+
 
