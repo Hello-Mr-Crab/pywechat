@@ -55,15 +55,11 @@ class Buttons():
         self.ConfirmButton={'control_type':'Button','title':'确定'}#确定操作按钮
         self.CancelButton={'control_type':'Button','title':'取消'}#取消操作按钮
         self.DeleteButton={'control_type':'Button','title':'确定'}#删除好友按钮
-        self.ClearButton={'control_type':'Button','title':'确定'}#删除好友时的确定按钮
-        self.MultiSelectButton={'control_type':'Button','title':'多选'}#转发消息或文件时的多选按钮
-        self.HangUpButton={'control_type':'Button','title':'挂断'}#接听语音或视频电话按钮
         self.SendButton={'control_type':'Button','title':'发送'}#转发文件或消息按钮
         self.SendRespectivelyButton={'control_type':'Button','title_re':'分别发送'}#转发消息时分别发送按钮
         self.SettingsButton={'control_type':'Button','title':'设置','found_index':0}#工具栏打开微信设置menu内的选项按钮
         self.ChatFilesButton={'control_type':'Button','title':'聊天文件','found_index':0}#工具栏打开微信设置menu内的选项按钮
         self.ClearChatHistoryButton={'control_type':'Button','title':'清空聊天记录'}#清空好友或群聊聊天记录时的按钮
-        self.RestoreDefaultSettingsButton={'control_type':'Button','title':'恢复默认设置'}#微信设置回复默认设置
         self.VoiceCallButton={'control_type':'Button','title':'语音聊天'}#给好友拨打语音电话按钮
         self.VideoCallButton={'control_type':'Button','title':'视频聊天'}#给好友拨打视频电话按钮
         self.CompleteButton={'title':'完成','auto_id':'confirm_btn','control_type':'Button'}#完成按钮
@@ -72,20 +68,13 @@ class Buttons():
         self.TagEditButton={'control_type':'Button','title':'点击编辑标签'}#编辑好友标签按钮
         self.ChatHistoryButton={'control_type':'Button','title':'聊天记录'}#获取聊天记录按钮
         self.ChangeGroupNameButton={'control_type':'Button','title':'群聊名称'}#修改群聊名称按钮
-        self.MyNicknameInGroupButton={'control_type':'Button','title':'我在本群的昵称'}#修改群内我的昵称按钮
-        self.RemarkButton={'control_type':'Button','title':'备注'}#修改群聊备注时的按钮
-        self.QuitGroupButton={'control_type':'Button','title':'退出群聊'}#退出某个群聊时的按钮
-        self.DeleteButton={'control_type':'Button','title':'删除'}#将好友从群聊删除时界面内的按钮
-        self.EditButton={'control_type':'Button','title':'编辑'}#编辑群公告内已有内容时下方的按钮
-        self.EditGroupNotificationButton={'control_type':'Button','title':'点击编辑群公告'}#编辑群公告按钮
-        self.PublishButton={'control_type':'Button','title':'发布'}#编辑群公告完成后发布群公告的发布按钮
         self.ContactsManageButton={'title':'通讯录管理','control_type':'Button'}#通讯录管理按钮
         self.ConfirmEmptyChatHistoryButon={'title':'清空','control_type':'Button'}#点击清空聊天记录后弹出的query界面内的清空按钮
         self.MoreButton={'title':'更多','control_type':'Button'}#打开微信好友设置界面更多按钮
         self.LogoutButton={'title':'退出登录','control_type':'Button'}#设置界面里退出登录按钮
         self.RefreshButton={'title':'刷新','control_type':'Button'}#朋友圈的刷新按钮
         self.RectentGroupButton={'title':'最近群聊','control_type':'Button'}#通讯录设置界面里的最近群聊按钮
-        self.MultiPersonCallButton={'title':'多人通话','control_type':'Button'}#群聊界面里的多人通话
+        self.GroupCallButton={'title':'多人通话','control_type':'Button'}#群聊界面里的多人通话
         self.PostButton={'title':'发表','control_type':'Button'}#微信朋友圈界面里的发表按钮
 
 class Edits():
@@ -101,6 +90,7 @@ class Edits():
         self.EditWnd={'control_type':'Edit','class_name':'EditWnd','framework_id':'Win32'}#通用的编辑框,主要出现在好友和群聊设置界面里
         self.NativeFileSaveEdit={'control_type':'Edit','framework_id':'Win32','top_level_only':False,'class_name':'Edit'}#windows本地选择文件夹窗口底部的编辑栏
         self.SnsEdit={'title':'','control_type':'Edit','class_name':"mmui::XValidatorTextEdit"}#朋友圈发布界面内的文本编辑框
+
 class ListItems():
     def __init__(self):
         '''微信主界面内所有类型为ListItem的UI控件'''
@@ -110,6 +100,8 @@ class ListItems():
         self.TagListItem={'control_type':'ListItem','class_name':'mmui::ContactsManagerControlFolderCell','title':'标签'}#通讯录管理界面中的标签
         self.RecentGroupListItem={'control_type':'ListItem','class_name':'mmui::ContactsManagerControlFolderCell','title':'最近群聊'}#通讯录管理界面中的最近群聊
         self.AllListItem={'title':'全部','control_type':'ListItem','class_name':'mmui::XTableCell'}#聊天文件界面中的全部
+        self.SnsContentListItem={'control_type':'ListItem','class_name':'mmui::TimeLineContentCell'}#朋友圈内容ListItem
+        self.LinkListItem={'control_type':'ListItem','title':'链接'}#微信收藏界面组边链接分组
 
 class Texts():
     '''微信主界面以及设置界面内所有类型为Text的UI控件'''
@@ -121,12 +113,6 @@ class Texts():
         self.LanguageText={'title':'语言','control_type':'Text'}#设置界面内的语言文本
         self.FontSizeText={'title':'字体大小','control_type':'Text'}#设置界面内的字体大小文本
         self.SearchContactsResult={'title_re':'搜索','control_type':'Text'}#搜索联系人时的文本结果
-        self.ChangeGroupNameWarnText={'title':'仅群主或管理员可以修改','control_type':'Text'}#修改群名时如果有这个文本，无权修改
-        self.EditGroupNoticeWarnText={'title':'仅群主和管理员可编辑','control_type':'Text'}#编辑群公告或群名时，如果界面有这个文本，无权编辑
-        self.SendMessageShortcutText={'title':'发送消息','control_type':'Text'}#发送消息快捷键文本,修改快捷键设置时要用到
-        self.CptureScreenShortcutText={'title':'截取屏幕','control_type':'Text'}#截取屏幕快捷键文本,修改快捷键设置时要用到
-        self.OpenWechatShortcutText={'title':'打开微信','control_type':'Text'}#打开微信快捷键文本,修改快捷键设置时要用到
-        self.LockWechatShortcutText={'title':'锁定微信','control_type':'Text'}#锁定微信快捷键文本,修改快捷键设置时要用到
         self.LanguageText={'title':'语言','control_type':'Text'}#语言文本，修改微信语言时要用到
         self.GroupNameText={'title':'群聊名称','control_type':'Text'}#群聊设置界面内的群聊名称文本
 
@@ -160,6 +146,7 @@ class Lists():
         self.SideList={'control_type':'List','class_name':'mmui::ContactsManagerControlView'}#通讯录管理界面左侧侧边栏
         self.ContactsManageList={'control_type':'List','class_name':'mmui::ContactsManagerControlView'}#通讯录管理界面左侧列表
         self.FileList={'control_type':'List','auto_id':'file_list','class_name':'mmui::XRecyclerTableView'}#聊天文件右侧的文件列表
+        self.MomentsList={'control_type':'List','auto_id':'sns_list','class_name':'mmui::TimeLineListView'}#朋友圈列表
 
 class Panes():
     def __init__(self):
@@ -196,7 +183,7 @@ class MenuItems():
         self.SelectMenuItem={'title':'多选','control_type':'MenuItem'}#右键消息后的多选选项
         self.EnlargeMeunItem={'title':'放大阅读','control_type':'MenuItem'}#右键消息后的放大选项
         self.FindInChatMenuItem={'title':'定位到聊天位置','control_type':'MenuItem'}#聊天记录页面内右键消息后的Find in chat选项
-        self.OpenWithDefaultBrowser={'title':'使用默认浏览器打开','control_type':'MenuItem'}#聊天记录页面内Link类型的消息后的使用默认浏览器打开
+        self.CopyLinkMenuItem={'title':'复制链接','auto_id':'XMenuItem','control_type':'MenuItem'}#在收藏界面右键菜单里的复制链接选项目
 
 class CheckBoxes():
     def __init__(self):
@@ -216,20 +203,18 @@ class Windows():
         self.EditPrivacyWindow={'title':'朋友权限','class_name':'WeUIDialog','framework_id':'Win32'}#设置好友权限窗口
         self.EditContactWindow={'title':'设置备注和标签','class_name':'WeUIDialog','framework_id':'Win32'}#设置好友备注和标签的窗口
         self.SettingsMenu={'class_name':'SetMenuWnd','control_type':'Window'}#设置与其他按钮按下后的菜单栏
-        self.DeleteMemberWindow={'title':'DeleteMemberWnd','control_type':'Window','framework_id':'Win32'}#群聊踢人面板
-        self.AddMemberWindow={'title':'AddMemberWnd','control_type':'Window','framework_id':'Win32'}#群聊拉人面板
-        self.SelectContactWindow={'title':'','control_type':'Window','class_name':'SelectContactWnd','framework_id':'Win32'}#转发消息时或推荐名片时的选择好友面板
         self.PopUpProfileWindow={'title':'Weixin','control_type':'Window','class_name':'mmui::ProfileUniquePop'}#好友设置界面点击头像后弹出的个人简介窗口
         self.MomentsWindow={'title':'朋友圈','control_type':'Window','class_name':"mmui::SNSWindow"}#好友朋友圈窗口
         self.NativeChooseFileWindow={'control_type':'Window','framework_id':'Win32','top_level_only':False,'found_index':0}#windows本地选择文件夹窗口
-        self.AtSessionPickerWindow={'control_type':'Window','title':'微信提醒谁看','class_name':'mmui::SessionPickerWindow'}#朋友圈提醒谁看选择窗口
-        self.SessionPickerWindow={'control_type':'Window','title':'微信发送给','class_name':'mmui::SessionPickerWindow'}#朋友圈提醒谁看选择窗口
+        self.MentionPopOverWindow={'control_type':'Window','auto_id':'MentionPopover','found_index':0}#群聊输入@后弹出的群成员选择界面
+        self.SessionPickerWindow={'control_type':'Window','title':'微信发送给','class_name':'mmui::SessionPickerWindow'}
 
 class Login_window():
     '''登录界面要用到的唯二的两个Ui:登录界面与进入微信按钮'''
     def __init__(self):
         self.LoginWindow={'title':'微信','class_name':'mmui::LoginWindow'}#登录微信界面
         self.LoginButton={'control_type':'Button','title':'进入微信'}#进入微信按钮
+        
 
 class SideBar():
     '''主界面侧边栏下的所有Ui'''
@@ -249,7 +234,6 @@ class Main_window():
     '''主界面下所有的第一级Ui'''
     def __init__(self):
         self.MainWindow={'title':'微信','class_name':'mmui::MainWindow','framework_id':'Qt'}#微信主界面
-        self.MySelfButton={'control_type':'Button','found_index':0}#主界面下的第一个按钮,也就是我自己的头像按钮，必须通过main_window.child_window(**Main_window().MySelfButton)使用!
         self.AddTalkMemberWindow={'title':'微信选择成员','control_type':'Window','class_name':"mmui::SessionPickerWindow",'framework_id':'Qt'}#添加新朋友时弹出的窗口
         self.MainWindow={'title':'微信','class_name':'mmui::MainWindow'}#微信主界面
         self.Toolbar={'title':'导航','control_type':'ToolBar'}#主界面左侧的侧边栏
@@ -267,14 +251,12 @@ class Main_window():
         self.SearchNewFriendBar={'title':'微信号/手机号','control_type':'Edit'}#添加好友时顶部搜索栏名称
         self.SearchNewFriendResult={'title_re':'@str:IDS_FAV_SEARCH_RESULT','control_type':'List'}#添加新朋友时的搜索结果
         self.AddFriendRequestWindow={'title':'添加朋友请求','class_name':'WeUIDialog','control_type':'Window','framework_id':'Win32'}#添加朋友请求窗口
-        self.AddMemberWindow={'title':'AddMemberWnd','control_type':'Window','framework_id':'Win32'}#群聊拉人面板
-        self.DeleteMemberWindow={'title':'DeleteMemberWnd','control_type':'Window','framework_id':'Win32'}#群聊踢人面板
         self.Tickle={'title':'拍一拍','control_type':'MenuItem'}#拍一拍好友
         self.SelectContactWindow={'title':'','control_type':'Window','class_name':'SelectContactWnd','framework_id':'Win32'}#转发消息时或推荐名片时的选择好友面板
         self.SetTag={'title':'设置标签','framework_id':'Win32','class_name':'StandardConfirmDialog'}#设置好友标签窗口
         self.FriendChatList={'title':'消息','control_type':'List'}#主界面右侧聊天区域内与好友的消息列表
         self.SearchContactsResult={'title_re':'搜索','control_type':'Text'}#推荐好友面板内搜索结果
-        self.EditArea={'control_type':'Edit','class_name':"mmui::ChatInputField"}#好友主界面的聊天区域
+        self.EditArea={'control_type':'Edit','class_name':"mmui::ChatInputField"}#好友主界面的聊天编辑区域
 
 class Independent_window():
     '''独立于微信主界面,将微信主界面关闭后仍能在桌面显示的窗口Ui'''
@@ -304,5 +286,5 @@ class Groups():
     def __init__(self):
         self.ContactProfileGroup={'class_name':'mmui::XView','auto_id':"contact_profile_view",'control_type':'Group'}#通讯录的好友详细信息所处面板
         self.SnsPublishGroup={'auto_id':'SnsPublishPanel','control_type':'Group'}#微信朋友圈后发布按钮点击后的面板
-        self.AtGroup={'title':'提醒谁看','class_name':'mmui::PublishComponent'}#微信朋友圈内的提醒谁看
-        self.WhoCanSeeGroup={'title':'谁可以看','class_name':'mmui::PublishComponent'}#微信朋友圈内的谁可以看
+        self.AtGroup={'title':'提醒谁看','class_name':'mmui::PublishComponent','control_type':'Group'}#微信朋友圈内的提醒谁看
+        self.WhoCanSeeGroup={'title':'谁可以看','class_name':'mmui::PublishComponent','control_type':'Group'}#微信朋友圈内的谁可以看
