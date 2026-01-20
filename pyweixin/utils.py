@@ -31,6 +31,7 @@ class Regex_Patterns():
         self.GroupMember_Num_pattern=re.compile(r'\((\d+)\)$')#通讯录设置界面中每个最近群聊ListItem后边的数字
         self.QtWindow_pattern=re.compile(r'Qt\d+QWindowIcon')#qt窗口通用classname
         self.Filename_pattern=re.compile(r'.*\.\w+\s')#文件名的pattern, 用来匹配.docx,.ppt等文件名，只适合在微信聊天文件界面中使用
+        self.File_Pattern=re.compile(r'文件\n(.*)\n')#微信聊天窗口发送的聊天文件卡片上的内容(有两个换行符)
 
 
 def auto_reply_to_friend_decorator(duration:str,friend:str,search_pages:int=5,is_maximize:bool=False,close_weixin:bool=False):
