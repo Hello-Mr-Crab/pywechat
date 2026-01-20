@@ -18,6 +18,7 @@ Tools
         open_weixin需要将微信主窗口置于桌面顶层,但这可能导致打开微信内独立(比如朋友圈)窗口时,该窗口无法自动浮于微信窗口顶层,
         只是在微信主界面底部,为解决该问题,已在涉及各种类似操作的方法中调用过该方法,如果二次开发时遇到这个特性,可以使用该方法取消微信主窗口置顶
     - `move_window_to_center`: 将未全屏的窗口移动到屏幕中央
+    - `...`
     - `is_scrollable`: 判断列表类型UI是否可以滚动
 
 Navigator
@@ -98,7 +99,7 @@ from pywinauto import mouse,Desktop
 from .Errors import NetWorkNotConnectError #所有可能出现的异常
 from .Errors import NoSuchFriendError
 from .Errors import NotFriendError
-from .Errors import NoResultsError,NotInstalledError,NotStartError
+from .Errors import NoResultsError,NotInstalledError
 from pywinauto.application import TimeoutError
 from pywinauto.controls.uia_controls import ListViewWrapper,ListItemWrapper,EditWrapper #TypeHint要用到
 from pywinauto import WindowSpecification
@@ -179,7 +180,7 @@ class Tools():
         Args:
             copy_to_clipboard:是否将微信路径复制到剪贴板
         '''
-        #执行顺序 正在运行>查询注册表
+        #执行顺序 正在运行->查询注册表
         if Tools.is_weixin_running():
             weixin_path=''
             wmi=win32com.client.GetObject('winmgmts:')
@@ -188,7 +189,7 @@ class Tools():
                 if process.Name.lower() == 'Weixin.exe'.lower():
                     weixin_path=process.ExecutablePath
             if weixin_path:
-                # 规范化路径并检查文件是否存在
+                #规范化路径并检查文件是否存在
                 weixin_path=os.path.abspath(weixin_path)
             if copy_to_clipboard:
                 SystemSettings.copy_text_to_windowsclipboard(weixin_path)
@@ -289,8 +290,7 @@ class Tools():
         msg_folder=Tools.where_msg_folder(open_folder=False)
         if msg_folder:
             video_folder=os.path.join(msg_folder,'video')
-        if open_folder:
-            os.startfile(video_folder)
+        if open_folder:os.startfile(video_folder)
         return video_folder
 
     @staticmethod
@@ -299,8 +299,7 @@ class Tools():
         wxid_folder=Tools.where_wxid_folder(open_folder=False)
         wxid_pattern=re.compile(r'wxid_\w+\d+')
         wxid=wxid_pattern.search(wxid_folder)
-        if wxid:
-            return wxid.group(0)
+        if wxid:return wxid.group(0)
         return ''
 
     @staticmethod
@@ -362,7 +361,7 @@ class Tools():
     
     @staticmethod
     def is_my_bubble(main_window:WindowSpecification,listitem:ListItemWrapper,edit_area:EditWrapper)->bool:
-        '''检测最新的一条消息(bubble)是否是由我发送'''
+        '''右键左侧消息区域检测最新的一条消息(bubble)是否是由本人发送'''
         rect=listitem.rectangle()
         mouse.right_click(coords=(rect.left+100,rect.mid_point().y))
         copy_menu_item=main_window.child_window(title="复制",auto_id="XMenuItem",control_type="MenuItem")        
@@ -372,6 +371,11 @@ class Tools():
             return False
         return True
     
+    @staticmethod
+    def is_group_chat(main_window:WindowSpecification):
+        '''通过是否有多人通话这个按钮来判断是否是当前聊天界面是否是群聊'''
+        return main_window.child_window(**Buttons.GroupCallButton).exists(timeout=0.1)
+
     @staticmethod
     def get_search_result(friend:str,search_result:ListViewWrapper)->(ListItemWrapper|None):
         '''查看顶部搜索列表里有没有名为friend的listitem,只能用来查找联系人,群聊,服务号,公众号'''
@@ -524,7 +528,7 @@ class Navigator():
     '''打开微信内一切能打开的界面'''
     @staticmethod 
     def open_weixin(is_maximize:bool=None)->WindowSpecification:
-        '''打开微信,不登录情况效果不是很好'''
+        '''打开微信,不登录情况效果不是很好,建议登录'''
         def log_in(wx_window):
             '''登录逻辑'''
             login_window=move_window_to_center(wx_window,is_maximize=is_maximize)
@@ -673,7 +677,7 @@ class Navigator():
     #     return wechat_tray
 
     @staticmethod
-    def open_collections(is_maximize:bool=None):
+    def open_collections(is_maximize:bool=None)->WindowSpecification:
         '''
         该方法用于打开收藏界面
         Args:
@@ -681,7 +685,7 @@ class Navigator():
         '''
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
-        main_window=Tools.open_weixin(is_maximize=is_maximize)
+        main_window=Navigator.open_weixin(is_maximize=is_maximize)
         collections_button=main_window.child_window(**SideBar.Collections)
         collections_button.click_input()
         return main_window
@@ -785,7 +789,6 @@ class Navigator():
         moments_button=main_window.child_window(**SideBar.Moments)
         moments_button.click_input()
         moments_window=Tools.move_window_to_center(Independent_window.MomentsWindow)
-        # moments_window.child_window(**Buttons.RefreshButton).click_input()
         if close_weixin:
             main_window.close()
         return moments_window
@@ -1287,4 +1290,3 @@ class Navigator():
             print('网络不良,请尝试增加load_delay时长,或更换网络!')
             program_window.close()
             return None
-        
