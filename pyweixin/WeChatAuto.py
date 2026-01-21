@@ -2295,34 +2295,38 @@ class Monitor():
         chatList=dialog_window.child_window(**Lists.FriendChatList)#聊天界面内存储所有信息的容器
         copy_item=dialog_window.child_window(**MenuItems.CopyItem)
         activate_chatList(chatList)
-        initial_message=chatList.children(control_type='ListItem')[-1]#刚打开聊天界面时的最后一条消息的listitem
-        initial_runtime_id=initial_message.element_info.runtime_id
+        if chatList.children(control_type='ListItem'):
+            initial_message=chatList.children(control_type='ListItem')[-1]#刚打开聊天界面时的最后一条消息的listitem
+            initial_runtime_id=initial_message.element_info.runtime_id
+        if not chatList.children(control_type='ListItem'):
+            initial_runtime_id=0
         end_timestamp=time.time()+duration#根据秒数计算截止时间
         SystemSettings.open_listening_mode(volume=False)
         while time.time()<end_timestamp:
-            newMessage=chatList.children(control_type='ListItem')[-1]
-            runtime_id=newMessage.element_info.runtime_id
-            if runtime_id!=initial_runtime_id: 
-                total+=1
-                if capture_alia:
-                    alia_image=Tools.capture_alias(newMessage)
-                    alia_images.append(alia_image)
-                if newMessage.class_name()=='mmui::ChatTextItemView':
-                    texts.append(newMessage.window_text())
-                if newMessage.class_name()=='mmui::ChatBubbleItemView' and newMessage.window_text()[:2]=='[链接]':
-                    link_count+=1
-                if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and newMessage.window_text()=='图片':
-                    image_count+=1
-                    unique_id=make_unique_id(newMessage)#把图片的runtime_id和其所处的listitem高度保存下来结合一下作为它的唯一可识别属性
-                    image_ids.append(unique_id)
-                    #只是依靠class_name,window_text还有数量筛选，假如结束时又新发了几张图片，内容会对不上         
-                if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and '视频' in newMessage.window_text():
-                    video_count+=1#视频需要下载直接右键复制,不行需要先点击,如果时间长,要等半天，不太方便
-                if newMessage.class_name()=='mmui::ChatBubbleItemView' and '文件' in newMessage.window_text():
-                    filename=file_pattern.search(newMessage.window_text()).group(1)
-                    filepath=os.path.join(chatfile_folder,timestamp,filename)
-                    files.append(filepath)
-                initial_runtime_id=runtime_id
+            if chatList.children(control_type='ListItem'):
+                newMessage=chatList.children(control_type='ListItem')[-1]
+                runtime_id=newMessage.element_info.runtime_id
+                if runtime_id!=initial_runtime_id: 
+                    total+=1
+                    if capture_alia:
+                        alia_image=Tools.capture_alias(newMessage)
+                        alia_images.append(alia_image)
+                    if newMessage.class_name()=='mmui::ChatTextItemView':
+                        texts.append(newMessage.window_text())
+                    if newMessage.class_name()=='mmui::ChatBubbleItemView' and newMessage.window_text()[:2]=='[链接]':
+                        link_count+=1
+                    if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and newMessage.window_text()=='图片':
+                        image_count+=1
+                        unique_id=make_unique_id(newMessage)#把图片的runtime_id和其所处的listitem高度保存下来结合一下作为它的唯一可识别属性
+                        image_ids.append(unique_id)
+                        #只是依靠class_name,window_text还有数量筛选，假如结束时又新发了几张图片，内容会对不上         
+                    if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and '视频' in newMessage.window_text():
+                        video_count+=1#视频需要下载直接右键复制,不行需要先点击,如果时间长,要等半天，不太方便
+                    if newMessage.class_name()=='mmui::ChatBubbleItemView' and '文件' in newMessage.window_text():
+                        filename=file_pattern.search(newMessage.window_text()).group(1)
+                        filepath=os.path.join(chatfile_folder,timestamp,filename)
+                        files.append(filepath)
+                    initial_runtime_id=runtime_id
        
         SystemSettings.close_listening_mode()
         #最后结束时再批量复制到target_folder,不在循环里逐个复制是考虑到若文件过大(几百mb)没有自动下载完成移动不了
@@ -2376,3 +2380,4 @@ class Monitor():
         if close_dialog_window:
             dialog_window.close()
         return red_packet_count
+
