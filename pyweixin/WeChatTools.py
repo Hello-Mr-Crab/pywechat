@@ -25,9 +25,8 @@ Navigator
 ----------
     - `open_weixin`: 打开微信主界面
     - `find_friend_in_SessionList`: 在会话列表中查找好友
-    - `open_moments`: 打开通讯录界面
-    - `open_moments`: 打开通讯录管理界面
-    - `open_moments`: 打开收藏
+    - `open_contacts`: 打开通讯录界面
+    - `open_collections`: 打开收藏
     - `open_moments`: 打开朋友圈
     - `open_channels`: 打开视频号
     - `open_search`: 打开搜一搜
@@ -803,7 +802,6 @@ class Navigator():
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
-        Tools.cancel_pin(main_window)
         moments_button=main_window.child_window(**SideBar.Moments)
         moments_button.click_input()
         moments_window=Tools.move_window_to_center(Independent_window.MomentsWindow)
@@ -1308,3 +1306,4 @@ class Navigator():
             print('网络不良,请尝试增加load_delay时长,或更换网络!')
             program_window.close()
             return None
+
