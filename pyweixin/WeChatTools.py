@@ -33,8 +33,9 @@ Navigator
     - `open_search`: 打开搜一搜
     - `open_miniprograme_pane`: 打开小程序面板
     - `open_settings`: 打开设置
-    - `open_chatfiles_folder`: 打开聊天文件
+    - `open_chatfiles`: 打开微信聊天文件
     - `open_dialog_window`: 打开与好友的聊天窗口
+    - `open_friend_profile`:打开好友个人简介界面
     - `open_chatinfo`:  打开好友或群聊右侧的聊天信息界面
     - `open_friend_profile`: 打开好友的个人简介界面
     - `open_friend_moments`: 打开好友的朋友圈窗口
@@ -377,6 +378,13 @@ class Tools():
         return main_window.child_window(**Buttons.GroupCallButton).exists(timeout=0.1)
 
     @staticmethod
+    def activate_chatList(chatList:ListViewWrapper):
+        '''主界面或聊天窗口右侧的消息列表激活至于底部'''
+        activate_position=(chatList.rectangle().right-12,chatList.rectangle().mid_point().y)
+        mouse.click(coords=activate_position)
+        chatList.type_keys('{END}')
+
+    @staticmethod
     def get_search_result(friend:str,search_result:ListViewWrapper)->(ListItemWrapper|None):
         '''查看顶部搜索列表里有没有名为friend的listitem,只能用来查找联系人,群聊,服务号,公众号'''
         texts=[listitem.window_text() for listitem in search_result.children(control_type="ListItem")]
@@ -393,6 +401,16 @@ class Tools():
                 return listitems[0]
         return None
     
+    @staticmethod
+    def capture_alias(listitem:ListItemWrapper):
+        '''用来截取发送消息的群成员昵称'''
+        rectangle=listitem.rectangle()
+        width=rectangle.right-rectangle.left
+        x=rectangle.left+80
+        y=rectangle.top
+        image=pyautogui.screenshot('test.png',region=(x,y,width-80,36))
+        return image
+
     @staticmethod
     def collapse_contact_manage(contacts_manage:WindowSpecification):
         '''用来收起通讯录管理界面中每个分区:包括"朋友权限","标签","最近群聊"
@@ -560,9 +578,9 @@ class Navigator():
                 win32gui.MoveWindow(window.handle,new_left,new_top,window_width,window_height,True)
             ###############################
             if is_maximize:
-                win32gui.ShowWindow(window.handle,win32con.SW_MAXIMIZE)
+                win32gui.SendMessage(window.handle, win32con.WM_SYSCOMMAND, win32con.SC_MAXIMIZE,0)
             if not is_maximize:
-                win32gui.ShowWindow(window.handle,win32con.SW_SHOWNORMAL)
+                win32gui.SendMessage(window.handle, win32con.WM_SYSCOMMAND, win32con.SC_RESTORE,0)
             return window
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
@@ -765,10 +783,10 @@ class Navigator():
         try:
             moments_button=profile_pane.child_window(title='朋友圈',control_type='Button',auto_id='button').wait(wait_for='ready',timeout=2,retry_interval=0.1)
             moments_button.click_input()
-            moments_pane=Tools.move_window_to_center(Window=Windows.MomentsWindow)
+            moments_window=Tools.move_window_to_center(Window=Windows.MomentsWindow)
             if close_weixin:
                 main_window.close()
-            return moments_pane
+            return moments_window
         except TimeoutError:
             return None
 
@@ -1048,7 +1066,7 @@ class Navigator():
         Args:
             friend:好友或群聊备注名称,需提供完整名称
             is_maximize:微信界面是否全屏,默认不全屏
-            window_minimize:独立聊天窗口是否最小化(监听消息方便)
+            window_minimize:独立聊天窗口是否最小化(监听消息方便),默认不最小
             search_pages:在会话列表中查询查找好友时滚动列表的次数,默认为5,一次可查询5-12人,当search_pages为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
         Returns:
             dialog_window:与好友的聊天窗口
