@@ -10,15 +10,20 @@ https://github.com/Hello-Mr-Crab/pywechat/blob/main/Weixin4.0.md
 ### 操作系统:🪟windows 10 🪟windows 11
 ### python版本🐍:3.9+(支持TypeHint)
 ### 支持语言:简体中文,English,繁体中文
-### pywechat项目结构：
-![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/pywechat结构图.png)
+### pyweixin 项目结构：
+![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/pyweixin结构.png)
 <br>
- ## 新版本pyweixin内所有方法需要先导入模块下的类然后调用,使用两行代码即可实现一系列微信自动化操作。🗺️🗺️
-   ```
-  from pyweixin import xx(class)
-  class.Method
-  ```
+## pyweixin内所有方法需要先导入模块下的类然后调用内部方法🗺️🗺️
+```
+from pyweixin import xx(class)
+xx(class).yy(method)
+```
+<br>
 
+### 获取方法（4.1+微信）:
+```
+git clone https://github.com/Hello-Mr-Crab/pywechat.git
+```
 <br>
 
 ### 获取方法（3.9+微信）:
@@ -31,15 +36,81 @@ pip install pywechat127==1.9.7
 ```
 pip install --upgrade pywechat127
 ```
-
 <br>
-
-### 获取方法（4.1+微信）:
-#### 最新版本:1.0
 
 ```
 git clone https://github.com/Hello-Mr-Crab/pywechat.git
 ```
+<br>
+
+### pyweixin模块介绍(适用于4.1+微信)
+#### WechatTools🌪️🌪️
+##### class包括:
+- `Tools`:关于PC微信的一些工具,包括打开PC微信内各个界面的open系列方法。
+- `Navigator`:打开微信内部一切可以打开的界面。
+<br>
+
+#### WechatAuto🛏️🛏️
+##### class包括：
+- `AutoReply`:自动回复操作
+- `Call`: 给某个好友打视频或语音电话。
+- `Contacts`: 获取通讯录内哥功分区好友的信息,获取共同群聊名称,获取好友个人简介
+- `Files`: 文件发送，聊天文件导出等。
+- `FriendSettings`: PC微信针对某个好友的一些相关设置。
+- `Messages`: 消息发送,聊天记录获取,聊天会话导出等条。
+- `Moments`:针对微信朋友圈的一些方法,包括数据爬取，发布朋友圈
+- `Monitor`:监听消息操作
+<br>
+
+#### WinSettings🔹🔹
+##### class包括：
+- `SystemSettings`:该模块中提供了一些修改windows系统设置的方法(在自动化过程中)。
+<br>
+
+#### utils🍬🍬
+##### 内部的一些函数主要用来二次开发,大部分传入的参数是main_window,pywinauto实例化的对象(使用Navigator.open_weixin打开)
+##### class包括：
+- `Regex_Patterns`:自动化过程中用到的正则pattern。
+##### func包括:
+- `At`:在群聊中At指定的一些好友
+- `At_all`:在群聊中At所有人
+- `auto_reply_to_friend_decorator`:自动回复好友装饰器
+- `get_new_message_num`：获取新消息总数,微信按钮上的红色数字
+- `scan_for_newMessages`：会话列表遍历一遍有新消息提示的对象,返回好友名称与数量
+- `open_red_packet`: 点击打开好友发送的红包
+- `language_detector`:微信当前语音检测(不能禁用weAppex.exe,原理是查询weAppex.exe命令行参数)
+<br>
+
+### pyweixin使用示例:
+#### 所有自动化操作只需两行代码即可实现，即：
+```
+from pyweixin import xxx
+xxx.yy
+
+from pyweixin import xxx
+xxx,yy
+```
+<br>
+
+#### 多线程监听消息
+```
+#多线程打开多个好友窗口进行消息监听
+from concurrent.futures import ThreadPoolExecutor
+from pyweixin import Navigator,Monitor
+#先打开所有好友的独立窗口
+dialog_windows=[]
+friends=['Hello,Mr Crab','Pywechat测试群',]
+durations=['1min']*len(friends)
+#不添加其他参数Monitor.listen_on_chat,比如capture_alias,save_photos,这些操作涉及键鼠,无法多线程，只是监听消息，获取文本内容,移动保存文件还是可以的
+for friend in friends:
+    dialog_window=Navigator.open_seperate_dialog_window(friend=friend,window_minimize=True,close_weixin=True)
+    dialog_windows.append(dialog_window)
+with ThreadPoolExecutor(max_workers=len(friends)) as pool:
+    results=pool.map(lambda args: Monitor.listen_on_chat(*args),list(zip(dialog_windows,durations)))
+for friend,result in zip(friends,results):
+    print(friend,result)
+```
+<br>
 
 ### Pywechat模块介绍
 ### (3.9+微信)
@@ -52,14 +123,14 @@ git clone https://github.com/Hello-Mr-Crab/pywechat.git
 
 #### WechatAuto🛏️🛏️
 ##### 模块包括：
-###### Messages: 5种类型的发送消息方法，包括:单人单条,单人多条,多人单条,多人多条,转发消息:多人同一条。 
-###### Files: 5种类型的发送文件方法，包括:单人单个,单人多个,多人单个,多人多个,转发文件:多人同一个。发送多个文件时，你只需将所有文件放入文件夹内，将文件夹路径传入即可。
-###### FriendSettings: 涵盖了PC微信针对某个好友的全部操作的方法。
-###### GroupSettings: 涵盖了PC微信针对某个群聊的全部操作的方法。
-###### Contacts: 获取3种类型通讯录好友的备注与昵称包括:微信好友,企业号微信,群聊名称与人数，数据返回格式为json。
-###### Call: 给某个好友打视频或语音电话。
-###### AutoReply:自动接听微信视频或语音电话,自动回复指定好友消息,自动回复所有好友消息。
-##### Moments:针对微信朋友圈的一些方法,包括数据爬取，图片视频导出
+- `Messages`: 5种类型的发送消息方法，包括:单人单条,单人多条,多人单条,多人多条,转发消息:多人同一条。 
+- `Files`: 5种类型的发送文件方法，包括:单人单个,单人多个,多人单个,多人多个,转发文件:多人同一个。发送多个文件时，你只需将所有文件放入文件夹内，将文件夹路径传入即可。
+- `FriendSettings`: 涵盖了PC微信针对某个好友的全部操作的方法。
+- `GroupSettings`: 涵盖了PC微信针对某个群聊的全部操作的方法。
+- `Contacts`: 获取3种类型通讯录好友的备注与昵称包括:微信好友,企业号微信,群聊名称与人数，数据返回格式为json。
+- `Call`: 给某个好友打视频或语音电话。
+- `AutoReply`:自动接听微信视频或语音电话,自动回复指定好友消息,自动回复所有好友消息。
+- `Moments`:针对微信朋友圈的一些方法,包括数据爬取，图片视频导出
 ##### 函数:该模块内所有函数与方法一致。  
 <br>
 
@@ -69,34 +140,7 @@ git clone https://github.com/Hello-Mr-Crab/pywechat.git
 ##### 函数：该模块内所有函数与方法一致。
 <br>
 
-### Pyweixin模块介绍
-### 适用于(4.1+微信)
-#### WechatTools🌪️🌪️
-##### class包括:
-##### Tools:关于PC微信的一些工具,包括打开PC微信内各个界面的open系列方法。
-##### Navigator:打开微信内部一切可以打开的界面。
-<br>
-
-#### WechatAuto🛏️🛏️
-##### class包括：
-###### Messages: 消息发送,聊天记录获取,聊天会话导出等条。 
-###### Files: 文件发送，聊天文件导出等。
-###### FriendSettings: PC微信针对某个好友的一些相关设置。
-###### Contacts: 获取通讯录内好友的信息。
-###### Call: 给某个好友打视频或语音电话。
-##### Moments:针对微信朋友圈的一些方法,包括数据爬取，发布朋友圈
-###### Monitor:监听消息操作
-###### AutoReply:自动回复操作
-
-<br>
-
-#### WinSettings🔹🔹
-##### class包括：
-##### SystemSettings:该模块中提供了一些修改windows系统设置的方法(主要用于与微信交互)。
-<br>
-
-
-### 使用示例:
+### pywechat使用示例:
 #### 所有自动化操作只需两行代码即可实现，即：
 ```
 from pywechat import xxx
@@ -128,6 +172,7 @@ reply_func()
 
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/decorator.png)
 <br>
+
 #### 监听某个群聊或好友的窗口(自动保存聊天文件与图片和视频)
 ```
 from pywechat import listen_on_chat
@@ -136,6 +181,7 @@ mediasave_folder=r"E:\Desktop\聊天图片与视频保存"
 contents,senders,types=listen_on_chat(friend='测试群',duration='10min',save_file=True,file_folder=filesave_folder,save_media=True,media_folder=mediasave_folder)
 print(contents,senders,types)
 ```
+
 #### 朋友圈数据获取
 ```
 from pywechat import dump_recent_moments
@@ -247,21 +293,6 @@ print(check_new_message())
 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！ 
 
 ###### 作者CSDN主页:https://blog.csdn.net/weixin_73953650?spm=1011.2415.3001.5343
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
