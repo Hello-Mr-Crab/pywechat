@@ -58,16 +58,17 @@ import time
 import json
 import pyautogui
 import win32clipboard
+import win32gui,win32con
 from collections import Counter
 from typing import Literal
 from warnings import warn
 from pywinauto import WindowSpecification
-from pywinauto.controls.uia_controls import ListItemWrapper #TypeHint要用到
+from pywinauto.controls.uia_controls import ListItemWrapper,ListViewWrapper #TypeHint要用到
 #####################################################################################
 #内部依赖
 from .Config import GlobalConfig
 from .utils import Regex_Patterns
-from .utils import scan_for_new_messages
+from .utils import scan_for_new_messages,get_new_message_num
 from .utils import At,At_all
 from .Warnings import LongTextWarning,NoChatHistoryWarning
 from .WeChatTools import Tools,Navigator,mouse,Desktop
@@ -910,6 +911,8 @@ class FriendSettings():
         edit.set_text('')
         edit.set_text(friend)
 
+
+
 class Files():
     @staticmethod
     def send_files_to_friend(friend:str,files:list[str],with_messages:bool=False,messages:list=[str],messages_first:bool=False,
@@ -1250,99 +1253,106 @@ class Files():
         chatfile_window.close()
         return filepaths
 
-    #微信使用ui自动化在sessionpickerwindow搜索选定好友后会莫名其妙卡死然后无响应
-    # @staticmethod
-    # def export_recent_files(is_maximize:bool=None,close_weixin:bool=None):
-    #     def is_duplicate_filename(original,filename):
-    #         '''用来判断两个文件是否属于副本,比如test.csv与text(1).csv
-    #         '''
-    #         #os.path.splittext可以快速提取一个basename中的文件名称和后缀名
-    #         #'简历.docx'使用os.path.splittext后得到‘简历’与'.docx'
-    #         original_stem,original_extension=os.path.splitext(original)
-    #         #pattern:主干相同+(n)+相同扩展名
-    #         #简历.docx与简历(1).docx为副本
-    #         pattern=re.compile(rf'^{re.escape(original_stem)}\(\d+\){re.escape(original_extension)}$') 
-    #         return bool(pattern.match(filename))
+    @staticmethod
+    def export_recent_files(folder_path:str=None,is_maximize:bool=None,close_weixin:bool=None):
+        '''该方法用来导出与某个好友的聊天文件,过期未下载的无法导出
+        Args:
+            folder_path:导出文件存放的文件夹路径,不传入会自动在本地新建一个
+            is_maximize:微信界面是否全屏,默认不全屏。
+            close_weixin:任务结束后是否关闭微信,默认关闭
+        Returns:
+            filepaths:导出的文件路径列表 
+        '''
+        def is_duplicate_filename(original,filename):
+            '''用来判断两个文件是否属于副本,比如test.csv与text(1).csv
+            '''
+            #os.path.splittext可以快速提取一个basename中的文件名称和后缀名
+            #'简历.docx'使用os.path.splittext后得到‘简历’与'.docx'
+            original_stem,original_extension=os.path.splitext(original)
+            #pattern:主干相同+(n)+相同扩展名
+            #简历.docx与简历(1).docx为副本
+            pattern=re.compile(rf'^{re.escape(original_stem)}\(\d+\){re.escape(original_extension)}$') 
+            return bool(pattern.match(filename))
         
-    #     def extract_info(text:str):
-    #         text=text.replace(friend,'')
-    #         texts=text.split('|')
-    #         filename=filename_pattern.search(texts[0]).group(0)
-    #         timestamp=timestamp_pattern.search(texts[1]).group(1) 
-    #         year=time.strftime('%Y')
-    #         month=time.strftime('%m')
-    #         timestamp_folder=time.strftime('%Y-%m')#默认当年当月
-    #         if '年' in timestamp:
-    #             year=re.search(r'(\d+)年',timestamp).group(1)
-    #         if '月' in timestamp:
-    #             month=re.search(r'(\d+)月',timestamp).group(1)
-    #         timestamp_folder=f'{year}-{month}'
-    #         return filename,timestamp_folder
+        def extract_info(text:str):
+            texts=text.split('|')
+            filename=filename_pattern.search(texts[0]).group(0)
+            timestamp=timestamp_pattern.search(texts[1]).group(1) 
+            year=time.strftime('%Y')
+            month=time.strftime('%m')
+            timestamp_folder=time.strftime('%Y-%m')#默认当年当月
+            if '年' in timestamp:
+                year=re.search(r'(\d+)年',timestamp).group(1)
+            if '月' in timestamp:
+                month=re.search(r'(\d+)月',timestamp).group(1)
+            timestamp_folder=f'{year}-{month}'
+            return filename,timestamp_folder
         
-    #     if folder_path and not os.path.isdir(folder_path):
-    #         raise NotFolderError(f'所选路径不是文件夹!无法保存聊天记录,请重新选择!')
-    #     if not folder_path:
-    #         folder_name='save_files聊天文件保存'
-    #         os.makedirs(name=folder_name,exist_ok=True)
-    #         folder_path=os.path.join(os.getcwd(),folder_name)
-    #         print(f'未传入文件夹路径,聊天文件将保存至 {folder_path}')
-    #     '''该方法用来导出最近打开使用的文件'''
-    #     if is_maximize is None:
-    #         is_maximize=GlobalConfig.is_maximize
-    #     if close_weixin is None:
-    #         close_weixin=GlobalConfig.close_weixin
-   
-    #     filename_pattern=re.compile(r'.*\.\w+\s')
-    #     timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日|\d{1,2}月\d{1,2}日|昨天|星期\w|\d{1,2}:\d{2})')
-    #     chatfile_window=Navigator.open_chatfiles(is_maximize=is_maximize,close_weixin=close_weixin)
-    #     recent_used=chatfile_window.child_window(**ListItems.RecentUsedListItem)
-    #     recent_used.click_input()
-    #     search_button=chatfile_window.child_window(title='',control_type='Button',class_name='mmui::XButton')
-    #     search_button.click_input()
-    #     fileList=chatfile_window.child_window(**Lists.FileList)
-    #     fileList.type_keys('{END}')
-    #     last_file=fileList.children(control_type='ListItem',class_name='mmui::FileListCell')[-1].window_text()
-    #     fileList.type_keys('{HOME}')
-    #     labels=[listitem.window_text() for listitem in fileList.children(control_type='ListItem',class_name='mmui::FileListCell')]
-    #     labels=[label for label in labels if '未下载' not in labels or '已过期' not in label]
-    #     while len(labels)<number:
-    #         fileList.type_keys('{PGDN}')
-    #         last=fileList.children(control_type='ListItem',class_name='mmui::FileListCell')[-1].window_text()
-    #         texts=[listitem.window_text() for listitem in fileList.children(control_type='ListItem',class_name='mmui::FileListCell') 
-    #         if '未下载' not in listitem.window_text() 
-    #         or '已过期' in listitem.window_text()]
-    #         texts=[file for file in texts if file not in labels]
-    #         labels.extend(texts)
-    #         if last==last_file:#到达底部
-    #             break
-    #     for label in labels:
-    #         filename,timestamp=extract_info(label)
-    #         filepath=os.path.join(chatfile_folder,timestamp,filename)
-    #         if os.path.exists(filepath):
-    #             filenames.append(filename)
-    #             filepaths.append(filepath)
-    #     filepaths=filepaths[:number]
-    #     fileList.type_keys('{HOME}')
-    #     #微信聊天记录中的文件名存在n个文件共用一个名字的情况
-    #     ##比如;给文件传输助手同时发6次'简历.docx',那么在聊天记录页面中显示的是六个名为简历.docx的文件
-    #     #但,实际上这些名字相同的文件,在widnows系统下的微信聊天文件夹内
-    #     #会按照: 文件名(1).docx,文件名(2).docx...文件名(n-1).docx,文件名.docx的格式来存储
-    #     #因此,这里使用内置Counter函数,来统计每个路径重复出现的次数,如果没有重复那么count是1
-    #     repeat_counts=Counter(filepaths)#filepaths是刚刚遍历聊天记录列表按照基址+文件名组合而成的路径列表
-    #     #如果有重复的就找到这个月份的文件夹内的所有重复文件全部移动
-    #     for filepath,count in repeat_counts.items():
-    #         if count>1:#重复次数大于1
-    #             #从filepath中得到文件名与上一级目录
-    #             folder,filename=os.path.split(filepath)#folder为同名文件的上一级文件夹
-    #             #os.listdir()列出上一级文件夹然后遍历,查找所有包含纯文件名的文件,然后使用os.path.join将其与folder结合
-    #             #samefilepaths中的是所有名字重复但实际上是:'文件(1).docx,文件名(2).docx,..文件名(n-1).docx,文件名.docx'格式的文件的路径
-    #             samefilepaths=[os.path.join(folder,file) for file in os.listdir(folder) if is_duplicate_filename(filename,file)]
-    #             SystemSettings.copy_files(samefilepaths,folder_path)
-    #         else:#没有重复的直接移动就行
-    #             #当然还得保证,folder_path里没有该文件
-    #             SystemSettings.copy_file(filepath,folder_path)
-    #     chatfile_window.close()
-    #     return filepaths
+        if folder_path and not os.path.isdir(folder_path):
+            raise NotFolderError(f'所选路径不是文件夹!无法保存聊天记录,请重新选择!')
+        if not folder_path:
+            folder_name='export_recent最近聊天文件保存'
+            os.makedirs(name=folder_name,exist_ok=True)
+            folder_path=os.path.join(os.getcwd(),folder_name)
+            print(f'未传入文件夹路径,聊天文件将保存至 {folder_path}')
+        '''该方法用来导出最近打开使用的文件'''
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+    
+        filenames=[]
+        filepaths=[]
+        filename_pattern=Regex_Patterns.Filename_pattern
+        timestamp_pattern=Regex_Patterns.Chafile_Timestamp_pattern
+        chatfile_folder=Tools.where_chatfile_folder()
+        chatfile_window=Navigator.open_chatfiles(is_maximize=is_maximize,close_weixin=close_weixin)
+        recent_used=chatfile_window.child_window(**ListItems.RecentUsedListItem)
+        recent_used.click_input()
+        search_button=chatfile_window.child_window(title='',control_type='Button',class_name='mmui::XButton')
+        search_button.click_input()
+        fileList=chatfile_window.child_window(**Lists.FileList)
+        fileList.type_keys('{END}')
+        last_file=fileList.children(control_type='ListItem',class_name='mmui::FileListCell')[-1].window_text()
+        fileList.type_keys('{HOME}')
+        labels=[listitem.window_text() for listitem in fileList.children(control_type='ListItem',class_name='mmui::FileListCell')]
+        labels=[label for label in labels if '未下载' not in labels or '已过期' not in label or '发送中断' not in label]
+        while labels[-1]!=last_file:
+            fileList.type_keys('{PGDN}')
+            listitems=fileList.children(control_type='ListItem',class_name='mmui::FileListCell')
+            texts=[listitem.window_text() for listitem in listitems
+            if '未下载' not in listitem.window_text() 
+            or '已过期' in listitem.window_text()
+            or '发送中断' not in listitem.window_text()]
+            texts=[file for file in texts if file not in labels]
+            labels.extend(texts)
+        for label in labels:
+            filename,timestamp=extract_info(label)
+            filepath=os.path.join(chatfile_folder,timestamp,filename)
+            if os.path.exists(filepath):
+                filenames.append(filename)
+                filepaths.append(filepath)
+        fileList.type_keys('{HOME}')
+        #微信聊天记录中的文件名存在n个文件共用一个名字的情况
+        ##比如;给文件传输助手同时发6次'简历.docx',那么在聊天记录页面中显示的是六个名为简历.docx的文件
+        #但,实际上这些名字相同的文件,在widnows系统下的微信聊天文件夹内
+        #会按照: 文件名(1).docx,文件名(2).docx...文件名(n-1).docx,文件名.docx的格式来存储
+        #因此,这里使用内置Counter函数,来统计每个路径重复出现的次数,如果没有重复那么count是1
+        repeat_counts=Counter(filepaths)#filepaths是刚刚遍历聊天记录列表按照基址+文件名组合而成的路径列表
+        #如果有重复的就找到这个月份的文件夹内的所有重复文件全部移动
+        for filepath,count in repeat_counts.items():
+            if count>1:#重复次数大于1
+                #从filepath中得到文件名与上一级目录
+                folder,filename=os.path.split(filepath)#folder为同名文件的上一级文件夹
+                #os.listdir()列出上一级文件夹然后遍历,查找所有包含纯文件名的文件,然后使用os.path.join将其与folder结合
+                #samefilepaths中的是所有名字重复但实际上是:'文件(1).docx,文件名(2).docx,..文件名(n-1).docx,文件名.docx'格式的文件的路径
+                samefilepaths=[os.path.join(folder,file) for file in os.listdir(folder) if is_duplicate_filename(filename,file)]
+                SystemSettings.copy_files(samefilepaths,folder_path)
+            else:#没有重复的直接移动就行
+                #当然还得保证,folder_path里没有该文件
+                SystemSettings.copy_file(filepath,folder_path)
+        chatfile_window.close()
+        return filepaths
     
     @staticmethod
     def export_videos(year:str=time.strftime('%Y'),month:str=None,target_folder:str=None)->list[str]:
@@ -1797,6 +1807,35 @@ class Messages():
         if close_weixin:
             main_window.close()
 
+
+    @staticmethod
+    def check_new_messages(is_maximize:bool=None,search_pages:int=None,close_weixin:bool=None):
+        '''
+        该方法用来检查一遍会话列表内的所有新消息具体内容
+        '''
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+        if search_pages is None:
+            search_pages=GlobalConfig.search_pages
+        newMessages=[]
+        main_window=Navigator.open_weixin(is_maximize=is_maximize)
+        new_message_num=get_new_message_num(main_window)
+        if not new_message_num:
+            if close_weixin:
+                main_window.close()
+            print(f'未发现新消息')
+            return {}
+        else:
+            new_message_dict=scan_for_new_messages(is_maximize=is_maximize,close_weixin=False)
+            for friend,num in new_message_dict.items():
+                message=Messages.pull_messages(friend=friend,number=num,close_weixin=False)
+                newMessages.append(message)
+            if close_weixin:
+                main_window.close()
+            return dict(zip(new_message_dict.keys(),newMessages))
+        
     # @staticmethod
     # def forward_message(friends:list[str],message:str,clear:bool=None,
     #     send_delay:float=None,is_maximize:bool=None,close_weixin:bool=None)->None:
@@ -2086,7 +2125,7 @@ class Messages():
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
         messages=[]
-        timestamp_pattern=Regex_Patterns.Chathistory_Time_pattern
+        timestamp_pattern=Regex_Patterns.Chathistory_Timestamp_pattern
         chat_history_window=Navigator.open_chat_history(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin)
         chat_list=chat_history_window.child_window(**Lists.ChatHistoryList)
         scrollable=Tools.is_scrollable(chat_list)
@@ -2129,70 +2168,46 @@ class Messages():
         messages=[]
         main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         chat_list=main_window.child_window(**Lists.FriendChatList)
-        scrollable=Tools.is_scrollable(chat_list,back='end')
-        if not chat_list.children(control_type='ListItem'):
-            warn(message=f"你与{friend}的聊天记录为空,无法获取聊天记录",category=NoChatHistoryWarning)
-        if not scrollable:
-            listItems=chat_list.children(control_type='ListItem')
-            listItems=[listitem for listitem in listItems if listitem.class_name()!="mmui::ChatItemView"]
-            messages=[listitem.window_text() for listitem in listItems]
-        if scrollable:
-            while len(messages)<number:
-                listItems=chat_list.children(control_type='ListItem')[::-1]
+        if not chat_list.exists(timeout=0.1):
+            return []
+        else:
+            scrollable=Tools.is_scrollable(chat_list,back='end')
+            if not chat_list.children(control_type='ListItem'):
+                warn(message=f"你与{friend}的聊天记录为空,无法获取聊天记录",category=NoChatHistoryWarning)
+            if not scrollable:
+                listItems=chat_list.children(control_type='ListItem')
                 listItems=[listitem for listitem in listItems if listitem.class_name()!="mmui::ChatItemView"]
-                messages.extend([listitem.window_text() for listitem in listItems])
-                chat_list.type_keys('{PGUP}')
-            chat_list.type_keys('{END}')
-        if close_weixin:
-            main_window.close()
-        messages=messages[::-1][-number:]
+                messages=[listitem.window_text() for listitem in listItems]
+            if scrollable:
+                while len(messages)<number:
+                    listItems=chat_list.children(control_type='ListItem')[::-1]
+                    listItems=[listitem for listitem in listItems if listitem.class_name()!="mmui::ChatItemView"]
+                    messages.extend([listitem.window_text() for listitem in listItems])
+                    chat_list.type_keys('{PGUP}')
+                chat_list.type_keys('{END}')
+            messages=messages[::-1][-number:]
+            if close_weixin:
+                main_window.close()
         return messages
+
 
 class Monitor():
     '''监听消息的一些方法'''
-    
-    @staticmethod
-    def check_new_messages(is_maximize:bool=None,search_pages:int=None,close_weixin:bool=None):
-        '''
-        该方法用来检查一遍会话列表内的所有新消息具体内容
-        '''
-        if is_maximize is None:
-            is_maximize=GlobalConfig.is_maximize
-        if close_weixin is None:
-            close_weixin=GlobalConfig.close_weixin
-        if search_pages is None:
-            search_pages=GlobalConfig.search_pages
-        newMessages=[]
-        main_window=Navigator.open_weixin(is_maximize=is_maximize)
-        chats_button=main_window.child_window(**SideBar.Chats)
-        chats_button.click_input()
-        #左上角微信按钮的红色消息提示(\d+条新消息)在FullDescription属性中,
-        #只能通过id来获取,id是30159，之前是30007,可能是qt组件映射关系不一样
-        full_desc=chats_button.element_info.element.GetCurrentPropertyValue(30159)
-        new_message_num=re.search(r'\d+',full_desc)#正则提取数量
-        if not new_message_num:
-            if close_weixin:
-                main_window.close()
-            print(f'未发现新消息')
-            return {}
-        else:
-            new_message_dict=scan_for_new_messages(is_maximize=is_maximize,close_weixin=False)
-            for friend,num in new_message_dict.items():
-                message=Messages.pull_messages(friend=friend,number=num,close_weixin=False)
-                newMessages.append(message)
-            if close_weixin:
-                main_window.close()
-            return dict(zip(new_message_dict.keys(),newMessages))
 
     @staticmethod
-    def listen_on_chat(dialog_window:WindowSpecification,duration:str,save_file:bool=False,target_folder:str=None,close_dialog_window:bool=True)->dict:
+    def  listen_on_chat(dialog_window:WindowSpecification,duration:str,save_file:bool=False,save_photo:bool=False,capture_alia:bool=False,target_folder:str=None,close_dialog_window:bool=True)->dict:
         '''
-        该函数用来在指定时间内监听会话窗口内的新消息(可以配合多线程使用,一次监听多个会话)
+        该方法用来在指定时间内监听会话窗口内的新消息(可以配合多线程使用,一次监听多个会话内的消息)
         Args:
             dialog_window:好友单独的聊天窗口或主界面内的聊天窗口,可使用Navigator内的方法打开
-            duraiton:监听持续时长
-            close_dialog_window:是否关闭dialog_window
-        无论是主界面还是单独聊天窗口都可以最小化到状态栏,但千万不要关闭！
+            duraiton:监听持续时长,监听消息持续时长,格式:'s','min','h'单位:s/秒,min/分,h/小时
+            save_file:是否保存文件,需开启自动下载文件并设置为1024MB,默认为False
+            save_photo:是否保存图片,注意不要在多线程中设置为True,针对单个好友可以设置为True,默认为False
+            capture_alia:是否截取发送消息的对象群昵称图片,包含完整群昵称
+            target_folder:文件或图片的保存文件夹
+            close_dialog_window:是否关闭dialog_window,默认关闭
+
+        涉及到键鼠操作的选项须为False,无论是主界面还是单独聊天窗口都可以最小化到状态栏,但千万不要关闭！
         Examples:
             多线程使用示例:
             >>> from concurrent.futures import ThreadPoolExecutor
@@ -2204,30 +2219,82 @@ class Monitor():
             >>> for friend in friends:
             >>>    dialog_window=Navigator.open_seperate_dialog_window(friend=friend,window_minimize=True,close_weixin=True)
             >>>    dialog_windows.append(dialog_window)
-            >>> with ThreadPoolExecutor(max_worker=len(friends)) as pool:
+            >>> with ThreadPoolExecutor() as pool:
             >>>    results=pool.map(lambda args: Monitor.listen_on_chat(*args),list(zip(dialog_windows,durations)))
             >>> for friend,result in zip(friends,results):
             >>>    print(friend,result)
         Returns:
-            details:该聊天窗口内的新消息(文本内容),格式为{'新消息内容':xx,'文件数量':xx,'图片数量':xx,'视频数量':xx,'链接数量':xx}
-        '''            
+            details:该聊天窗口内的新消息(文本内容),格式为{'新消息总数':x,'文本数量':x,'文件数量':x,'图片数量':x,'视频数量':x,'链接数量':x,'文本内容':x,'群昵称截图':x}
+        '''
+        def activate_chatList(chatList:ListViewWrapper):
+            '让消息列表至于最底部'
+            activate_position=(chatList.rectangle().right-12,chatList.rectangle().mid_point().y)
+            mouse.click(coords=activate_position)
+            chatList.type_keys('{END}')
+
+        def make_unique_id(listitem:ListItemWrapper):
+            '''根据图片所在listitem的高度与runtime_id之和生成unique_id
+            不能用宽度,所有的listitem宽度都一样,不同大小的图片listitem高度不一样
+            内容一样的图片runtime_id一样,高度也一样,unique_id也一样
+            '''
+            height=listitem.rectangle().bottom-listitem.rectangle().top
+            runtime_id=listitem.element_info.runtime_id
+            unique_id=runtime_id[0]+runtime_id[1]+runtime_id[2]+height
+            return unique_id
+        
+        def save_photos(chatList:ListViewWrapper):
+            #必须全屏,不全屏图片被折叠
+            win32gui.SendMessage(dialog_window.handle, win32con.WM_SYSCOMMAND, win32con.SC_MAXIMIZE,0)
+            saved_image_count=0
+            chatList.children()[-1].double_click_input()#点一下最后一个
+            while saved_image_count!=image_count:
+                selected=[listitem for listitem in chatList.children(control_type='ListItem',class_name='mmui::ChatBubbleReferItemView',title='图片') 
+                if listitem.has_keyboard_focus()]   
+                if selected:
+                    unique_id=make_unique_id(selected[-1])
+                    if image_ids[-1]==unique_id:
+                        timestamp=time.strftime(f'%y-%m-%d-%H时%M分%S秒')
+                        path=os.path.join(image_folder,f'{friend}_{timestamp}.png')#时间戳和好友名字做文件名保证不会重复
+                        rectangle=selected[-1].rectangle()
+                        side_x=rectangle.left+120
+                        center_y=rectangle.mid_point().y
+                        mouse.right_click(coords=(side_x,center_y))#不要直接right_click_input(),x方向应该是chatList左边界靠右一些,y方向是中心
+                        copy_item.click_input()
+                        SystemSettings.save_pasted_image(path)
+                        saved_image_count+=1
+                        image_ids.pop()#最后的元素即刚刚保存的图片的runtime_id从image_ids从尾部pop出去
+                chatList.type_keys('{UP}',pause=0.15)
+            win32gui.SendMessage(dialog_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MINIMIZE,0)
+
+        
         duration=Tools.match_duration(duration)#将's','min','h'转换为秒
         if not duration:#不按照指定的时间格式输入,需要提前中断退出
             raise TimeNotCorrectError
-        if save_file and target_folder is None:
-            target_folder=os.path.join(os.getcwd(),f'{dialog_window.window_text()} listen_on_chat聊天文件保存')
-            print(f'未传入文件夹路径,文件将保存到{target_folder}')
+        if (save_file or save_photo) and target_folder is None:
+            target_folder=os.path.join(os.getcwd(),f'{dialog_window.window_text()}_listen_on_chat聊天文件保存')
+            print(f'未传入文件夹路径,文件或图片将分别保存到{target_folder}内的Files,Images文件夹下\n')
             os.makedirs(target_folder,exist_ok=True)
+        if save_file:
+            file_folder=os.path.join(target_folder,'Files')
+            os.makedirs(file_folder,exist_ok=True)
+        if save_photo:
+            image_folder=os.path.join(target_folder,'Images')
+            os.makedirs(image_folder,exist_ok=True)
         files=[]
-        newMessages=[]
+        texts=[]
+        image_ids=[]
+        alia_images=[]
+        total=0
         link_count=0
         video_count=0
-        photo_count=0
+        image_count=0
+        friend=dialog_window.window_text()
         file_pattern=Regex_Patterns.File_Pattern
         timestamp=time.strftime('%Y-%m')
         chatfile_folder=Tools.where_chatfile_folder()
         chatList=dialog_window.child_window(**Lists.FriendChatList)#聊天界面内存储所有信息的容器
-        chatList.type_keys('{END}')
+        copy_item=dialog_window.child_window(**MenuItems.CopyItem)
+        activate_chatList(chatList)
         initial_message=chatList.children(control_type='ListItem')[-1]#刚打开聊天界面时的最后一条消息的listitem
         initial_runtime_id=initial_message.element_info.runtime_id
         end_timestamp=time.time()+duration#根据秒数计算截止时间
@@ -2236,33 +2303,44 @@ class Monitor():
             newMessage=chatList.children(control_type='ListItem')[-1]
             runtime_id=newMessage.element_info.runtime_id
             if runtime_id!=initial_runtime_id: 
-                newMessages.append(newMessage.window_text())
+                total+=1
+                if capture_alia:
+                    alia_image=Tools.capture_alias(newMessage)
+                    alia_images.append(alia_image)
+                if newMessage.class_name()=='mmui::ChatTextItemView':
+                    texts.append(newMessage.window_text())
                 if newMessage.class_name()=='mmui::ChatBubbleItemView' and newMessage.window_text()[:2]=='[链接]':
                     link_count+=1
                 if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and newMessage.window_text()=='图片':
-                    photo_count+=1
+                    image_count+=1
+                    unique_id=make_unique_id(newMessage)#把图片的runtime_id和其所处的listitem高度保存下来结合一下作为它的唯一可识别属性
+                    image_ids.append(unique_id)
+                    #只是依靠class_name,window_text还有数量筛选，假如结束时又新发了几张图片，内容会对不上         
                 if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and '视频' in newMessage.window_text():
-                    video_count+=1
+                    video_count+=1#视频需要下载直接右键复制,不行需要先点击,如果时间长,要等半天，不太方便
                 if newMessage.class_name()=='mmui::ChatBubbleItemView' and '文件' in newMessage.window_text():
                     filename=file_pattern.search(newMessage.window_text()).group(1)
                     filepath=os.path.join(chatfile_folder,timestamp,filename)
                     files.append(filepath)
                 initial_runtime_id=runtime_id
+       
         SystemSettings.close_listening_mode()
         #最后结束时再批量复制到target_folder,不在循环里逐个复制是考虑到若文件过大(几百mb)没有自动下载完成移动不了
-        if save_file:SystemSettings.copy_files(files,target_folder)
+        if save_file and files:SystemSettings.copy_files(files,file_folder)#文件复制粘贴到target_folder/Files内
+        if save_photo and image_count:save_photos(chatList)#保存图片到target_folder/Images内
         if close_dialog_window:
             dialog_window.close()
-        details={'新消息内容':newMessages,'文件数量':len(files),'图片数量':photo_count,'视频数量':video_count,'链接数量':link_count}
+        details={'新消息总数':total,'文本数量':len(texts),'文件数量':len(files),'图片数量':image_count,'视频数量':video_count,'链接数量':link_count,'文本内容':texts,'群昵称截图':alia_images}
         return details
     
+
     @staticmethod
     def grab_red_packet(dialog_window:WindowSpecification,duration:str,close_dialog_window:bool=True)->int:
         '''
         该函数用来点击领取好友发送的红包,群聊中的红包微信的设定是电脑端无法打开,因此无法使用
         Args:
             dialog_window:好友单独的聊天窗口,可使用Navigator内的方法打开
-            duraiton:监听持续时长
+            duraiton:监听持续时长,监听消息持续时长,格式:'s','min','h'单位:s/秒,min/分,h/小时
             close_dialog_window:是否关闭dialog_window
         Returns:
             red_packet_count:该聊天窗口内抢到红包个数
