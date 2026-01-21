@@ -110,6 +110,7 @@ with ThreadPoolExecutor(max_workers=len(friends)) as pool:
 for friend,result in zip(friends,results):
     print(friend,result)
 ```
+
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/listen_on_chat多线程.png)
 <br>
 
@@ -123,6 +124,7 @@ alia_images=result.get('群昵称截图')#PIL的Image对象列表
 for i in range(len(alia_images)):
     alia_images[i].save(f'{i}.png')
 ```
+
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/群昵称截图.png)
 <br>
 
@@ -133,6 +135,7 @@ posts=Moments.dump_recent_moments(recent='Today')
 for dic in posts:
     print(dic)
 ```
+
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/朋友圈数据获取.png)
 <br>
 
@@ -141,7 +144,23 @@ for dic in posts:
 from pyweixin import Moments
 Moments.post_moments(texts='''发布朋友圈测试[旺柴]''',medias=[r"E:\Desktop\test0.png",r"E:\Desktop\test1.png"])
 ```
+
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/发朋友圈.png)
+<br>
+
+#### 此外pyweixin内所有方法及函数的一些位置参数支持全局设定,be like:
+```
+from pyweixin import Navigator,GlobalConfig
+GlobalConfig.load_delay=2.5
+GlobalConfig.is_maximize=True
+GlobalConfig.close_weixin=False
+Navigator.search_channels(search_content='微信4.0')
+Navigator.search_miniprogram(name='问卷星')
+Navigator.search_official_account(name='微信')
+```
+<br>
+
+#### 其他类内method使用方法可见代码中详细的文档注释
 <br>
 
 ### Pywechat模块介绍
@@ -201,7 +220,6 @@ def reply_func(newMessage):
     return '不好意思，未能理解您的需求'#最后总是要返回一个值，不要出现newMessage不在列举的情况,返回None
 reply_func()
 ```
-
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/decorator.png)
 <br>
 
@@ -325,6 +343,7 @@ print(check_new_message())
 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！ 
 
 ###### 作者CSDN主页:https://blog.csdn.net/weixin_73953650?spm=1011.2415.3001.5343
+
 
 
 
