@@ -13,6 +13,11 @@ https://github.com/Hello-Mr-Crab/pywechat/blob/main/Weixin4.0.md
 ### pyweixin 项目结构：
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/pyweixin结构.png)
 <br>
+
+### pywechat 项目结构(适用于32位x86🪟10 32位x86🪟7正在测试ing...)：
+![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/pywechat结构图.png)
+<br>
+
 ## pyweixin内所有方法需要先导入模块下的类然后调用内部方法🗺️🗺️
 ```
 from pyweixin import xx(class)
@@ -343,6 +348,7 @@ print(check_new_message())
 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！ 
 
 ###### 作者CSDN主页:https://blog.csdn.net/weixin_73953650?spm=1011.2415.3001.5343
+
 
 
 
