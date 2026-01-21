@@ -103,15 +103,37 @@ friends=['Hello,Mr Crab','Pywechat测试群',]
 durations=['1min']*len(friends)
 #不添加其他参数Monitor.listen_on_chat,比如capture_alias,save_photos,这些操作涉及键鼠,无法多线程，只是监听消息，获取文本内容,移动保存文件还是可以的
 for friend in friends:
-    dialog_window=Navigator.open_seperate_dialog_window(friend=friend,window_minimize=True,close_weixin=True)
+    dialog_window=Navigator.open_seperate_dialog_window(friend=friend,window_minimize=True,close_weixin=True)#window_minimize独立窗口最小化
     dialog_windows.append(dialog_window)
 with ThreadPoolExecutor(max_workers=len(friends)) as pool:
     results=pool.map(lambda args: Monitor.listen_on_chat(*args),list(zip(dialog_windows,durations)))
 for friend,result in zip(friends,results):
     print(friend,result)
 ```
+![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/listen_on_chat多线程.png)
+<br>
 
-![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/listen_on_chat.png)
+#### 监听单个聊天窗口消息并获取群昵称截图
+```
+from pyweixin import Navigator,Monitor
+dialog_window=Navigator.open_seperate_dialog_window(friend='啦啦啦')
+result=Monitor.listen_on_chat(dialog_window=dialog_window,duration='30s',capture_alia=True)
+print(result)#返回值 {'新消息总数':x,'文本数量':x,'文件数量':x,'图片数量':x,'视频数量':x,'链接数量':x,'文本内容':x,'群昵称截图':x}
+alia_images=result.get('群昵称截图')#PIL的Image对象列表
+for i in range(len(alia_images)):
+    alia_images[i].save(f'{i}.png')
+```
+![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/群昵称截图.png)
+<br>
+
+#### 朋友圈数据获取
+```
+from pyweixin import Moments
+posts=Moments.dump_recent_moments(recent='Today')
+for dic in posts:
+    print(dic)
+```
+![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/群昵称截图.png)
 <br>
 
 ### Pywechat模块介绍
@@ -295,6 +317,7 @@ print(check_new_message())
 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！ 
 
 ###### 作者CSDN主页:https://blog.csdn.net/weixin_73953650?spm=1011.2415.3001.5343
+
 
 
 
