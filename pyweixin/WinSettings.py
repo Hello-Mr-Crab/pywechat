@@ -29,6 +29,7 @@ Examples:
 
 '''
 import os
+import time
 import shutil
 import ctypes
 import win32com.client
@@ -199,4 +200,19 @@ class SystemSettings():
                 try:
                     shutil.copy2(file_path, target_folder)
                 except Exception:
+
                     pass
+
+    @staticmethod
+    def save_pasted_image(img_path:str):
+        '''获取复制到剪贴板的图片并保存到指定路径
+        Args:
+            img_path:图片待存放路径
+        '''
+        time.sleep(1)
+        win32clipboard.OpenClipboard()
+        if win32clipboard.IsClipboardFormatAvailable(win32clipboard.CF_DIB):
+            data=win32clipboard.GetClipboardData(win32clipboard.CF_DIB)
+            image=Image.open(io.BytesIO(data))
+            image.save(img_path)
+        win32clipboard.CloseClipboard()
