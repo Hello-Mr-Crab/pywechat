@@ -133,7 +133,15 @@ posts=Moments.dump_recent_moments(recent='Today')
 for dic in posts:
     print(dic)
 ```
-![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/群昵称截图.png)
+![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/朋友圈数据获取.png)
+<br>
+
+#### 发布朋友圈
+```
+from pyweixin import Moments
+Moments.post_moments(texts='''发布朋友圈测试[旺柴]''',medias=[r"E:\Desktop\test0.png",r"E:\Desktop\test1.png"])
+```
+![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/朋友圈数据获取.png)
 <br>
 
 ### Pywechat模块介绍
@@ -317,6 +325,7 @@ print(check_new_message())
 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！ 
 
 ###### 作者CSDN主页:https://blog.csdn.net/weixin_73953650?spm=1011.2415.3001.5343
+
 
 
 
