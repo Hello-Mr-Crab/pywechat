@@ -59,7 +59,7 @@ git clone https://github.com/Hello-Mr-Crab/pywechat.git
 ##### class包括：
 - `AutoReply`:自动回复操作
 - `Call`: 给某个好友打视频或语音电话。
-- `Contacts`: 获取通讯录内哥功分区好友的信息,获取共同群聊名称,获取好友个人简介
+- `Contacts`: 获取通讯录内各分区(联系人,企业微信联系人,公众号,服务号)好友的信息,获取共同群聊名称,获取好友个人简介
 - `Files`: 文件发送，聊天文件导出等。
 - `FriendSettings`: PC微信针对某个好友的一些相关设置。
 - `Messages`: 消息发送,聊天记录获取,聊天会话导出等条。
@@ -345,6 +345,7 @@ print(check_new_message())
 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！ 
 
 ###### 作者CSDN主页:https://blog.csdn.net/weixin_73953650?spm=1011.2415.3001.5343
+
 
 
 
