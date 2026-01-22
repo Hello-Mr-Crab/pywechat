@@ -124,10 +124,7 @@ for friend,result in zip(friends,results):
 from pyweixin import Navigator,Monitor
 dialog_window=Navigator.open_seperate_dialog_window(friend='啦啦啦')
 result=Monitor.listen_on_chat(dialog_window=dialog_window,duration='30s',capture_alia=True)
-print(result)#返回值 {'新消息总数':x,'文本数量':x,'文件数量':x,'图片数量':x,'视频数量':x,'链接数量':x,'文本内容':x,'群昵称截图':x}
-alia_images=result.get('群昵称截图')#PIL的Image对象列表
-for i in range(len(alia_images)):
-    alia_images[i].save(f'{i}.png')
+print(result)#返回值 {'新消息总数':x,'文本数量':x,'文件数量':x,'图片数量':x,'视频数量':x,'链接数量':x,'文本内容':x}
 ```
 
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/群昵称截图.png)
@@ -348,6 +345,7 @@ print(check_new_message())
 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！ 
 
 ###### 作者CSDN主页:https://blog.csdn.net/weixin_73953650?spm=1011.2415.3001.5343
+
 
 
 
