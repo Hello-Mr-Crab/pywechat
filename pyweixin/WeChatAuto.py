@@ -2203,7 +2203,7 @@ class Monitor():
             duraiton:监听持续时长,监听消息持续时长,格式:'s','min','h'单位:s/秒,min/分,h/小时
             save_file:是否保存文件,需开启自动下载文件并设置为1024MB,默认为False
             save_photo:是否保存图片,注意不要在多线程中设置为True,针对单个好友可以设置为True,默认为False
-            capture_alia:是否截取发送消息的对象群昵称图片,包含完整群昵称
+            capture_alia:是否截取发送消息的对象群昵称图片,包含完整群昵称(只能截取到其他群成员新消息的群昵称)
             target_folder:文件或图片的保存文件夹
             close_dialog_window:是否关闭dialog_window,默认关闭
 
@@ -2270,9 +2270,10 @@ class Monitor():
         duration=Tools.match_duration(duration)#将's','min','h'转换为秒
         if not duration:#不按照指定的时间格式输入,需要提前中断退出
             raise TimeNotCorrectError
-        if (save_file or save_photo) and target_folder is None:
+        is_group_chat=Tools.is_group_chat(dialog_window)#是否为群聊
+        if (save_file or save_photo or capture_alia) and target_folder is None:
             target_folder=os.path.join(os.getcwd(),f'{dialog_window.window_text()}_listen_on_chat聊天文件保存')
-            print(f'未传入文件夹路径,文件或图片将分别保存到{target_folder}内的Files,Images文件夹下\n')
+            print(f'未传入文件夹路径,文件,图片,群昵称截图将分别保存到{target_folder}内的Files,Images,Alias文件夹下\n')
             os.makedirs(target_folder,exist_ok=True)
         if save_file:
             file_folder=os.path.join(target_folder,'Files')
@@ -2280,14 +2281,17 @@ class Monitor():
         if save_photo:
             image_folder=os.path.join(target_folder,'Images')
             os.makedirs(image_folder,exist_ok=True)
-        files=[]
-        texts=[]
-        image_ids=[]
-        alia_images=[]
+        if capture_alia and is_group_chat:
+            alia_folder=os.path.join(target_folder,'Alias')
+            os.makedirs(alia_folder,exist_ok=True)
+        
         total=0
         link_count=0
         video_count=0
         image_count=0
+        files=[]
+        texts=[]
+        image_ids=[]
         friend=dialog_window.window_text()
         file_pattern=Regex_Patterns.File_Pattern
         timestamp=time.strftime('%Y-%m')
@@ -2308,9 +2312,10 @@ class Monitor():
                 runtime_id=newMessage.element_info.runtime_id
                 if runtime_id!=initial_runtime_id: 
                     total+=1
-                    if capture_alia:
+                    if capture_alia and is_group_chat:
                         alia_image=Tools.capture_alias(newMessage)
-                        alia_images.append(alia_image)
+                        path=os.path.join(alia_folder,f'聊天对象_{friend}_{time.strftime(f'%y-%m-%d-%H时%M分%S秒')}.png')#时间戳和好友名字做文件名保证不会重复
+                        alia_image.save(path)
                     if newMessage.class_name()=='mmui::ChatTextItemView':
                         texts.append(newMessage.window_text())
                     if newMessage.class_name()=='mmui::ChatBubbleItemView' and newMessage.window_text()[:2]=='[链接]':
@@ -2321,7 +2326,7 @@ class Monitor():
                         image_ids.append(unique_id)
                         #只是依靠class_name,window_text还有数量筛选，假如结束时又新发了几张图片，内容会对不上         
                     if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and '视频' in newMessage.window_text():
-                        video_count+=1#视频需要下载直接右键复制,不行需要先点击,如果时间长,要等半天，不太方便
+                        video_count+=1#视频需要下载直接右键复制不行,需要先点击,如果时间长,要等半天，不太方便
                     if newMessage.class_name()=='mmui::ChatBubbleItemView' and '文件' in newMessage.window_text():
                         filename=file_pattern.search(newMessage.window_text()).group(1)
                         filepath=os.path.join(chatfile_folder,timestamp,filename)
@@ -2334,8 +2339,9 @@ class Monitor():
         if save_photo and image_count:save_photos(chatList)#保存图片到target_folder/Images内
         if close_dialog_window:
             dialog_window.close()
-        details={'新消息总数':total,'文本数量':len(texts),'文件数量':len(files),'图片数量':image_count,'视频数量':video_count,'链接数量':link_count,'文本内容':texts,'群昵称截图':alia_images}
+        details={'新消息总数':total,'文本数量':len(texts),'文件数量':len(files),'图片数量':image_count,'视频数量':video_count,'链接数量':link_count,'文本内容':texts}
         return details
+    
     
 
     @staticmethod
@@ -2380,4 +2386,5 @@ class Monitor():
         if close_dialog_window:
             dialog_window.close()
         return red_packet_count
+
 
