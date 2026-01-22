@@ -407,7 +407,7 @@ class Tools():
         width=rectangle.right-rectangle.left
         x=rectangle.left+80
         y=rectangle.top
-        image=pyautogui.screenshot('test.png',region=(x,y,width-80,36))
+        image=pyautogui.screenshot(region=(x,y,width-80,36))
         return image
 
     @staticmethod
@@ -1306,4 +1306,5 @@ class Navigator():
             print('网络不良,请尝试增加load_delay时长,或更换网络!')
             program_window.close()
             return None
+
 
