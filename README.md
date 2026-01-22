@@ -83,7 +83,7 @@ git clone https://github.com/Hello-Mr-Crab/pywechat.git
 - `get_new_message_num`：获取新消息总数,微信按钮上的红色数字
 - `scan_for_newMessages`：会话列表遍历一遍有新消息提示的对象,返回好友名称与数量
 - `open_red_packet`: 点击打开好友发送的红包
-- `language_detector`:微信当前语音检测(不能禁用weAppex.exe,原理是查询weAppex.exe命令行参数)
+- `language_detector`:微信当前使用语言检测(不能禁用weAppex.exe,原理是查询weAppex.exe命令行参数)
 <br>
 
 ### pyweixin使用示例:
@@ -345,6 +345,7 @@ print(check_new_message())
 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！ 
 
 ###### 作者CSDN主页:https://blog.csdn.net/weixin_73953650?spm=1011.2415.3001.5343
+
 
 
 
