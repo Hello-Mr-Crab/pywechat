@@ -4,7 +4,7 @@
 
 https://github.com/Hello-Mr-Crab/pywechat/blob/main/Weixin4.0.md
 
-### pywechat是一个基于pywinauto实现的Windows系统下PC微信自动化的Python项目。基本实现了PC微信内置的所有功能。
+### pywechat是一个基于pywinauto实现的Windows系统下PC微信UI自动化的Python项目(不涉及逆向等操作)。实现了PC微信内置的大部分功能。
 
 ### 微信版本:3.9+,4.1+
 ### 操作系统:🪟windows 10 🪟windows 11
@@ -14,7 +14,7 @@ https://github.com/Hello-Mr-Crab/pywechat/blob/main/Weixin4.0.md
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/pyweixin结构.png)
 <br>
 
-### pywechat 项目结构(适用于32位x86🪟10 32位x86🪟7正在测试ing...)：
+### pywechat 项目结构(适用于32位x86🪟10，32位x86🪟7正在测试ing...)：
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/pywechat结构图.png)
 <br>
 
@@ -60,11 +60,11 @@ git clone https://github.com/Hello-Mr-Crab/pywechat.git
 - `AutoReply`:自动回复操作
 - `Call`: 给某个好友打视频或语音电话。
 - `Contacts`: 获取通讯录内各分区(联系人,企业微信联系人,公众号,服务号)好友的信息,获取共同群聊名称,获取好友个人简介
-- `Files`: 文件发送，聊天文件导出等。
+- `Files`: 文件发送，聊天文件从本地导出等。
 - `FriendSettings`: PC微信针对某个好友的一些相关设置。
 - `Messages`: 消息发送,聊天记录获取,聊天会话导出等条。
-- `Moments`:针对微信朋友圈的一些方法,包括数据爬取，发布朋友圈
-- `Monitor`:监听消息操作
+- `Moments`:针对微信朋友圈的一些方法,包括朋友圈界面内容获取，发布朋友圈
+- `Monitor`:打开聊天窗口进行监听消息
 <br>
 
 #### WinSettings🔹🔹
@@ -345,6 +345,7 @@ print(check_new_message())
 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！ 
 
 ###### 作者CSDN主页:https://blog.csdn.net/weixin_73953650?spm=1011.2415.3001.5343
+
 
 
 
