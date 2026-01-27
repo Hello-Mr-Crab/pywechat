@@ -79,6 +79,7 @@ class Buttons():
         self.RectentGroupButton={'title':'最近群聊','control_type':'Button'}#通讯录设置界面里的最近群聊按钮
         self.GroupCallButton={'title':'多人通话','control_type':'Button'}#群聊界面里的多人通话
         self.PostButton={'title':'发表','control_type':'Button'}#微信朋友圈界面里的发表按钮
+        self.BackButton={'title':'返回','control_type':'Button'}#微信朋友圈内的返回按钮
 
 class Edits():
     '''微信主界面内所有类型为Edit(不包含独立窗口)的UI控件'''
@@ -150,7 +151,8 @@ class Lists():
         self.SideList={'control_type':'List','class_name':'mmui::ContactsManagerControlView'}#通讯录管理界面左侧侧边栏
         self.ContactsManageList={'control_type':'List','class_name':'mmui::ContactsManagerControlView'}#通讯录管理界面左侧列表
         self.FileList={'control_type':'List','auto_id':'file_list','class_name':'mmui::XRecyclerTableView'}#聊天文件右侧的文件列表
-        self.MomentsList={'control_type':'List','auto_id':'sns_list','class_name':'mmui::TimeLineListView'}#朋友圈列表
+        self.MomentsList={'control_type':'List','auto_id':'sns_list'}#朋友圈列表
+        self.SnsDetailList={'control_type':'List','auto_id':'sns_detail_list'}#好友的朋友圈内点开一个项目后内部的列表
 
 class Panes():
     def __init__(self):
