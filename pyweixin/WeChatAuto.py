@@ -103,7 +103,7 @@ Regex_Patterns=Regex_Patterns()#所有的正则pattern
 
 
 class AutoReply():
-    
+    #核心原理就是一直检测最后一条消息的runtime_id
     @staticmethod
     def auto_reply_to_friend(friend:str,duration:str,content:str,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->None:
         '''
@@ -2820,3 +2820,4 @@ class Monitor():
         if close_dialog_window:
             dialog_window.close()
         return red_packet_count
+
