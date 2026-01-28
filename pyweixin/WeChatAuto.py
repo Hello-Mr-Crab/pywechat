@@ -1889,7 +1889,7 @@ class Moments():
             paths=build_path(medias)
             pyautogui.press('enter')
             SystemSettings.copy_text_to_windowsclipboard(paths)
-            native_window=Tools.move_window_to_center(Window=Windows.NativeChooseFileWindow)
+            native_window=desktop.window(**Windows.NativeChooseFileWindow)
             edit=native_window.child_window(**Edits.NativeFileSaveEdit)
             edit.click_input()
             pyautogui.hotkey('ctrl','v',_pause=False)
@@ -2820,4 +2820,5 @@ class Monitor():
         if close_dialog_window:
             dialog_window.close()
         return red_packet_count
+
 
