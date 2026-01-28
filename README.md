@@ -4,7 +4,7 @@
 
 https://github.com/Hello-Mr-Crab/pywechat/blob/main/Weixin4.0.md
 
-### pywechat是一个基于pywinauto实现的Windows系统下PC微信UI自动化的Python项目(不涉及逆向等操作)。实现了PC微信内置的大部分功能。
+### pywechat是一个基于pywinauto实现的Windows系统下PC微信自动化(pure uiautomation)的Python项目(不涉及逆向Hook操作),实现了PC微信内置的大部分功能。
 
 ### 微信版本:3.9+,4.1+
 ### 操作系统:🪟windows 10 🪟windows 11
@@ -83,7 +83,7 @@ git clone https://github.com/Hello-Mr-Crab/pywechat.git
 - `get_new_message_num`：获取新消息总数,微信按钮上的红色数字
 - `scan_for_newMessages`：会话列表遍历一遍有新消息提示的对象,返回好友名称与数量
 - `open_red_packet`: 点击打开好友发送的红包
-- `language_detector`:微信当前使用语言检测(不能禁用weAppex.exe,原理是查询weAppex.exe命令行参数)
+- `language_detector`:微信当前使用语言检测(不能禁用WeChatAppex.exe(涉及到公众号,微信内置浏览器,视频号等功能),原理是查询WeChatAppex.exe命令行参数)
 <br>
 
 ### pyweixin使用示例:
@@ -183,7 +183,7 @@ Navigator.search_official_account(name='微信')
 - `Contacts`: 获取3种类型通讯录好友的备注与昵称包括:微信好友,企业号微信,群聊名称与人数，数据返回格式为json。
 - `Call`: 给某个好友打视频或语音电话。
 - `AutoReply`:自动接听微信视频或语音电话,自动回复指定好友消息,自动回复所有好友消息。
-- `Moments`:针对微信朋友圈的一些方法,包括数据爬取，图片视频导出
+- `Moments`:针对微信朋友圈的一些方法,包括数据获取，图片视频导出
 ##### 函数:该模块内所有函数与方法一致。  
 <br>
 
@@ -345,6 +345,7 @@ print(check_new_message())
 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！ 
 
 ###### 作者CSDN主页:https://blog.csdn.net/weixin_73953650?spm=1011.2415.3001.5343
+
 
 
 
