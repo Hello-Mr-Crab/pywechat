@@ -103,7 +103,7 @@ Regex_Patterns=Regex_Patterns()#所有的正则pattern
 
 
 class AutoReply():
-    #核心原理就是一直检测最后一条消息的runtime_id
+    
     @staticmethod
     def auto_reply_to_friend(friend:str,duration:str,content:str,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->None:
         '''
@@ -255,7 +255,6 @@ class Contacts():
     '''
     用来获取通讯录联系人的一些方法
     '''
-    
     @staticmethod
     def check_my_info(is_maximize:bool=None,close_weixin:bool=None)->dict:
         '''
@@ -287,9 +286,9 @@ class Contacts():
         profile_pane.close()
         moments_window.close()
         return myinfo
-        
-@staticmethod
-def get_friends_detail(is_maximize:bool=None,close_weixin:bool=None,is_json:bool=False)->(list[dict]|str):
+
+    @staticmethod
+    def get_friends_detail(is_maximize:bool=None,close_weixin:bool=None,is_json:bool=False)->(list[dict]|str):
         '''
         该方法用来获取通讯录内好友信息
         Args:
@@ -311,9 +310,11 @@ def get_friends_detail(is_maximize:bool=None,close_weixin:bool=None,is_json:bool
                     if items[i+1].window_text()=='':
                         first_friend+=1
                     break
-            items[first_friend].click_input()       
+            items[first_friend].click_input()     
+  
         #获取右侧好友信息面板
         def get_specific_info():
+            wx_number='无'
             region='无'#好友的地区
             tag='无'#好友标签
             common_group_num='无'
@@ -326,7 +327,8 @@ def get_friends_detail(is_maximize:bool=None,close_weixin:bool=None,is_json:bool
             texts=contact_profile.descendants(control_type='Text')
             texts=[item.window_text() for item in texts]
             nickname=texts[0]
-            wx_number=texts[texts.index('微信号：')+1]#微信号
+            if '微信号：' in texts:
+                wx_number=texts[texts.index('微信号：')+1]#微信号
             if '昵称：' in texts:
                 nickname=texts[texts.index('昵称：')+1]
             if '地区：' in texts:
@@ -1987,6 +1989,7 @@ class Moments():
         该方法用来给朋友圈内最近发布的内容点赞
         Args:
             recent:最进的时间,取值为['Today','Yesterday','Week','Month']
+            number:数量,如果指定了一定的数量,那么点赞数量超过number时结束,如果没有则在recent指定的范围内全部点赞
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
@@ -2814,6 +2817,3 @@ class Monitor():
         if close_dialog_window:
             dialog_window.close()
         return red_packet_count
-
-
-
