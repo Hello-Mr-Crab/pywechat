@@ -255,6 +255,7 @@ class Contacts():
     '''
     用来获取通讯录联系人的一些方法
     '''
+    
     @staticmethod
     def check_my_info(is_maximize:bool=None,close_weixin:bool=None)->dict:
         '''
@@ -286,9 +287,9 @@ class Contacts():
         profile_pane.close()
         moments_window.close()
         return myinfo
-
-    @staticmethod
-    def get_friends_detail(is_maximize:bool=None,close_weixin:bool=None,is_json:bool=False)->(list[dict]|str):
+        
+@staticmethod
+def get_friends_detail(is_maximize:bool=None,close_weixin:bool=None,is_json:bool=False)->(list[dict]|str):
         '''
         该方法用来获取通讯录内好友信息
         Args:
@@ -310,14 +311,7 @@ class Contacts():
                     if items[i+1].window_text()=='':
                         first_friend+=1
                     break
-            items[first_friend].click_input()
-        
-        #切换到联系人分区内的最后一个好友
-        def switch_to_last_friend():
-            contact_list.type_keys('{END}')
-            last_friend=contact_list.children(control_type='ListItem',class_name="mmui::ContactsCellItemView")[-1]
-            last_friend.click_input()
-       
+            items[first_friend].click_input()       
         #获取右侧好友信息面板
         def get_specific_info():
             region='无'#好友的地区
@@ -371,20 +365,20 @@ class Contacts():
         #右侧自定义面板下的好友信息所在面板
         contact_profile=contact_custom.child_window(**Groups.ContactProfileGroup)
         #联系人分区
-        contact_item=main_window.child_window(control_type='ListItem',title_re=r'联系人\d+',class_name="mmui::ContactsCellGroupView")
         Tools.collapse_contacts(main_window,contact_list)
-        contact_item.click_input()
-        #有具体的数量,后续可以更换为for循环
-        switch_to_last_friend()
-        last_wx_number=get_specific_info().get('微信号')
-        switch_to_first_friend()
-        info=get_specific_info()
-        friends_detail.append(info)
-        while info.get('微信号')!=last_wx_number:
-            pyautogui.keyDown('Down',_pause=False)
+        contact_item=main_window.child_window(control_type='ListItem',title_re=r'联系人\d+',class_name="mmui::ContactsCellGroupView")
+        if contact_item.exists(timeout=0.1):
+            total_num=int(re.search(r'\d+',contact_item.window_text()).group(0))
+            contact_item.click_input()
+            #有具体的数量,后续可以更换为for循环
+            switch_to_first_friend()
             info=get_specific_info()
             friends_detail.append(info)
-        Tools.collapse_contacts(main_window,contact_list)
+            for _ in range(total_num-1):
+                pyautogui.keyDown('down',_pause=False)
+                info=get_specific_info()
+                friends_detail.append(info)
+            Tools.collapse_contacts(main_window,contact_list)
         if is_json:
             friends_detail=json.dumps(obj=friends_detail,ensure_ascii=False,indent=2)
         if close_weixin:
@@ -2820,5 +2814,6 @@ class Monitor():
         if close_dialog_window:
             dialog_window.close()
         return red_packet_count
+
 
 
