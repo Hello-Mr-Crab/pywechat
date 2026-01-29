@@ -2062,7 +2062,7 @@ class Moments():
     @staticmethod
     def dump_friend_moments(friend:str,number:int,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
         '''
-        该方法用来获取某个好友的微信朋友圈具体内容
+        该方法用来获取某个好友的微信朋友圈的内一定数量的内容
         Args:
             number:具体数量
             is_maximize:微信界面是否全屏，默认不全屏
@@ -2075,6 +2075,13 @@ class Moments():
             #后期点击保存图片或视频的逻辑
             listitem.click_input()
             pass
+        
+        def is_at_bottom(listview:ListViewWrapper,listitem:ListItemWrapper):
+            '''判断是否到达朋友圈列表底部'''
+            next_item=Tools.get_next_item(listview,listitem)
+            if next_item.class_name()=='mmui::AlbumBaseCell' and next_item.window_text()=='':#到达最底部
+                return True
+            return False
 
         def get_info(listitem:ListItemWrapper):
             '''获取朋友圈文本中的时间戳,图片数量,以及剩余内容'''
@@ -2085,50 +2092,48 @@ class Moments():
             video_num=0
             photo_num=0
             text=listitem.window_text()
-            text=text.strip(' ').replace('\n','')#先去掉头尾的空格去掉换行符
-            splited_text=text.split(' ')
-            possible_timestamps=[text for text in splited_text if sns_timestamp_pattern.match(text)]
-            post_time=possible_timestamps[-1]
+            text=text.replace('\n','').replace(friend,'')#先去掉头尾的空格去掉换行符
+            post_time=sns_detail_pattern.search(text).group(0)
             if re.search(rf'\s包含(\d+)张图片\s{post_time}',text):
                 photo_num=int(re.search(rf'\s包含(\d+)张图片\s{post_time}',text).group(1))
             if re.search(rf'\s视频\s{post_time}',text):
                 video_num=1
             content=re.sub(rf'\s(包含\d+张图片\s{post_time}|视频\s{post_time}|{post_time})','',text)
             return content,photo_num,video_num,post_time
-        
+
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
         posts=[]
-        sns_timestamp_pattern=Regex_Patterns.Sns_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳
-        not_contents=['mmui::TimelineCommentCell','mmui::TimelineCell']#评论区，余下x条这三种不需要
+        sns_detail_pattern=Regex_Patterns.Snsdetail_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳
+        not_contents=['mmui::AlbumBaseCell','mmui::AlbumTopCell']#置顶,还有好友
         moments_window=Navigator.open_friend_moments(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin)
         moments_list=moments_window.child_window(**Lists.MomentsList)
-        moments_list.type_keys('{HOME}')
-        #微信朋友圈当天发布时间是xx分钟前,xx小时前,一周内的时间在7天内,且包含当天时间,同理一月内的时间在30天内,包含本周的时间
-        minutes={f'{i}分钟前' for i in range(1,60)}
-        hours={f'{i}小时前' for i in range(1,24)}
-        month_days={f'{i}天前' for i in range(1,31)}
-        week_days={f'{i}天前' for i in range(1,8)}
-        week_days.update(minutes)
-        week_days.update(hours)
-        month_days.update(week_days)
-        moments_list.type_keys('{DOWN}')
-        if moments_list.children(control_type='ListItem'):
+        sns_detail_list=moments_window.child_window(**Lists.SnsDetailList)
+        moments_list.type_keys('{PGDN}')
+        moments_list.type_keys('{PGUP}')
+        contents=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.class_name() not in not_contents]
+        if contents:
             while True:
-                listitems=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.class_name() not in not_contents]
-                selected=[listitem for listitem in listitems if listitem.has_keyboard_focus()]
-                if selected:
+                moments_list.type_keys('{DOWN}')
+                selected=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
+                if selected and selected[0].class_name() not in not_contents:
                     selected[0].click_input()
-                    sns_detail_list=moments_window.child_window(**Lists.SnsDetailList)
-                    listitem=sns_detail_list.children(control_type='ListItem')
+                    listitem=sns_detail_list.children(control_type='ListItem')[0]
+                    content,photo_num,video_num,post_time=get_info(listitem)
+                    posts.append({'内容':content,'图片数量':photo_num,'视频数量':video_num,'发布时间':post_time})
                     backbutton=moments_window.child_window(**Buttons.BackButton)
+                    backbutton.click_input()
+                    if is_at_bottom(moments_list,selected[0]):
+                        break
+                if len(posts)>=number:
+                    break
         moments_window.close()
         return posts
-    
-class Messages():
 
+
+class Messages():
     @staticmethod
     def send_messages_to_friend(friend:str,messages:list[str],at_members:list[str]=[],
         at_all:bool=False,clear:bool=None,
