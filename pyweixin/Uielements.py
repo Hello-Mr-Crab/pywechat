@@ -151,7 +151,7 @@ class Lists():
         self.SideList={'control_type':'List','class_name':'mmui::ContactsManagerControlView'}#通讯录管理界面左侧侧边栏
         self.ContactsManageList={'control_type':'List','class_name':'mmui::ContactsManagerControlView'}#通讯录管理界面左侧列表
         self.FileList={'control_type':'List','auto_id':'file_list','class_name':'mmui::XRecyclerTableView'}#聊天文件右侧的文件列表
-        self.MomentsList={'control_type':'List','auto_id':'sns_list'}#朋友圈列表
+        self.MomentsList={'control_type':'List','auto_id':'sns_list','found_index':0}#朋友圈列表
         self.SnsDetailList={'control_type':'List','auto_id':'sns_detail_list'}#好友的朋友圈内点开一个项目后内部的列表
 
 class Panes():
