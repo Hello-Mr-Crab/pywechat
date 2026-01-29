@@ -51,7 +51,7 @@ git clone https://github.com/Hello-Mr-Crab/pywechat.git
 ### pyweixin模块介绍(适用于4.1+微信)
 #### WechatTools🌪️🌪️
 ##### class包括:
-- `Tools`:关于PC微信的一些工具,包括打开PC微信内各个界面的open系列方法。
+- `Tools`:关于PC微信的一些工具,微信路径,运行状态,以及内部一些UI相关的判别方法。
 - `Navigator`:打开微信内部一切可以打开的界面。
 <br>
 
@@ -345,6 +345,7 @@ print(check_new_message())
 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！ 
 
 ###### 作者CSDN主页:https://blog.csdn.net/weixin_73953650?spm=1011.2415.3001.5343
+
 
 
 
