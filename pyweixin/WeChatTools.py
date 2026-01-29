@@ -25,8 +25,9 @@ Navigator
 ----------
     - `open_weixin`: 打开微信主界面
     - `find_friend_in_SessionList`: 在会话列表中查找好友
-    - `open_contacts`: 打开通讯录界面
-    - `open_collections`: 打开收藏
+    - `open_moments`: 打开通讯录界面
+    - `open_moments`: 打开通讯录管理界面
+    - `open_moments`: 打开收藏
     - `open_moments`: 打开朋友圈
     - `open_channels`: 打开视频号
     - `open_search`: 打开搜一搜
@@ -382,6 +383,15 @@ class Tools():
         activate_position=(chatList.rectangle().right-12,chatList.rectangle().mid_point().y)
         mouse.click(coords=activate_position)
         chatList.type_keys('{END}')
+    
+    @staticmethod
+    def get_next_item(listview:ListViewWrapper,listitem:ListItemWrapper):
+        '''获取当前listview中给定的listitem的下一个,如果该listitem是最后一个则返回None'''
+        items=listview.children()
+        for i in range(len(items)):
+            if items[i]==listitem and i<len(items)-1:
+                return items[i+1]
+        return None
 
     @staticmethod
     def get_search_result(friend:str,search_result:ListViewWrapper)->(ListItemWrapper|None):
@@ -402,12 +412,12 @@ class Tools():
     
     @staticmethod
     def capture_alias(listitem:ListItemWrapper):
-        '''用来截取发送消息的群成员昵称'''
+        '''用来截取发送消息的群成员昵称,'''
         rectangle=listitem.rectangle()
         width=rectangle.right-rectangle.left
         x=rectangle.left+80
-        y=rectangle.top
-        image=pyautogui.screenshot(region=(x,y,width-80,36))
+        y=rectangle.top+5
+        image=pyautogui.screenshot(region=(x,y,width-80,38))
         return image
 
     @staticmethod
@@ -619,7 +629,7 @@ class Navigator():
         def select_in_messageList(friend):
             '''
             用来返回会话列表中automation_id为friend的ListItem项是否为最后一项
-            最后一项必须要点击顶部靠下位置，不然会误触
+            最后一项就不点了,直接返回is_find=False顶部搜索
             '''
             is_last=False
             friend_button=None
@@ -737,7 +747,7 @@ class Navigator():
                 return group_chatinfo_pane,main_window
 
     @staticmethod 
-    def open_friend_profile(friend:str,is_maximize:bool=None,search_pages:int=None)->WindowSpecification:
+    def open_friend_profile(friend:str,is_maximize:bool=None,search_pages:int=None)->tuple[WindowSpecification,WindowSpecification]:
         '''
         该函数用来打开好友的个人简介界面
         Args:
@@ -751,15 +761,15 @@ class Navigator():
             search_pages=GlobalConfig.search_pages
         chatinfo_pane,main_window=Navigator.open_chatinfo(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         friend_button=chatinfo_pane.child_window(title=friend,control_type='Button')
-        if friend_button.exists(timeout=0.1):
+        if friend_button.exists(timeout=0.2):
             time.sleep(1)
             profile_button=friend_button.children(title='',control_type='Button')[0]
             profile_button.click_input()
             profile_pane=desktop.window(**Windows.PopUpProfileWindow)
             return profile_pane,main_window
         else:
-            friend_text=main_window.child_window(title=friend,control_type='Text',found_index=1)
-            friend_text.click_input()
+            chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton)
+            chatinfo_button.click_input()
             main_window.close()
             raise NotFriendError(f'此为群聊,非好友,无法打开个人简介界面!')
         
@@ -778,7 +788,7 @@ class Navigator():
         if search_pages is None:
             search_pages=GlobalConfig.search_pages
         profile_pane,main_window=Navigator.open_friend_profile(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
-        Tools.cancel_pin(main_window)
+        # Tools.cancel_pin(main_window)
         try:
             moments_button=profile_pane.child_window(title='朋友圈',control_type='Button',auto_id='button').wait(wait_for='ready',timeout=2,retry_interval=0.1)
             moments_button.click_input()
@@ -1066,6 +1076,7 @@ class Navigator():
             is_maximize:微信界面是否全屏,默认不全屏
             window_minimize:独立聊天窗口是否最小化(监听消息方便),默认不最小
             search_pages:在会话列表中查询查找好友时滚动列表的次数,默认为5,一次可查询5-12人,当search_pages为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
+            close_weixin:打开独立窗口后关闭微信
         Returns:
             dialog_window:与好友的聊天窗口
         '''
@@ -1161,17 +1172,14 @@ class Navigator():
         return chat_history_window
 
     @staticmethod
-    def open_add_friend_panel(is_maximize:bool=None,close_weixin:bool=None)->WindowSpecification:
+    def open_add_friend_panel(is_maximize:bool=None)->WindowSpecification:
         '''
         该方法用于打开添加好友窗口
         Args:
             is_maximize:微信界面是否全屏,默认不全屏。
-            close_weixin:任务完成是否关闭微信
         '''
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
-        if close_weixin is None:
-            close_weixin=GlobalConfig.close_weixin
         main_window=Navigator.open_weixin()
         chat_button=main_window.child_window(**SideBar.Chats)
         quick_actions_button=main_window.child_window(**Buttons.QuickActionsButton)
@@ -1181,9 +1189,7 @@ class Navigator():
         quick_actions_list.type_keys('{UP}'*2)
         quick_actions_list.type_keys('{ENTER}')
         addfriendWindow=Tools.move_window_to_center(Window=Independent_window.AddFriendWindow)
-        if close_weixin:
-            main_window.close()
-        return addfriendWindow
+        return addfriendWindow,main_window
 
     @staticmethod
     def search_official_account(name:str,load_delay:float=None,is_maximize:bool=None,close_weixin:bool=None)->WindowSpecification:
@@ -1306,5 +1312,3 @@ class Navigator():
             print('网络不良,请尝试增加load_delay时长,或更换网络!')
             program_window.close()
             return None
-
-
