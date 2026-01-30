@@ -91,9 +91,6 @@ git clone https://github.com/Hello-Mr-Crab/pywechat.git
 ```
 from pyweixin import xxx
 xxx.yy
-
-from pyweixin import xxx
-xxx,yy
 ```
 <br>
 
@@ -345,6 +342,7 @@ print(check_new_message())
 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！ 
 
 ###### 作者CSDN主页:https://blog.csdn.net/weixin_73953650?spm=1011.2415.3001.5343
+
 
 
 
