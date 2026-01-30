@@ -398,12 +398,13 @@ class Tools():
         '''查看顶部搜索列表里有没有名为friend的listitem,只能用来查找联系人,群聊,服务号,公众号'''
         texts=[listitem.window_text() for listitem in search_result.children(control_type="ListItem")]
         listitems=search_result.children(control_type='ListItem')
+        #正常好友群聊服务号公众号的class_name是mmui::SearchContentCellView
         if '联系人' in texts or '群聊' in texts or '服务号' in texts or '公众号' in texts:
             listitems=[listitem for listitem in listitems if listitem.class_name()=="mmui::SearchContentCellView"]
             listitems=[listitem for listitem in listitems if listitem.window_text()==friend]
             if listitems:
                 return listitems[0]
-        if '功能' in texts:
+        if '功能' in texts:#功能比如文件传输助手,微信支付的class_name是mmui::XTableCell
             listitems=search_result.children(control_type='ListItem',class_name="mmui::XTableCell")
             listitems=[listitem for listitem in listitems if listitem.window_text()==friend]
             if listitems:
@@ -412,12 +413,12 @@ class Tools():
     
     @staticmethod
     def capture_alias(listitem:ListItemWrapper):
-        '''用来截取发送消息的群成员昵称,'''
+        '''用来截取聊天记录中的聊天对象昵称,左上角灰白色文本'''
         rectangle=listitem.rectangle()
         width=rectangle.right-rectangle.left
         x=rectangle.left+80
         y=rectangle.top+5
-        image=pyautogui.screenshot(region=(x,y,width-80,38))
+        image=pyautogui.screenshot(region=(x,y,width-160,38))
         return image
 
     @staticmethod
@@ -609,6 +610,7 @@ class Navigator():
             main_window=log_in(wx_window)
         if wx.window_type==1:#微信在运行，主界面存在(可能被关闭或者可见)
             main_window=move_window_to_center(wx_window,is_maximize=is_maximize)
+            Tools.cancel_pin(main_window)
         offline_button=main_window.child_window(**Buttons.OffLineButton)
         if offline_button.exists(timeout=0.1):
             main_window.close()
@@ -788,7 +790,6 @@ class Navigator():
         if search_pages is None:
             search_pages=GlobalConfig.search_pages
         profile_pane,main_window=Navigator.open_friend_profile(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
-        # Tools.cancel_pin(main_window)
         try:
             moments_button=profile_pane.child_window(title='朋友圈',control_type='Button',auto_id='button').wait(wait_for='ready',timeout=2,retry_interval=0.1)
             moments_button.click_input()
@@ -812,7 +813,8 @@ class Navigator():
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
-        moments_button=main_window.child_window(**SideBar.Moments)
+        toolbar=main_window.child_window(**Main_window.Toolbar)
+        moments_button=toolbar.child_window(**SideBar.Moments)
         moments_button.click_input()
         moments_window=Tools.move_window_to_center(Independent_window.MomentsWindow)
         if close_weixin:
