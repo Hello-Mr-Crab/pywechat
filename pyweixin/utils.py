@@ -201,7 +201,7 @@ def open_red_packet(dialog_window:WindowSpecification,red_packet:ListItemWrapper
     red_envelop_detail.close()
 
 
-def scan_for_new_messages(main_window:WindowSpecification=None,delay:float=0.3,is_maximize:bool=None,close_weixin:bool=None)->dict:
+def scan_for_new_messages(main_window:WindowSpecification=None,delay:float=0.2,is_maximize:bool=None,close_weixin:bool=None)->dict:
     '''
     该函数用来扫描检查一遍会话列表中的所有新消息,返回发送对象以及新消息数量(不包括免打扰)
     Args:
@@ -212,19 +212,17 @@ def scan_for_new_messages(main_window:WindowSpecification=None,delay:float=0.3,i
     Returns:
         newMessages_dict:有新消息的好友备注及其对应的新消息数量构成的字典
     '''
-
     def traverse_messsage_list(listItems):
         #newMessageTips为newMessagefriends中每个元素的文本:['测试365 5条新消息','一家人已置顶20条新消息']这样的字符串列表
-       
-        listItems=[listItem for listItem in listItems if '公众号' not in listItem.window_text()]
-        listItems=[listItem for listItem in listItems if '服务号' not in listItem.window_text()]
-        listItems=[listItem for listItem in listItems if '消息免打扰' not in listItem.window_text()]
+        listItems=[listItem for listItem in listItems if listItem.automation_id() not in not_care 
+        and '消息免打扰' not in listItem.window_text()]
         listItems=[listItem for listItem in listItems if new_message_pattern.search(listItem.window_text())]
         senders=[listItem.automation_id().replace('session_item_','') for listItem in listItems]
         newMessageTips=[listItem.window_text() for listItem in listItems if listItem.window_text() not in newMessageSenders]
         newMessageNum=[int(new_message_pattern.search(text).group(1)) for text in newMessageTips]
         return senders,newMessageNum
 
+    not_care={'session_item_服务号','session_item_公众号'}
     if is_maximize is None:
         is_maximize=GlobalConfig.is_maximize
     if close_weixin is None:
@@ -243,24 +241,31 @@ def scan_for_new_messages(main_window:WindowSpecification=None,delay:float=0.3,i
     message_list_pane.type_keys('{HOME}')
     new_message_num=re.search(r'\d+',full_desc)#正则提取数量
     #微信会话列表内ListItem标准格式:备注\s(已置顶)\s(\d+)条未读\s最后一条消息内容\s时间
-    new_message_pattern=re.compile(r'\n\[(\d+)条\]')#只给数量分组,.group(1)获取
+    new_message_pattern=re.compile(r'\n\[(\d+)条\]')#只给数量分组.group(1)获取
     if not new_message_num:
         print(f'没有新消息')
         return {}
     if new_message_num:
         new_message_num=int(new_message_num.group(0))
-        message_list=main_window.child_window(**Main_window.ConversationList)
-    while sum(newMessages_dict.values())<new_message_num:#当最终的新消息总数之和大于等于实际新消息总数时退出循环
-        #遍历获取带有新消息的ListItem
-        listItems=message_list.children(control_type='ListItem')
-        time.sleep(delay)
-        senders,nums=traverse_messsage_list(listItems)
-        # #提取姓名和数量
-        newMessageNums.extend(nums)
-        newMessageSenders.extend(senders)
-        newMessages_dict=dict(zip(newMessageSenders,newMessageNums))
-        message_list.type_keys('{PGDN}')
-    message_list.type_keys('{HOME}')
+        session_list=main_window.child_window(**Main_window.ConversationList)
+        session_list.type_keys('{END}')
+        time.sleep(0.2)
+        last_item=session_list.children(control_type='ListItem')[-1].window_text()
+        session_list.type_keys('{HOME}')
+        time.sleep(0.2)
+        while sum(newMessages_dict.values())<new_message_num:#当最终的新消息总数之和大于等于实际新消息总数时退出循环
+            #遍历获取带有新消息的ListItem
+            listItems=session_list.children(control_type='ListItem')
+            time.sleep(delay)
+            senders,nums=traverse_messsage_list(listItems)
+            ##提取姓名和数量
+            newMessageNums.extend(nums)
+            newMessageSenders.extend(senders)
+            newMessages_dict=dict(zip(newMessageSenders,newMessageNums))
+            session_list.type_keys('{PGDN}')
+            if listItems[-1].window_text()==last_item:
+                break
+        session_list.type_keys('{HOME}')
     if close_weixin:
         main_window.close()
     return newMessages_dict
