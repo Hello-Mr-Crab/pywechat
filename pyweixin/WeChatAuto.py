@@ -2109,6 +2109,7 @@ class Moments():
         sns_detail_pattern=Regex_Patterns.Snsdetail_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳
         not_contents=['mmui::AlbumBaseCell','mmui::AlbumTopCell']#置顶,还有好友
         moments_window=Navigator.open_friend_moments(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin)
+        win32gui.SendMessage(moments_window.handle, win32con.WM_SYSCOMMAND, win32con.SC_MAXIMIZE,0)
         moments_list=moments_window.child_window(**Lists.MomentsList)
         sns_detail_list=moments_window.child_window(**Lists.SnsDetailList)
         moments_list.type_keys('{PGDN}')
@@ -2144,7 +2145,7 @@ class Messages():
             friend:好友或群聊备注。格式:friend="好友或群聊备注"
             messages:所有待发送消息列表。格式:message=["消息1","消息2"]
             at_members:群聊内所有需要@的群成员昵称列表(注意必须是群昵称)
-            send_delay:发送单条消息延迟,单位:秒/s,默认0.2s(已经是极限了)。
+            send_delay:发送单条消息延迟,单位:秒/s,默认0.2s(0.1-0.2之间是极限)。
             clear:是否删除编辑区域已有的内容,默认删除
             is_maximize:微信界面是否全屏,默认不全屏。
             close_weixin:任务结束后是否关闭微信,默认关闭
@@ -2547,45 +2548,6 @@ class Messages():
         return sessions
 
     @staticmethod
-    def dump_chat_history(friend:str,number:int,is_maximize:bool=None,close_weixin:bool=None)->tuple[list,list]:
-        '''该函数用来获取一定数量的聊天记录
-        Args:
-            friend:好友名称
-            number:获取的消息数量
-            is_maximize:微信界面是否全屏，默认不全屏
-            close_weixin:任务结束后是否关闭微信，默认关闭
-        Returns:
-            messages:发送的消息(时间顺序从早到晚)
-            timestamps:每条消息对应的发送时间
-        '''
-        if is_maximize is None:
-            is_maximize=GlobalConfig.is_maximize
-        if close_weixin is None:
-            close_weixin=GlobalConfig.close_weixin
-        messages=[]
-        timestamp_pattern=Regex_Patterns.Chathistory_Timestamp_pattern
-        chat_history_window=Navigator.open_chat_history(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin)
-        chat_list=chat_history_window.child_window(**Lists.ChatHistoryList)
-        scrollable=Tools.is_scrollable(chat_list)
-        if not chat_list.children(control_type='ListItem'):
-            warn(message=f"你与{friend}的聊天记录为空,无法获取聊天记录",category=NoChatHistoryWarning)
-        if not scrollable: 
-            ListItems=chat_list.children(control_type='ListItem')
-            messages=[listitem.window_text() for listitem in ListItems if listitem.class_name()!="mmui::ChatItemView"]  
-        if scrollable:
-            while len(messages)<number:
-                ListItems=chat_list.children(control_type='ListItem')
-                ListItems=[listitem for listitem in ListItems if listitem.class_name()!="mmui::ChatItemView"]  
-                messages.extend([listitem.window_text() for listitem in ListItems])
-                chat_list.type_keys('{PGDN}')
-            chat_list.type_keys('{HOME}')
-        chat_history_window.close()
-        messages=messages[:number][::-1]
-        timestamps=[timestamp_pattern.search(message).group(0) if timestamp_pattern.search(message) else '微信红包或转账(时间戳为图片非文本无法获取)' for message in messages]
-        messages=[timestamp_pattern.sub('',message) for message in messages]
-        return messages,timestamps
-
-    @staticmethod
     def pull_messages(friend:str,number:int,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->list[str]:
         '''
         该函数用来从聊天界面获取聊天消息,也可当做获取聊天记录
@@ -2628,12 +2590,68 @@ class Messages():
                 main_window.close()
         return messages
 
+    @staticmethod
+    def dump_chat_history(friend:str,number:int,capture_alia:bool=False,alias_folder:str=None,is_maximize:bool=None,close_weixin:bool=None)->tuple[list,list]:
+        '''该函数用来获取一定数量的聊天记录
+        Args:
+            friend:好友名称
+            number:获取的消息数量
+            capture_alia:是否截取聊天记录中聊天对象的昵称
+            alias_folder:保存聊天对象昵称截图的文件夹
+            is_maximize:微信界面是否全屏，默认不全屏
+            close_weixin:任务结束后是否关闭微信，默认关闭
+        Returns:
+            (messages,timestamps):发送的消息(时间顺序从早到晚),每条消息对应的发送时间
+        '''
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+        if capture_alia and alias_folder is None:
+            alias_folder=os.path.join(os.getcwd(),f'dump_chat_history好友昵称截图',f'{friend}')
+            print(f'未传入文件夹路径,好友昵称截图将分别保存到{alias_folder}内')
+            os.makedirs(alias_folder,exist_ok=True)
+        messages=[]
+        timestamp_pattern=Regex_Patterns.Chathistory_Timestamp_pattern
+        chat_history_window=Navigator.open_chat_history(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin)
+        chat_list=chat_history_window.child_window(**Lists.ChatHistoryList)
+        scrollable=Tools.is_scrollable(chat_list)
+        if not chat_list.children(control_type='ListItem'):
+            warn(message=f"你与{friend}的聊天记录为空,无法获取聊天记录",category=NoChatHistoryWarning)
+        if not scrollable: 
+            ListItems=chat_list.children(control_type='ListItem')
+            messages=[listitem.window_text() for listitem in ListItems if listitem.class_name()!="mmui::ChatItemView"]  
+        if scrollable:
+            first_item=chat_list.children(control_type='ListItem')[0]
+            rectangle=first_item.rectangle()
+            mouse.click(coords=(rectangle.right,rectangle.mid_point().y))
+            messages.append(first_item.window_text())
+            if capture_alia:
+                path=os.path.join(alias_folder,f'与{friend}聊天记录_1.png')
+                alia_image=Tools.capture_alias(first_item)
+                alia_image.save(path)
+            while len(messages)<number:
+                chat_list.type_keys('{DOWN}'*2)#按两下下健才会选中listitem，按一下选中的是头像
+                selected=[listitem for listitem in chat_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
+                if selected:
+                    messages.append(selected[0].window_text())
+                    if capture_alia:
+                        time.sleep(0.2)#必须等待0.2s以上才能截出指定数量的图，不然过快来不及截图
+                        path=os.path.join(alias_folder,f'与{friend}聊天记录_{len(messages)}.png')
+                        alia_image=Tools.capture_alias(selected[0])
+                        alia_image.save(path)
+            chat_list.type_keys('{HOME}')
+        chat_history_window.close()
+        messages=messages[:number]
+        timestamps=[timestamp_pattern.search(message).group(0) if timestamp_pattern.search(message) else '微信红包或转账(时间戳为图片非文本无法获取)' for message in messages]
+        messages=[timestamp_pattern.sub('',message) for message in messages]
+        return messages,timestamps
 
 class Monitor():
     '''监听消息的一些方法'''
 
     @staticmethod
-    def  listen_on_chat(dialog_window:WindowSpecification,duration:str,save_file:bool=False,save_photo:bool=False,capture_alia:bool=False,target_folder:str=None,close_dialog_window:bool=True)->dict:
+    def  listen_on_chat(dialog_window:WindowSpecification,duration:str,save_file:bool=False,save_photo:bool=False,target_folder:str=None,close_dialog_window:bool=True)->dict:
         '''
         该方法用来在指定时间内监听会话窗口内的新消息(可以配合多线程使用,一次监听多个会话内的消息)
         Args:
@@ -2664,11 +2682,6 @@ class Monitor():
         Returns:
             details:该聊天窗口内的新消息(文本内容),格式为{'新消息总数':x,'文本数量':x,'文件数量':x,'图片数量':x,'视频数量':x,'链接数量':x,'文本内容':x,'群昵称截图':x}
         '''
-        def activate_chatList(chatList:ListViewWrapper):
-            '让消息列表至于最底部'
-            activate_position=(chatList.rectangle().right-12,chatList.rectangle().mid_point().y)
-            mouse.click(coords=activate_position)
-            chatList.type_keys('{END}')
 
         def make_unique_id(listitem:ListItemWrapper):
             '''根据图片所在listitem的高度与runtime_id之和生成unique_id
@@ -2708,7 +2721,7 @@ class Monitor():
         if not duration:#不按照指定的时间格式输入,需要提前中断退出
             raise TimeNotCorrectError
         is_group_chat=Tools.is_group_chat(dialog_window)#是否为群聊
-        if (save_file or save_photo or capture_alia) and target_folder is None:
+        if (save_file or save_photo ) and target_folder is None:
             target_folder=os.path.join(os.getcwd(),f'{dialog_window.window_text()}_listen_on_chat聊天文件保存')
             print(f'未传入文件夹路径,文件,图片,群昵称截图将分别保存到{target_folder}内的Files,Images,Alias文件夹下\n')
             os.makedirs(target_folder,exist_ok=True)
@@ -2718,10 +2731,7 @@ class Monitor():
         if save_photo:
             image_folder=os.path.join(target_folder,'Images')
             os.makedirs(image_folder,exist_ok=True)
-        if capture_alia and is_group_chat:
-            alia_folder=os.path.join(target_folder,'Alias')
-            os.makedirs(alia_folder,exist_ok=True)
-        
+       
         total=0
         link_count=0
         video_count=0
@@ -2735,7 +2745,7 @@ class Monitor():
         chatfile_folder=Tools.where_chatfile_folder()
         chatList=dialog_window.child_window(**Lists.FriendChatList)#聊天界面内存储所有信息的容器
         copy_item=dialog_window.child_window(**MenuItems.CopyItem)
-        activate_chatList(chatList)
+        Tools.activate_chatList(chatList)
         if chatList.children(control_type='ListItem'):
             initial_message=chatList.children(control_type='ListItem')[-1]#刚打开聊天界面时的最后一条消息的listitem
             initial_runtime_id=initial_message.element_info.runtime_id
@@ -2749,13 +2759,9 @@ class Monitor():
                 runtime_id=newMessage.element_info.runtime_id
                 if runtime_id!=initial_runtime_id: 
                     total+=1
-                    if capture_alia and is_group_chat:
-                        alia_image=Tools.capture_alias(newMessage)
-                        path=os.path.join(alia_folder,f'聊天对象_{friend}_{time.strftime(f'%y-%m-%d-%H时%M分%S秒')}.png')#时间戳和好友名字做文件名保证不会重复
-                        alia_image.save(path)
                     if newMessage.class_name()=='mmui::ChatTextItemView':
                         texts.append(newMessage.window_text())
-                    if newMessage.class_name()=='mmui::ChatBubbleItemView' and newMessage.window_text()[:2]=='[链接]':
+                    if newMessage.class_name()=='mmui::ChatBubbleItemView' and newMessage.window_text()[:2]=='[链接]':#
                         link_count+=1
                     if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and newMessage.window_text()=='图片':
                         image_count+=1
@@ -2774,8 +2780,7 @@ class Monitor():
         #最后结束时再批量复制到target_folder,不在循环里逐个复制是考虑到若文件过大(几百mb)没有自动下载完成移动不了
         if save_file and files:SystemSettings.copy_files(files,file_folder)#文件复制粘贴到target_folder/Files内
         if save_photo and image_count:save_photos(chatList)#保存图片到target_folder/Images内
-        if close_dialog_window:
-            dialog_window.close()
+        if close_dialog_window:dialog_window.close()
         details={'新消息总数':total,'文本数量':len(texts),'文件数量':len(files),'图片数量':image_count,'视频数量':video_count,'链接数量':link_count,'文本内容':texts}
         return details
     
