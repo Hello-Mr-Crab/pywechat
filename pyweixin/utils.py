@@ -4,7 +4,7 @@ import emoji
 import psutil
 import pyautogui
 from functools import wraps
-from pywinauto import WindowSpecification,Desktop
+from pywinauto import WindowSpecification,Desktop,mouse
 from pywinauto.controls.uia_controls import ListViewWrapper,ListItemWrapper,EditWrapper #TypeHint要用到
 from .Config import GlobalConfig
 from .WeChatTools import Navigator,Tools
@@ -24,15 +24,17 @@ desktop=Desktop(backend='uia')
 class Regex_Patterns():
     '''常用正则pattern'''
     def __init__(self):
+        #|表示或的逻辑关系,关于Python正则表达式的任何问题和入门级教程可以差看这篇博客:https://blog.csdn.net/weixin_73953650/article/details/151123336?spm=1001.2014.3001.5501
         self.Sns_Timestamp_pattern=re.compile(r'\d+分钟前|\d+小时前|昨天|\d+天前')#朋友圈好友发布内容左下角的时间戳
         self.Chafile_Timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日|\d{1,2}月\d{1,2}日|昨天|星期\w|\d{1,2}:\d{2})')#微信聊天文件时间戳
-        self.Chathistory_Time_pattern=re.compile(r'(?<=\s)(\d{4}年\d{1,2}月\d{1,2}日 \d{2}:\d{2}|\d{1,2}月\d{1,2}日 \d{2}:\d{2}|\d{2}:\d{2}|昨天 \d{2}:\d{2}|星期\w \d{2}:\d{2})$')#聊天记录界面内的时间戳
+        self.Snsdetail_Timestamp_pattern=re.compile(r'(?<=\s)\d{4}年\d{1,2}月\d{1,2}日\s\d{1,2}:\d{2}|\d{1,2}月\d{1,2}日\s\d{1,2}:\d{2}|昨天\s\d{1,2}:\d{2}|星期\w\s\d{1,2}:\d{2}|\d{1,2}:\d{2}\s$')#微信好友朋友圈主页内的时间戳
+        self.Chathistory_Timestamp_pattern=re.compile(r'(?<=\s)(\d{4}年\d{1,2}月\d{1,2}日\s\d{2}:\d{2}|\d{1,2}月\d{1,2}日\s\d{2}:\d{2}|\d{2}:\d{2}|昨天\s\d{2}:\d{2}|星期\w\s\d{2}:\d{2})$')#聊天记录界面内的时间戳
         self.Session_Timestamp_pattern=re.compile(r'(?<=\s)(\d{4}/\d{1,2}/\d{1,2}|\d{1,2}/\d{1,2}|\d{2}:\d{2}|昨天 \d{2}:\d{2}|星期\w)$')#主界面左侧会话列表内的时间戳
         self.GroupMember_Num_pattern=re.compile(r'\((\d+)\)$')#通讯录设置界面中每个最近群聊ListItem后边的数字
         self.QtWindow_pattern=re.compile(r'Qt\d+QWindowIcon')#qt窗口通用classname
-        self.Filename_pattern=re.compile(r'.*\.\w+\s')#文件名的pattern, 用来匹配.docx,.ppt等文件名，只适合在微信聊天文件界面中使用
+        self.Filename_pattern=re.compile(r'.*\.\w+\s')#用来匹配.docx,.ppt等文件名，只适合在微信聊天文件界面中使用
         self.File_Pattern=re.compile(r'文件\n(.*)\n')#微信聊天窗口发送的聊天文件卡片上的内容(有两个换行符)
-
+        
 
 def auto_reply_to_friend_decorator(duration:str,friend:str,search_pages:int=5,is_maximize:bool=False,close_weixin:bool=False):
     '''
@@ -199,11 +201,12 @@ def open_red_packet(dialog_window:WindowSpecification,red_packet:ListItemWrapper
     red_envelop_detail.close()
 
 
-def scan_for_new_messages(main_window:WindowSpecification=None,is_maximize:bool=None,close_weixin:bool=None)->dict:
+def scan_for_new_messages(main_window:WindowSpecification=None,delay:float=0.3,is_maximize:bool=None,close_weixin:bool=None)->dict:
     '''
-    该函数用来扫描检查一遍消息列表中的所有新消息,返回发送对象以及新消息数量(不包括免打扰)
+    该函数用来扫描检查一遍会话列表中的所有新消息,返回发送对象以及新消息数量(不包括免打扰)
     Args:
         main_window:微信主界面实例,可以用于二次开发中直接传入main_window,也可以不传入,不传入自动打开
+        delay:在会话列表查询新消息时的翻页延迟时间,默认0.3秒
         is_maximize:微信界面是否全屏，默认不全屏
         close_weixin:任务结束后是否关闭微信，默认关闭
     Returns:
@@ -212,13 +215,13 @@ def scan_for_new_messages(main_window:WindowSpecification=None,is_maximize:bool=
 
     def traverse_messsage_list(listItems):
         #newMessageTips为newMessagefriends中每个元素的文本:['测试365 5条新消息','一家人已置顶20条新消息']这样的字符串列表
-        listItems=[listItem for listItem in listItems if '条未读' in listItem.window_text()]
+       
         listItems=[listItem for listItem in listItems if '公众号' not in listItem.window_text()]
         listItems=[listItem for listItem in listItems if '服务号' not in listItem.window_text()]
         listItems=[listItem for listItem in listItems if '消息免打扰' not in listItem.window_text()]
+        listItems=[listItem for listItem in listItems if new_message_pattern.search(listItem.window_text())]
         senders=[listItem.automation_id().replace('session_item_','') for listItem in listItems]
-        newMessageTips=[listItem.window_text() for listItem in listItems]
-        newMessageTips=list(dict.fromkeys(newMessageTips))
+        newMessageTips=[listItem.window_text() for listItem in listItems if listItem.window_text() not in newMessageSenders]
         newMessageNum=[int(new_message_pattern.search(text).group(1)) for text in newMessageTips]
         return senders,newMessageNum
 
@@ -230,7 +233,7 @@ def scan_for_new_messages(main_window:WindowSpecification=None,is_maximize:bool=
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
     newMessageSenders=[]
     newMessageNums=[]
-   
+    newMessages_dict=dict(zip(newMessageSenders,newMessageNums))
     chats_button=main_window.child_window(**SideBar.Chats)
     chats_button.click_input()
     #左上角微信按钮的红色消息提示(\d+条新消息)在FullDescription属性中,
@@ -240,23 +243,24 @@ def scan_for_new_messages(main_window:WindowSpecification=None,is_maximize:bool=
     message_list_pane.type_keys('{HOME}')
     new_message_num=re.search(r'\d+',full_desc)#正则提取数量
     #微信会话列表内ListItem标准格式:备注\s(已置顶)\s(\d+)条未读\s最后一条消息内容\s时间
-    new_message_pattern=re.compile(r'\s(\d+)条未读\s')#只给数量分组,.group(1)获取
+    new_message_pattern=re.compile(r'\n\[(\d+)条\]')#只给数量分组,.group(1)获取
     if not new_message_num:
         print(f'没有新消息')
         return {}
     if new_message_num:
         new_message_num=int(new_message_num.group(0))
         message_list=main_window.child_window(**Main_window.ConversationList)
-    while sum(newMessageNums)<new_message_num:#当最终的新消息总数之和大于时退出循环
+    while sum(newMessages_dict.values())<new_message_num:#当最终的新消息总数之和大于等于实际新消息总数时退出循环
         #遍历获取带有新消息的ListItem
         listItems=message_list.children(control_type='ListItem')
+        time.sleep(delay)
         senders,nums=traverse_messsage_list(listItems)
         # #提取姓名和数量
         newMessageNums.extend(nums)
         newMessageSenders.extend(senders)
+        newMessages_dict=dict(zip(newMessageSenders,newMessageNums))
         message_list.type_keys('{PGDN}')
     message_list.type_keys('{HOME}')
-    newMessages_dict=dict(zip(newMessageSenders,newMessageNums))
     if close_weixin:
         main_window.close()
     return newMessages_dict
