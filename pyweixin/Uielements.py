@@ -237,7 +237,7 @@ class SideBar():
         self.Channels={'title':'视频号','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的视频号按钮
         self.MiniProgram={'title':'小程序面板','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的小程序面板按钮
         self.Discovery={'title':'发现','control_type':'Button'}#主界面左侧的发现按钮
-        self.More={'title':'更多','control_type':'Button','found_index':0} #主界面左侧的更多按钮 
+        self.More={'title':'更多','control_type':'Button','found_index':0}#主界面左侧的更多按钮 
 
     
 class Main_window():
