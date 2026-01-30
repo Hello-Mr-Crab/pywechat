@@ -14,7 +14,7 @@ WechatAuto
     - `Monitor`: 关于微信监听消息的一些方法,包括监听单个聊天窗口的消息
     - `Moments`: 与朋友圈相关的一些方法(开发ing...),发布朋友圈
     - `Settings`: 与微信设置相关的一些方法,更换主题,更换语言,修改自动下载文件大小
-    - `FriendSettings`: 与好友设置相关的一些方法(开发ing..)
+    - `FriendSettings`: 与好友设置相关的一些方法
 
 Examples:
 =========
@@ -228,7 +228,7 @@ class Collections():
         copylink_item=main_window.child_window(**MenuItems.CopyLinkMenuItem)
         link_item=main_window.child_window(**ListItems.LinkListItem)
         if not link_item.exists(timeout=0.1):return {}
-        link_item.click_input()
+        link_item.double_click_input()
         link_list=main_window.child_window(title='链接',control_type='List')
         link_list.type_keys('{END}')
         last_item=link_list.children(control_type='ListItem')[-2].window_text()
@@ -1602,11 +1602,10 @@ class Files():
         search_button=chatfile_window.child_window(title='',control_type='Button',class_name='mmui::XButton')
         search_button.click_input()
         fileList=chatfile_window.child_window(**Lists.FileList)
-        fileList.type_keys('{END}')
+        fileList.type_keys('{END}'*5)
         last_file=fileList.children(control_type='ListItem',class_name='mmui::FileListCell')[-1].window_text()
         fileList.type_keys('{HOME}')
         labels=[listitem.window_text() for listitem in fileList.children(control_type='ListItem',class_name='mmui::FileListCell')]
-        labels=[label for label in labels if '未下载' not in labels or '已过期' not in label or '发送中断' not in label]
         while labels[-1]!=last_file:
             fileList.type_keys('{PGDN}')
             listitems=fileList.children(control_type='ListItem',class_name='mmui::FileListCell')
@@ -1616,6 +1615,7 @@ class Files():
             or '发送中断' not in listitem.window_text()]
             texts=[file for file in texts if file not in labels]
             labels.extend(texts)
+        labels=[label for label in labels if '未下载' not in labels or '已过期' not in label or '发送中断' not in label]
         for label in labels:
             filename,timestamp=extract_info(label)
             filepath=os.path.join(chatfile_folder,timestamp,filename)
@@ -1623,13 +1623,13 @@ class Files():
                 filenames.append(filename)
                 filepaths.append(filepath)
         fileList.type_keys('{HOME}')
-        #微信聊天记录中的文件名存在n个文件共用一个名字的情况
-        ##比如;给文件传输助手同时发6次'简历.docx',那么在聊天记录页面中显示的是六个名为简历.docx的文件
-        #但,实际上这些名字相同的文件,在widnows系统下的微信聊天文件夹内
-        #会按照: 文件名(1).docx,文件名(2).docx...文件名(n-1).docx,文件名.docx的格式来存储
-        #因此,这里使用内置Counter函数,来统计每个路径重复出现的次数,如果没有重复那么count是1
+        # 微信聊天记录中的文件名存在n个文件共用一个名字的情况
+        # #比如;给文件传输助手同时发6次'简历.docx',那么在聊天记录页面中显示的是六个名为简历.docx的文件
+        # 但,实际上这些名字相同的文件,在widnows系统下的微信聊天文件夹内
+        # 会按照: 文件名(1).docx,文件名(2).docx...文件名(n-1).docx,文件名.docx的格式来存储
+        # 因此,这里使用内置Counter函数,来统计每个路径重复出现的次数,如果没有重复那么count是1
         repeat_counts=Counter(filepaths)#filepaths是刚刚遍历聊天记录列表按照基址+文件名组合而成的路径列表
-        #如果有重复的就找到这个月份的文件夹内的所有重复文件全部移动
+        # 如果有重复的就找到这个月份的文件夹内的所有重复文件全部移动
         for filepath,count in repeat_counts.items():
             if count>1:#重复次数大于1
                 #从filepath中得到文件名与上一级目录
@@ -2720,7 +2720,6 @@ class Monitor():
         duration=Tools.match_duration(duration)#将's','min','h'转换为秒
         if not duration:#不按照指定的时间格式输入,需要提前中断退出
             raise TimeNotCorrectError
-        is_group_chat=Tools.is_group_chat(dialog_window)#是否为群聊
         if (save_file or save_photo ) and target_folder is None:
             target_folder=os.path.join(os.getcwd(),f'{dialog_window.window_text()}_listen_on_chat聊天文件保存')
             print(f'未传入文件夹路径,文件,图片,群昵称截图将分别保存到{target_folder}内的Files,Images,Alias文件夹下\n')
@@ -2824,6 +2823,5 @@ class Monitor():
                 red_packet_count+=1
                 initial_runtime_id=runtime_id
         SystemSettings.close_listening_mode()
-        if close_dialog_window:
-            dialog_window.close()
+        if close_dialog_window:dialog_window.close()
         return red_packet_count
