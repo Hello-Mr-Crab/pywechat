@@ -95,6 +95,7 @@ class Edits():
         self.NativeFileSaveEdit={'control_type':'Edit','framework_id':'Win32','top_level_only':False,'class_name':'Edit'}#windows本地选择文件夹窗口底部的编辑栏
         self.SnsEdit={'title':'','control_type':'Edit','class_name':"mmui::XValidatorTextEdit"}#朋友圈发布界面内的文本编辑框
         self.ChangeRemarkEdit={'control_type':'Edit','title':'修改备注'}#添加好友界面内的修改备注 
+        self.InputEdit={'control_type':'Edit','auto_id':'chat_input_field'}#好友独立聊天窗口内的文本编辑框
 
 class ListItems():
     def __init__(self):
@@ -190,7 +191,7 @@ class MenuItems():
         self.EnlargeMeunItem={'title':'放大阅读','control_type':'MenuItem'}#右键消息后的放大选项
         self.FindInChatMenuItem={'title':'定位到聊天位置','control_type':'MenuItem'}#聊天记录页面内右键消息后的Find in chat选项
         self.CopyLinkMenuItem={'title':'复制链接','auto_id':'XMenuItem','control_type':'MenuItem'}#在收藏界面右键菜单里的复制链接选项目
-        self.CopyItem={'title':'复制','auto_id':'XMenuItem','control_type':'MenuItem'}#主界面右键菜单里的复制选项
+        self.CopyMenuItem={'title':'复制','auto_id':'XMenuItem','control_type':'MenuItem'}#主界面右键菜单里的复制选项
 
 class CheckBoxes():
     def __init__(self):
@@ -227,7 +228,7 @@ class Login_window():
         
 
 class SideBar():
-    '''主界面侧边栏下的所有Ui'''
+    '''主界面侧导航栏下的所有Ui'''
     def __init__(self):
         self.Chats={'title':'微信','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的聊天按钮
         self.Contacts={'title':'通讯录','control_type':'Button'}#主界面左侧的通讯录按钮
