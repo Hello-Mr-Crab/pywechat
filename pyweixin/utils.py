@@ -116,18 +116,16 @@ def get_new_message_num(main_window:WindowSpecification=None,is_maximize:bool=No
         close_weixin=GlobalConfig.close_weixin
     if main_window is None:
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
-    chats_button=main_window.child_window(**SideBar.Chats)
-    chats_button.click_input()
+    weixin_button=main_window.child_window(auto_id="main_tabbar", control_type="ToolBar").children()[0]
     #左上角微信按钮的红色消息提示(\d+条新消息)在FullDescription属性中,
     #只能通过id来获取,id是30159，之前是30007,可能是qt组件映射关系不一样
-    full_desc=chats_button.element_info.element.GetCurrentPropertyValue(30159)
+    full_desc=weixin_button.element_info.element.GetCurrentPropertyValue(30159)
     new_message_num=re.search(r'\d+',full_desc)#正则提取数量
     if close_weixin:
         main_window.close()
-    if new_message_num:
-        return int(new_message_num.group(0))
-    else:
-        return 0
+    return int(new_message_num.group(0)) if new_message_num  else 0
+
+    
 
 def At_all(main_window:WindowSpecification):
     '''在群里@所有人'''
