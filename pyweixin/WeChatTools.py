@@ -97,11 +97,10 @@ import win32com.client
 from typing import Literal
 from .Config import GlobalConfig
 from pywinauto import mouse,Desktop
-from .Errors import NetWorkNotConnectError #所有可能出现的异常
+from .Errors import NetWorkNotConnectError#所有可能出现的异常
 from .Errors import NoSuchFriendError
 from .Errors import NotFriendError
 from .Errors import NoResultsError,NotInstalledError
-from pywinauto.application import TimeoutError
 from pywinauto.controls.uia_controls import ListViewWrapper,ListItemWrapper,EditWrapper #TypeHint要用到
 from pywinauto import WindowSpecification
 from pyweixin.Uielements import (Login_window,Main_window,SideBar,Independent_window,ListItems,
@@ -334,10 +333,6 @@ class Tools():
             win32gui.MoveWindow(handle, new_left, new_top, window_width, window_height, True)
             win32gui.SetWindowPos(handle,win32con.HWND_TOPMOST, 
                 0, 0, 0, 0,win32con.SWP_NOMOVE|win32con.SWP_NOSIZE)
-        try:
-            window.set_focus() 
-        except:
-            pass
         return window
 
     @staticmethod
@@ -422,7 +417,7 @@ class Tools():
         width=rectangle.right-rectangle.left
         x=rectangle.left+80
         y=rectangle.top+5
-        image=pyautogui.screenshot(region=(x,y,width-160,38))
+        image=pyautogui.screenshot(region=(x,y,width-270,38))
         return image
 
     @staticmethod
@@ -665,26 +660,22 @@ class Navigator():
         if current_chat.exists(timeout=0.1) and current_chat.window_text()==friend:
         #如果当前主界面聊天界面顶部的名称为好友名称，is_find为True,直接返回此时主界面
             is_find=True
-            Tools.cancel_pin(main_window)
             return is_find,main_window
         else:
             listItems=session_list.children(control_type='ListItem')
-            if len(listItems)==0:
-                return is_find,main_window
-            session_list.type_keys("{HOME}")
-            for _ in range(search_pages):
-                time.sleep(0.1)
-                friend_button,is_last=select_in_messageList(friend)
-                if friend_button:
-                    if is_last:
-                        is_find=False
+            if listItems:
+                session_list.type_keys("{HOME}")
+                for _ in range(search_pages):
+                    time.sleep(0.1)
+                    friend_button,is_last=select_in_messageList(friend)
+                    if friend_button is not None:
+                        if not is_last:
+                            friend_button.click_input()
+                            is_find=current_chat.exists(timeout=0.1)  
+                        break
                     else:
-                        friend_button.click_input()
-                        is_find=current_chat.exists(timeout=0.1)  
-                    break
-                else:
-                    session_list.type_keys("{PGDN}")
-            session_list.type_keys("{HOME}")
+                        session_list.type_keys("{PGDN}")
+                session_list.type_keys("{HOME}")
             return is_find,main_window
     
     # @staticmethod
@@ -794,15 +785,13 @@ class Navigator():
         if search_pages is None:
             search_pages=GlobalConfig.search_pages
         profile_pane,main_window=Navigator.open_friend_profile(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
-        try:
-            moments_button=profile_pane.child_window(title='朋友圈',control_type='Button',auto_id='button').wait(wait_for='ready',timeout=2,retry_interval=0.1)
-            moments_button.click_input()
-            moments_window=Tools.move_window_to_center(Window=Windows.MomentsWindow)
-            if close_weixin:
-                main_window.close()
-            return moments_window
-        except TimeoutError:
-            return None
+        moments_button=profile_pane.child_window(title='朋友圈',control_type='Button',auto_id='button')
+        moments_button.click_input()
+        moments_window=Tools.move_window_to_center(Window=Windows.MomentsWindow)
+        if close_weixin:
+            main_window.close()
+        return moments_window
+       
 
     @staticmethod
     def open_moments(is_maximize:bool=None,close_weixin:bool=None)->WindowSpecification:
@@ -841,7 +830,6 @@ class Navigator():
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
-        Tools.cancel_pin(main_window)
         channels_button=main_window.child_window(**SideBar.Channels)
         channels_button.click_input()
         channels_window=Tools.move_window_to_center(Independent_window.ChannelsWindow)
@@ -867,7 +855,6 @@ class Navigator():
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
-        Tools.cancel_pin(main_window)
         search_button=main_window.child_window(**SideBar.Search)
         search_button.click_input()
         search_window=Tools.move_window_to_center(Independent_window.SearchWindow)
@@ -893,7 +880,6 @@ class Navigator():
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
-        Tools.cancel_pin(main_window)
         program_button=main_window.child_window(**SideBar.MiniProgram)
         program_button.click_input()
         program_window=Tools.move_window_to_center(Independent_window.MiniProgramWindow)
@@ -918,7 +904,6 @@ class Navigator():
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
         more=main_window.child_window(**SideBar.More)
         more.click_input()
-        Tools.cancel_pin(main_window)
         settings_button=main_window.child_window(**Buttons.SettingsButton)
         settings_button.click_input()
         settings_window=Tools.move_window_to_center(Independent_window.SettingWindow)        
@@ -943,7 +928,6 @@ class Navigator():
         custom=main_window.descendants(control_type='Custom')
         contact_list=custom[-1].children()[1].descendants(control_type='List')[0]
         contact_list.type_keys("{HOME}")
-        Tools.cancel_pin(main_window)
         return contact_list,main_window
 
     @staticmethod
@@ -959,7 +943,6 @@ class Navigator():
             close_weixin=GlobalConfig.close_weixin
         contact_list,main_window=Navigator.open_contacts(is_maximize=is_maximize)
         contact_list.children()[0].click_input()
-        Tools.cancel_pin(main_window)
         contact_manager=Tools.move_window_to_center(Independent_window.ContactManagerWindow)
         if close_weixin:
             main_window.close()
@@ -1004,22 +987,20 @@ class Navigator():
         if search_pages is None:
             search_pages=GlobalConfig.search_pages
 
-        #如果search_pages不为0,即需要在会话列表中滚动查找时，使用find_friend_in_Messagelist方法找到好友,并点击打开对话框
+        #如果search_pages不为0,即需要在会话列表中滚动查找时，使用find_friend_in_SessionList方法找到好友,并点击打开对话框
         if search_pages:
             is_find,main_window=Navigator.find_friend_in_SessionList(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
             if is_find:#is_find不为False,即说明find_friend_in_SessionList找到了聊天窗口,直接返回结果
                 edit_area=main_window.child_window(**Edits.CurrentChatEdit)
                 if edit_area.exists(timeout=0.1):
                     edit_area.click_input()
-                Tools.cancel_pin(main_window)
                 return main_window
             #is_find为False没有在会话列表中找到好友,直接在顶部搜索栏中搜索好友
             #先点击侧边栏的聊天按钮切回到聊天主界面
             #顶部搜索按钮搜索好友
             search=main_window.descendants(**Main_window.Search)[0]
-            search.double_click_input()
-            SystemSettings.copy_text_to_windowsclipboard(friend)
-            pyautogui.hotkey('ctrl','v')
+            search.click_input()
+            search.set_text(friend)
             time.sleep(1)
             search_results=main_window.child_window(**Main_window.SearchResult).wait(wait_for='ready',timeout=2)
             search_result=Tools.get_search_result(friend=friend,search_result=search_results)
@@ -1029,7 +1010,6 @@ class Navigator():
                 edit_area=main_window.child_window(**Edits.CurrentChatEdit)
                 if edit_area.exists(timeout=0.1):
                     edit_area.click_input()
-                Tools.cancel_pin(main_window)
                 return main_window #同时返回搜索到的该好友的聊天窗口与主界面！若只需要其中一个需要使用元祖索引获取。
             else:#搜索结果栏中没有关于传入参数friend好友昵称或备注的搜索结果，关闭主界面,引发NosuchFriend异常
                 chat_button.click_input()
@@ -1047,7 +1027,6 @@ class Navigator():
                 if edit_area.exists(timeout=0.1):
                     edit_area.click_input()
             #如果当前主界面聊天界面顶部的名称为好友名称，直接返回结果
-                Tools.cancel_pin(main_window)#取消微信主界面置顶
                 return main_window
             else:#否则直接从顶部搜索栏出搜索结果
                 #如果会话列表不存在或者不可见的话才点击一下聊天按钮
@@ -1057,8 +1036,7 @@ class Navigator():
                     chat_button.click_input()        
                 search=main_window.descendants(**Main_window.Search)[0]
                 search.click_input()
-                SystemSettings.copy_text_to_windowsclipboard(friend)
-                pyautogui.hotkey('ctrl','v')
+                search.set_text(friend)
                 time.sleep(1)
                 search_results=main_window.child_window(title='',control_type='List')
                 search_result=Tools.get_search_result(friend=friend,search_result=search_results)
@@ -1067,7 +1045,6 @@ class Navigator():
                     edit_area=main_window.child_window(**Edits.CurrentChatEdit)
                     if edit_area.exists(timeout=0.1):
                         edit_area.click_input()
-                    Tools.cancel_pin(main_window)
                     return main_window
                 else:#搜索结果栏中没有关于传入参数friend好友昵称或备注的搜索结果，关闭主界面,引发NosuchFriend异常
                     chat_button.click_input()
@@ -1122,8 +1099,7 @@ class Navigator():
         session_list=main_window.child_window(**Main_window.ConversationList)
         search=main_window.descendants(**Main_window.Search)[0]
         search.click_input()
-        SystemSettings.copy_text_to_windowsclipboard(friend)
-        pyautogui.hotkey('ctrl','v')
+        search.set_text(friend)
         time.sleep(1)
         search_results=main_window.child_window(title='',control_type='List')
         search_result,is_contact=get_search_result(friend=friend,search_result=search_results)
@@ -1151,6 +1127,7 @@ class Navigator():
         该方法用于打开好友聊天记录界面
         Args:
             friend:好友备注名称,需提供完整名称
+            TabItem:聊天记录界面打开的具体分区{'文件','图片与视频','链接','音乐与音频','小程序','视频号','日期'}中的任意一个
             is_maximize:微信界面是否全屏,默认不全屏
             close_weixin:任务结束后是否关闭微信,默认关闭
         '''
@@ -1161,7 +1138,6 @@ class Navigator():
         main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize)
         chat_history_button=main_window.child_window(**Buttons.ChatHistoryButton)
         chat_history_button.click_input()
-        Tools.cancel_pin(main_window)
         chat_history_window=Tools.move_window_to_center(Independent_window.ChatHistoryWindow)
         tab_button=chat_history_window.child_window(control_type='Button',class_name="mmui::XMouseEventView")
         if tab_button.exists():
@@ -1171,7 +1147,6 @@ class Navigator():
             '音乐与音频':TabItems.MusicTabItem,'小程序':TabItems.MiniProgramTabItem,'视频号':TabItems.ChannelTabItem,'日期':TabItems.DateTabItem}
             item=tabItems.get(TabItem)
             if item:
-                print(item)
                 chat_history_window.child_window(**item).click_input()
         if close_weixin:
             main_window.close()
