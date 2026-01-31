@@ -5,7 +5,7 @@ PC微信中的各种Ui-Object,包括:
     - `Main_Window`: 主界面窗口内的一些Ui
     - `Login_Window`: 登录界面内的一些Ui
     - `Independent_Window`: 独立界面窗口
-    - `SideBar`: SideBar类型Ui
+    - `SideBar`: 左侧导航栏内的所有Ui
     - `Buttons`: Button类型Ui 
     - `Windows`: Window类型Ui
     - `Texts`: Text类型Ui
@@ -302,3 +302,4 @@ class Groups():
         self.ChatOnlyGroup={'title':'仅聊天','control_type':'Group'}#好友权限内的仅聊天选项
         self.OpenPrivacyGroup={'title':'聊天、朋友圈、微信运动等','control_type':'Group'}#好友权限内的聊天、朋友圈、微信运动等选项
         self.ContactProfileViewGroup={'title':'','control_type':'Group','class_name':'mmui::ContactProfileView'}#添加好友界面内搜索微信号后弹出的好友信息(带有添加到通讯录按钮)组
+
