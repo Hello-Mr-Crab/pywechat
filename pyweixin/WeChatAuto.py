@@ -8,11 +8,11 @@ WechatAuto
 
     - `AutoReply`:微信自动回复的一些方法
     - `Call`: 给某个好友打视频或语音电话
-    - `Collections`: 与收藏相关的一些方法(开发ing...)
+    - `Collections`: 与收藏相关的一些方法
     - `Files`:  关于微信文件的一些方法,包括发送文件,导出文件等功能
     - `Messages`: 关于微信消息的一些方法,包括收发消息,获取聊天记录,获取聊天会话等功能
     - `Monitor`: 关于微信监听消息的一些方法,包括监听单个聊天窗口的消息
-    - `Moments`: 与朋友圈相关的一些方法(开发ing...),发布朋友圈
+    - `Moments`: 与朋友圈相关的一些方法,发布朋友圈,导出朋友圈,好友朋友圈内容
     - `Settings`: 与微信设置相关的一些方法,更换主题,更换语言,修改自动下载文件大小
     - `FriendSettings`: 与好友设置相关的一些方法
 
@@ -64,6 +64,7 @@ from typing import Literal
 from warnings import warn
 from pywinauto import WindowSpecification
 from pywinauto.controls.uia_controls import ListItemWrapper,ListViewWrapper #TypeHint要用到
+from typing import Callable
 #####################################################################################
 #内部依赖
 from .Config import GlobalConfig
@@ -105,59 +106,112 @@ Regex_Patterns=Regex_Patterns()#所有的正则pattern
 class AutoReply():
     
     @staticmethod
-    def auto_reply_to_friend(friend:str,duration:str,content:str,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->None:
+    def auto_reply_to_friend(dialog_window:WindowSpecification,duration:str,callback:Callable[[str],str],save_file:bool=False,target_folder:str=None,close_dialog_window:bool=True)->dict:
         '''
-        该方法用来实现类似QQ的自动回复某个好友指定的消息
+        该方法用来在指定时间内自动回复会话窗口内的新消息并监听内容
         Args:
-            friend:好友或群聊备注
-            duration:自动回复持续时长,格式:'s','min','h',单位:s/秒,min/分,h/小时
-            content:指定的回复内容,比如:自动回复[微信机器人]:您好,我当前不在,请您稍后再试
-            search_pages:在会话列表中查询查找好友时滚动列表的次数,默认为5,一次可查询5-12人,当search_pages为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
-            folder_path:存放聊天记录截屏图片的文件夹路径
-            is_maximize:微信界面是否全屏,默认全屏
-            close_weixin:任务结束后是否关闭微信,默认关闭
+            dialog_window:好友单独的聊天窗口或主界面内的聊天窗口,可使用Navigator内的open_seperate_dialoig_window打开
+            duraiton:监听持续时长,监听消息持续时长,格式:'s','min','h'单位:s/秒,min/分,h/小时
+            callback:新消息处理函数
+            save_file:是否保存文件,需开启自动下载文件并设置为1024MB,默认为False
+            target_folder:文件或图片的保存文件夹
+            close_dialog_window:是否关闭dialog_window,默认关闭
+        Examples:
+            >>> from pyweixin import AutoReply,Navigator
+            >>> def reply_func2(message):
+            >>>     return '自动回复[微信机器人]:您好,我当前不在,请您稍后再试'
+            >>> main_window=Navigator.open_dialog_window(friend='abcdefghijklmnopqrstuvwxyz123456')
+            >>> AutoReply.auto_reply_to_friend(dialog_window=main_window,duration='20s',callback=reply_func2)
+            #多线程使用方法:
+            >>> from pyweixin import Navigator
+            >>> from concurrent.futures import ThreadPoolExecutor
+            >>> from pyweixin import Navigator,AutoReply
+            >>> def reply_func1(message):
+            >>>     if '你好' in message:
+            >>>        return '你好,有什么可以帮您的吗[呲牙]?'
+            >>>     if '在吗' in message:
+            >>>        return '在的[旺柴]'
+            >>>     return '自动回复[微信机器人]:您好,我当前不在,请您稍后再试'
+            >>> def reply_func2(message):
+            >>>     return '自动回复[微信机器人]:您好,我当前不在,请您稍后再试'
+            >>> dialog_windows=[]
+            >>> friends=['好友1','好友2']
+            >>> for friend in friends:
+            >>>     dialog_window=Navigator.open_seperate_dialog_window(friend=friend,window_minimize=True,close_weixin=True)
+            >>>     dialog_windows.append(dialog_window)
+            >>> durations=['1min']*len(friends)
+            >>> callbacks=[reply_func1,reply_func2]
+            >>> with ThreadPoolExecutor() as pool:
+            >>>     results=pool.map(lambda args: AutoReply.auto_reply_to_friend(*args),list(zip(dialog_windows,durations,callbacks)))
+            >>> for friend,result in zip(friends,results):
+            >>>     print(friend,result)
+        无论是主界面还是单独聊天窗口都可以最小化到状态栏,但千万不要关闭！
+        Returns:
+            details:该聊天窗口内的新消息(文本内容),格式为{'新消息总数':x,'文本数量':x,'文件数量':x,'图片数量':x,'视频数量':x,'链接数量':x,'文本内容':x}
         '''
-        if is_maximize is None:
-            is_maximize=GlobalConfig.is_maximize
-        if close_weixin is None:
-            close_weixin=GlobalConfig.close_weixin
-        if search_pages is None:
-            search_pages=GlobalConfig.search_pages
         duration=Tools.match_duration(duration)#将's','min','h'转换为秒
         if not duration:#不按照指定的时间格式输入,需要提前中断退出
             raise TimeNotCorrectError
-        #打开好友的对话框,返回值为编辑消息框和主界面
-        main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
-        #需要判断一下是不是公众号
-        voice_call_button=main_window.child_window(**Buttons.VoiceCallButton)
-        video_call_button=main_window.child_window(**Buttons.VideoCallButton)
-        if not voice_call_button.exists(timeout=0.1):
-            #公众号没有语音聊天按钮
-            main_window.close()
-            raise NotFriendError(f'非正常好友,无法自动回复!')
-        if not video_call_button.exists(timeout=0.1) and voice_call_button.exists(timeout=0.1):
-            main_window.close()
-            raise NotFriendError('auto_reply_to_friend只用来自动回复好友,如需自动回复群聊请使用auto_reply_to_group!')
-        ########################################################################################################
-        chatList=main_window.child_window(**Lists.FriendChatList)#聊天界面内存储所有信息的容器
-        initial_message=chatList.children(control_type='ListItem')[-1]#刚打开聊天界面时的最后一条消息的listitem
-        initial_runtime_id=initial_message.element_info.runtime_id
-        SystemSettings.copy_text_to_windowsclipboard(content)#复制回复内容到剪贴板
-        SystemSettings.open_listening_mode()#开启监听模式,此时电脑只要不断电不会息屏 
+        if save_file and target_folder is None:
+            target_folder=os.path.join(os.getcwd(),f'{dialog_window.window_text()}_listen_on_chat聊天文件保存')
+            print(f'未传入文件夹路径,文件,图片,群昵称截图将分别保存到{target_folder}内的Files,Images,Alias文件夹下\n')
+            os.makedirs(target_folder,exist_ok=True)
+        if save_file:
+            file_folder=os.path.join(target_folder,'Files')
+            os.makedirs(file_folder,exist_ok=True)
+        total=0
+        link_count=0
+        video_count=0
+        image_count=0
+        files=[]
+        texts=[]
+        file_pattern=Regex_Patterns.File_Pattern
+        timestamp=time.strftime('%Y-%m')
+        chatfile_folder=Tools.where_chatfile_folder()
+        chatList=dialog_window.child_window(**Lists.FriendChatList)#聊天界面内存储所有信息的容器
+        input_edit=dialog_window.child_window(**Edits.InputEdit)
+        Tools.activate_chatList(chatList)
+        if chatList.children(control_type='ListItem'):
+            initial_message=chatList.children(control_type='ListItem')[-1]#刚打开聊天界面时的最后一条消息的listitem
+            initial_runtime_id=initial_message.element_info.runtime_id
+        if not chatList.children(control_type='ListItem'):
+            initial_runtime_id=0
         end_timestamp=time.time()+duration#根据秒数计算截止时间
+        SystemSettings.open_listening_mode(volume=False)
         while time.time()<end_timestamp:
-            newMessage=chatList.children(control_type='ListItem')[-1]
-            runtime_id=newMessage.element_info.runtime_id
-            if runtime_id!=initial_runtime_id and newMessage.window_text()!=content: 
-            #消息列表内的最后一条消息(listitem)不等于刚打开聊天界面时的最后一条消息(listitem)
-            #这里我们判断的是两条消息(listitem)是否相等,不是文本是否相等,要是文本相等的话,对方一直重复发送
-            #刚打开聊天界面时的最后一条消息的话那就一直不回复了
-                pyautogui.hotkey('ctrl','v',_pause=False)
-                pyautogui.hotkey('alt','s',_pause=False)
-                initial_runtime_id=runtime_id
+            if chatList.children(control_type='ListItem'):
+                newMessage=chatList.children(control_type='ListItem')[-1]
+                runtime_id=newMessage.element_info.runtime_id
+                if runtime_id!=initial_runtime_id: 
+                    total+=1
+                    if newMessage.class_name()=='mmui::ChatTextItemView':
+                        texts.append(newMessage.window_text())
+                        dialog_window.restore()
+                        is_my_bubble=Tools.is_my_bubble(dialog_window,newMessage,input_edit)
+                        if not is_my_bubble:
+                            reply_content=callback(newMessage.window_text())
+                            input_edit.set_text(reply_content)
+                            pyautogui.hotkey('alt','s')
+                            dialog_window.minimize()
+                    if newMessage.class_name()=='mmui::ChatBubbleItemView' and newMessage.window_text()[:2]=='[链接]':#
+                        link_count+=1
+                    if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and newMessage.window_text()=='图片':
+                        image_count+=1
+                        #只是依靠class_name,window_text还有数量筛选，假如结束时又新发了几张图片，内容会对不上         
+                    if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and '视频' in newMessage.window_text():
+                        video_count+=1#视频需要下载直接右键复制不行,需要先点击,如果时间长,要等半天，不太方便
+                    if newMessage.class_name()=='mmui::ChatBubbleItemView' and '文件' in newMessage.window_text():
+                        filename=file_pattern.search(newMessage.window_text()).group(1)
+                        filepath=os.path.join(chatfile_folder,timestamp,filename)
+                        files.append(filepath)
+                    initial_runtime_id=runtime_id
         SystemSettings.close_listening_mode()
-        if close_weixin:
-            main_window.close()
+        #最后结束时再批量复制到target_folder,不在循环里逐个复制是考虑到若文件过大(几百mb)没有自动下载完成移动不了
+        if save_file and files:SystemSettings.copy_files(files,file_folder)#文件复制粘贴到target_folder/Files内
+        if close_dialog_window:dialog_window.close()
+        details={'新消息总数':total,'文本数量':len(texts),'文件数量':len(files),'图片数量':image_count,'视频数量':video_count,'链接数量':link_count,'文本内容':texts}
+        return details
+    
 
 class Call():
     @staticmethod
@@ -2680,7 +2734,7 @@ class Monitor():
             >>> for friend,result in zip(friends,results):
             >>>    print(friend,result)
         Returns:
-            details:该聊天窗口内的新消息(文本内容),格式为{'新消息总数':x,'文本数量':x,'文件数量':x,'图片数量':x,'视频数量':x,'链接数量':x,'文本内容':x,'群昵称截图':x}
+            details:该聊天窗口内的新消息(文本内容),格式为{'新消息总数':x,'文本数量':x,'文件数量':x,'图片数量':x,'视频数量':x,'链接数量':x,'文本内容':x}
         '''
 
         def make_unique_id(listitem:ListItemWrapper):
@@ -2722,7 +2776,7 @@ class Monitor():
             raise TimeNotCorrectError
         if (save_file or save_photo ) and target_folder is None:
             target_folder=os.path.join(os.getcwd(),f'{dialog_window.window_text()}_listen_on_chat聊天文件保存')
-            print(f'未传入文件夹路径,文件,图片,群昵称截图将分别保存到{target_folder}内的Files,Images,Alias文件夹下\n')
+            print(f'未传入文件夹路径,文件,图片,群昵称截图将分别保存到{target_folder}内的Files,Images文件夹下\n')
             os.makedirs(target_folder,exist_ok=True)
         if save_file:
             file_folder=os.path.join(target_folder,'Files')
@@ -2743,7 +2797,7 @@ class Monitor():
         timestamp=time.strftime('%Y-%m')
         chatfile_folder=Tools.where_chatfile_folder()
         chatList=dialog_window.child_window(**Lists.FriendChatList)#聊天界面内存储所有信息的容器
-        copy_item=dialog_window.child_window(**MenuItems.CopyItem)
+        copy_item=dialog_window.child_window(**MenuItems.CopyMenuItem)
         Tools.activate_chatList(chatList)
         if chatList.children(control_type='ListItem'):
             initial_message=chatList.children(control_type='ListItem')[-1]#刚打开聊天界面时的最后一条消息的listitem
