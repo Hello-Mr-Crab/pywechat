@@ -334,6 +334,10 @@ class Tools():
             win32gui.MoveWindow(handle, new_left, new_top, window_width, window_height, True)
             win32gui.SetWindowPos(handle,win32con.HWND_TOPMOST, 
                 0, 0, 0, 0,win32con.SWP_NOMOVE|win32con.SWP_NOSIZE)
+        try:
+            window.set_focus() 
+        except:
+            pass
         return window
 
     @staticmethod
