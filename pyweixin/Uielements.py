@@ -303,3 +303,4 @@ class Groups():
         self.OpenPrivacyGroup={'title':'聊天、朋友圈、微信运动等','control_type':'Group'}#好友权限内的聊天、朋友圈、微信运动等选项
         self.ContactProfileViewGroup={'title':'','control_type':'Group','class_name':'mmui::ContactProfileView'}#添加好友界面内搜索微信号后弹出的好友信息(带有添加到通讯录按钮)组
 
+
