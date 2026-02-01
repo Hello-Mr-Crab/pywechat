@@ -94,6 +94,7 @@ xxx.yy
 ```
 <br>
 
+
 #### 多线程监听消息
 ```
 #多线程打开多个好友窗口进行消息监听
@@ -103,7 +104,7 @@ from pyweixin import Navigator,Monitor
 dialog_windows=[]
 friends=['Hello,Mr Crab','Pywechat测试群',]
 durations=['1min']*len(friends)
-#不添加其他参数Monitor.listen_on_chat,比如capture_alias,save_photos,这些操作涉及键鼠,无法多线程，只是监听消息，获取文本内容,移动保存文件还是可以的
+#不添加其他参数Monitor.listen_on_chat,比如save_photos,该操作涉及键鼠,无法多线程，只是监听消息，获取文本内容,移动保存文件还是可以的
 for friend in friends:
     dialog_window=Navigator.open_seperate_dialog_window(friend=friend,window_minimize=True,close_weixin=True)#window_minimize独立窗口最小化
     dialog_windows.append(dialog_window)
@@ -112,19 +113,56 @@ with ThreadPoolExecutor(max_workers=len(friends)) as pool:
 for friend,result in zip(friends,results):
     print(friend,result)
 ```
-
-![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/listen_on_chat多线程.png)
 <br>
 
-#### 监听单个聊天窗口消息并获取群昵称截图
+![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/listen_on_chat多线程.png)
+
+<br>
+
+#### 多线程监听消息并自动回复
+```
+from pyweixin import Navigator
+from concurrent.futures import ThreadPoolExecutor
+from pyweixin import Navigator,AutoReply
+#针对不同好友的回复函数,传入参数是字符串类型,返回值也必须为字符串类型
+def reply_func1(message):
+    if '你好' in message:
+        return '你好,有什么可以帮您的吗[呲牙]?'
+    if '在吗' in message:
+        return '在的[旺柴]'
+    return '自动回复[微信机器人]:您好,我当前不在,请您稍后再试'
+
+def reply_func2(message):
+    return '自动回复[微信机器人]:您好,我当前不在,请您稍后再试'
+
+#先打开所有好友的独立窗口
+dialog_windows=[]
+friends=['abcdefghijklmnopqrstuvwxyz123456','Pywechat测试群']
+for friend in friends:
+    dialog_window=Navigator.open_seperate_dialog_window(friend=friend,window_minimize=True,close_weixin=True)
+    dialog_windows.append(dialog_window)
+durations=['1min','1min']
+callbacks=[reply_func1,reply_func2]
+with ThreadPoolExecutor() as pool:
+    results=pool.map(lambda args: AutoReply.auto_reply_to_friend(*args),list(zip(dialog_windows,durations,callbacks)))
+for friend,result in zip(friends,results):
+    print(friend,result)
+```
+
+<br>
+
+![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/listen_on_chat多线程.png)
+
+<br>
+
+#### 监听单个聊天窗口消息
 ```
 from pyweixin import Navigator,Monitor
 dialog_window=Navigator.open_seperate_dialog_window(friend='啦啦啦')
-result=Monitor.listen_on_chat(dialog_window=dialog_window,duration='30s',capture_alia=True)
+result=Monitor.listen_on_chat(dialog_window=dialog_window,duration='30s')
 print(result)#返回值 {'新消息总数':x,'文本数量':x,'文件数量':x,'图片数量':x,'视频数量':x,'链接数量':x,'文本内容':x}
 ```
 
-![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/群昵称截图.png)
 <br>
 
 #### 朋友圈数据获取
@@ -342,6 +380,7 @@ print(check_new_message())
 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！ 
 
 ###### 作者CSDN主页:https://blog.csdn.net/weixin_73953650?spm=1011.2415.3001.5343
+
 
 
 
