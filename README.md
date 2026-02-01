@@ -151,7 +151,7 @@ for friend,result in zip(friends,results):
 
 <br>
 
-![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/listen_on_chat多线程.png)
+![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/自动回复.png)
 
 <br>
 
@@ -380,6 +380,7 @@ print(check_new_message())
 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！ 
 
 ###### 作者CSDN主页:https://blog.csdn.net/weixin_73953650?spm=1011.2415.3001.5343
+
 
 
 
