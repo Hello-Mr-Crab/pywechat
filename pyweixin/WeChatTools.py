@@ -96,11 +96,11 @@ import win32con
 import win32com.client
 from typing import Literal
 from .Config import GlobalConfig
-from pywinauto import mouse,Desktop
 from .Errors import NetWorkNotConnectError#所有可能出现的异常
 from .Errors import NoSuchFriendError
 from .Errors import NotFriendError
 from .Errors import NoResultsError,NotInstalledError
+from pywinauto import mouse,Desktop
 from pywinauto.controls.uia_controls import ListViewWrapper,ListItemWrapper,EditWrapper #TypeHint要用到
 from pywinauto import WindowSpecification
 from pyweixin.Uielements import (Login_window,Main_window,SideBar,Independent_window,ListItems,
@@ -1137,10 +1137,13 @@ class Navigator():
             close_weixin=GlobalConfig.close_weixin
         main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize)
         chat_history_button=main_window.child_window(**Buttons.ChatHistoryButton)
+        if not chat_history_button.exists(timeout=0.1):
+            main_window.close()
+            raise NotFriendError(f'非正常好友或群聊！无法打开该好友或群聊的聊天记录界面')
         chat_history_button.click_input()
         chat_history_window=Tools.move_window_to_center(Independent_window.ChatHistoryWindow)
         tab_button=chat_history_window.child_window(control_type='Button',class_name="mmui::XMouseEventView")
-        if tab_button.exists():
+        if tab_button.exists(timeout=0.1):
             tab_button.click_input()
         if TabItem:
             tabItems={'文件':TabItems.FileTabItem,'图片与视频':TabItems.PhotoAndVideoTabItem,'链接':TabItems.LinkTabItem,
