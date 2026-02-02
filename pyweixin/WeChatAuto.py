@@ -1,5 +1,5 @@
 '''
-WechatAuto
+WeChatAuto
 ===========
 
 
@@ -389,7 +389,7 @@ class Contacts():
                 region=texts[texts.index('地区：')+1]
             if '备注' in texts:
                 remark=texts[texts.index('备注')+1]
-                if remark=='标签':
+                if remark in labels:
                     remark='无'
             if '共同群聊' in texts:
                 common_group_num=texts[texts.index('共同群聊')+1]
@@ -413,6 +413,7 @@ class Contacts():
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
+        labels={'微信号：','昵称：','地区：','备注','共同群聊','个性签名','来源','电话','描述','标签','朋友权限','朋友圈'}#联系人分区的标签
         friends_detail=[]
         #通讯录列表
         contact_list,main_window=Navigator.open_contacts(is_maximize=is_maximize)
@@ -836,6 +837,7 @@ class Contacts():
             close_weixin=GlobalConfig.close_weixin
         if search_pages is None:
             search_pages=GlobalConfig.search_pages
+        wx_number='无'#好友的微信号
         region='无'#好友的地区
         tag='无'#好友标签
         common_group_num='无'
@@ -852,7 +854,8 @@ class Contacts():
         text_uis=profile_pane.descendants(control_type='Text')
         texts=[item.window_text() for item in text_uis]
         nickname=texts[0]
-        wx_number=texts[texts.index('微信号：')+1]#微信号
+        if '微信号：' in texts:
+            wx_number=texts[texts.index('微信号：')+1]#微信号
         if '昵称：' in texts:
             nickname=texts[texts.index('昵称：')+1]
         if '地区：' in texts:
@@ -2328,11 +2331,12 @@ class Messages():
             if close_weixin:
                 main_window.close()
             return dict(zip(new_message_dict.keys(),newMessages))
-        
+    
+    #session_pick_window中使用ui自动化选择好友后微信会莫名奇妙卡死，所以先暂时不实现这个方法了
     # @staticmethod
     # def forward_message(friends:list[str],message:str,clear:bool=None,
     #     send_delay:float=None,is_maximize:bool=None,close_weixin:bool=None)->None:
-    #  #session_pick_window中使用ui自动化选择好友后微信会莫名奇妙卡死，所以先暂时不实现这个方法了
+     
     #     if is_maximize is None:
     #         is_maximize=GlobalConfig.is_maximize
     #     if send_delay is None:
@@ -2352,8 +2356,7 @@ class Messages():
     #         search_field=session_pick_window.child_window(control_type='Edit',found_index=0)
     #         search_field.click_input()
     #         for friend in friends[1:]:
-    #             search_field.set_text(friend)
-    #             time.sleep(2)
+    #             search_field.type_keys(friend)
     #             checkbox.click_input()
     #             search_field.click_input()
     #             search_field.set_text('')
@@ -2577,9 +2580,10 @@ class Messages():
             last_sending_times=[get_sending_time(listitem) for listitem in session_list.children(control_type='ListItem')]
             lastest_message=[get_latest_message(listitem) for listitem in session_list.children(control_type='ListItem')]
         if scrollable:
-            time.sleep(1)
+            time.sleep(0.5)
             last=session_list.children(control_type='ListItem')[-1].window_text()
             session_list.type_keys('{HOME}')
+            time.sleep(0.5)
             while True:
                 listItems=session_list.children(**ListItems.SessionListItem)
                 listItems=filter_sessions(listItems)
@@ -2611,7 +2615,7 @@ class Messages():
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
-            messages:聊天记录中的消息(时间顺序从早到晚)
+            messages:聊天记录中的消息(时间顺序从晚到早)
         '''
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
@@ -2623,23 +2627,24 @@ class Messages():
         main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         chat_list=main_window.child_window(**Lists.FriendChatList)
         if not chat_list.exists(timeout=0.1):
-            return []
+            print(f'非正常好友或群聊,无法获取聊天信息！')
+            return messages
         else:
-            scrollable=Tools.is_scrollable(chat_list,back='end')
             if not chat_list.children(control_type='ListItem'):
-                warn(message=f"你与{friend}的聊天记录为空,无法获取聊天记录",category=NoChatHistoryWarning)
-            if not scrollable:
-                listItems=chat_list.children(control_type='ListItem')
-                listItems=[listitem for listitem in listItems if listitem.class_name()!="mmui::ChatItemView"]
-                messages=[listitem.window_text() for listitem in listItems]
-            if scrollable:
-                while len(messages)<number:
-                    listItems=chat_list.children(control_type='ListItem')[::-1]
-                    listItems=[listitem for listitem in listItems if listitem.class_name()!="mmui::ChatItemView"]
-                    messages.extend([listitem.window_text() for listitem in listItems])
-                    chat_list.type_keys('{PGUP}')
-                chat_list.type_keys('{END}')
-            messages=messages[::-1][-number:]
+                warn(message=f"你与{friend}的聊天记录为空,无法获取聊天信息",category=NoChatHistoryWarning)
+                return messages
+            last_item=chat_list.children(control_type='ListItem')[-1]
+            messages.append(last_item.window_text())
+            Tools.activate_chatList(chat_list)
+            while len(messages)<number:
+                chat_list.type_keys('{UP}')
+                selected=[listitem for listitem in chat_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
+                if selected and selected[0].class_name()!='mmui::ChatItemView':
+                    messages.append(selected[0].window_text())
+                if not selected:
+                    break
+            chat_list.type_keys('{END}')
+            messages=messages[-number:]
             if close_weixin:
                 main_window.close()
         return messages
@@ -2647,7 +2652,7 @@ class Messages():
     @staticmethod
     def dump_chat_history(friend:str,number:int,capture_alia:bool=False,alias_folder:str=None,is_maximize:bool=None,close_weixin:bool=None)->tuple[list,list]:
         '''该函数用来获取一定数量的聊天记录
-        Args:
+        Args:  
             friend:好友名称
             number:获取的消息数量
             capture_alia:是否截取聊天记录中聊天对象的昵称
@@ -2655,7 +2660,7 @@ class Messages():
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
-            (messages,timestamps):发送的消息(时间顺序从早到晚),每条消息对应的发送时间
+            (messages,timestamps):发送的消息(时间顺序从晚到早),每条消息对应的发送时间
         '''
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
@@ -2669,32 +2674,31 @@ class Messages():
         timestamp_pattern=Regex_Patterns.Chathistory_Timestamp_pattern
         chat_history_window=Navigator.open_chat_history(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin)
         chat_list=chat_history_window.child_window(**Lists.ChatHistoryList)
-        scrollable=Tools.is_scrollable(chat_list)
-        if not chat_list.children(control_type='ListItem'):
+        if not chat_list.exists(timeout=0.1):
             warn(message=f"你与{friend}的聊天记录为空,无法获取聊天记录",category=NoChatHistoryWarning)
-        if not scrollable: 
-            ListItems=chat_list.children(control_type='ListItem')
-            messages=[listitem.window_text() for listitem in ListItems if listitem.class_name()!="mmui::ChatItemView"]  
-        if scrollable:
-            first_item=chat_list.children(control_type='ListItem')[0]
-            rectangle=first_item.rectangle()
-            mouse.click(coords=(rectangle.right,rectangle.mid_point().y))
-            messages.append(first_item.window_text())
-            if capture_alia:
-                path=os.path.join(alias_folder,f'与{friend}聊天记录_1.png')
-                alia_image=Tools.capture_alias(first_item)
-                alia_image.save(path)
-            while len(messages)<number:
-                chat_list.type_keys('{DOWN}'*2)#按两下下健才会选中listitem，按一下选中的是头像
-                selected=[listitem for listitem in chat_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
-                if selected:
-                    messages.append(selected[0].window_text())
-                    if capture_alia:
-                        time.sleep(0.2)#必须等待0.2s以上才能截出指定数量的图，不然过快来不及截图
-                        path=os.path.join(alias_folder,f'与{friend}聊天记录_{len(messages)}.png')
-                        alia_image=Tools.capture_alias(selected[0])
-                        alia_image.save(path)
-            chat_list.type_keys('{HOME}')
+            chat_history_window.close()
+            return messages
+        first_item=chat_list.children(control_type='ListItem')[0]
+        rectangle=first_item.rectangle()
+        mouse.click(coords=(rectangle.right-15,rectangle.mid_point().y))
+        messages.append(first_item.window_text())
+        if capture_alia:
+            path=os.path.join(alias_folder,f'与{friend}聊天记录_1.png')
+            alia_image=Tools.capture_alias(first_item)
+            alia_image.save(path)
+        while len(messages)<number:
+            chat_list.type_keys('{DOWN}'*2)#按两下下健才会选中listitem，按一下选中的是头像
+            selected=[listitem for listitem in chat_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
+            if selected:
+                messages.append(selected[0].window_text())
+                if capture_alia:
+                    time.sleep(0.2)#必须等待0.2s以上才能截出指定数量的图，不然过快来不及截图
+                    path=os.path.join(alias_folder,f'与{friend}聊天记录_{len(messages)}.png')
+                    alia_image=Tools.capture_alias(selected[0])
+                    alia_image.save(path)
+            if not selected:
+                break
+        chat_list.type_keys('{HOME}')
         chat_history_window.close()
         messages=messages[:number]
         timestamps=[timestamp_pattern.search(message).group(0) if timestamp_pattern.search(message) else '微信红包或转账(时间戳为图片非文本无法获取)' for message in messages]
