@@ -5,7 +5,7 @@ PC微信中的各种Ui-Object,包括:
     - `Main_Window`: 主界面窗口内的一些Ui
     - `Login_Window`: 登录界面内的一些Ui
     - `Independent_Window`: 独立界面窗口
-    - `SideBar`: 左侧导航栏内的所有Ui
+    - `SideBar`: 主界面导航栏内的所有Button
     - `Buttons`: Button类型Ui 
     - `Windows`: Window类型Ui
     - `Texts`: Text类型Ui
@@ -35,6 +35,7 @@ class Buttons():
     微信主界面内所有类型为Button的UI控件
     '''
     def __init__(self):
+        self.AddRemarkButton={'control_type':'Button','title':'添加备注名'}#通讯录好友详情面板没有备注时的添加备注名按钮
         self.AddPhoneNumButon={'control_type':'Button','title':'添加电话'}#修改好友备注内的添加电话按钮
         self.ClearPhoneNumButton={'control_type':'Button','title':'删除电话'}#修改好友备注内的删除电话按钮
         self.QuickActionsButton={'control_type':'Button','title':'快捷操作'}#主界面+号按钮
@@ -219,6 +220,8 @@ class Windows():
         self.SessionPickerWindow={'control_type':'Window','title':'微信发送给','class_name':'mmui::SessionPickerWindow'}#转发消息的session_picker_window
         self.VerifyFriendWindow={'control_type':'Window','title':'申请添加朋友','class_name':'mmui::VerifyFriendWindow'}#添加新朋友时的申请添加朋友界面
         self.RemarkAndTagWindow={'control_type':'Window','title':'设置备注和标签','class_name':'mmui::ProfileUniquePop'}#修改好友备注时的界面
+        self.PopOverWindow={'control_type':'Window','class_name':'mmui::XPopover'}#当微信窗口足够小的时候,会收起一部分侧边栏按钮到这个窗口内,此时需要点击...后在这个界面内点击
+
 
 class Login_window():
     '''登录界面要用到的唯二的两个Ui:登录界面与进入微信按钮'''
@@ -302,5 +305,3 @@ class Groups():
         self.ChatOnlyGroup={'title':'仅聊天','control_type':'Group'}#好友权限内的仅聊天选项
         self.OpenPrivacyGroup={'title':'聊天、朋友圈、微信运动等','control_type':'Group'}#好友权限内的聊天、朋友圈、微信运动等选项
         self.ContactProfileViewGroup={'title':'','control_type':'Group','class_name':'mmui::ContactProfileView'}#添加好友界面内搜索微信号后弹出的好友信息(带有添加到通讯录按钮)组
-
-
