@@ -8,7 +8,7 @@ WeChatTools
 Tools
 ------
     - `is_weixin_running`: 判断微信是否在运行
-    - `find_weixin_path`: 查找微信路径
+    - `where_weixin`: 查找微信路径
     - `get_current_wxid`: 获取当前登录账号wxid
     - `where_wxid_folder`: 当前登录微信的wxid文件夹
     - `where_msg_folder`: 获取微信msg文件夹路径
@@ -175,7 +175,7 @@ class Tools():
         return False
     
     @staticmethod
-    def find_weixin_path(copy_to_clipboard:bool=True)->str:
+    def where_weixin(copy_to_clipboard:bool=False)->str:
         '''该方法用来查找微信的路径,无论微信是否运行都可以查找到(如果没安装那就找不到)
         Args:
             copy_to_clipboard:是否将微信路径复制到剪贴板
@@ -186,7 +186,7 @@ class Tools():
             wmi=win32com.client.GetObject('winmgmts:')
             processes=wmi.InstancesOf('Win32_Process')
             for process in processes:
-                if process.Name.lower() == 'Weixin.exe'.lower():
+                if process.Name.lower()=='Weixin.exe'.lower():
                     weixin_path=process.ExecutablePath
             if weixin_path:
                 #规范化路径并检查文件是否存在
@@ -332,7 +332,7 @@ class Tools():
         if screen_width!=window_width:
             win32gui.MoveWindow(handle, new_left, new_top, window_width, window_height, True)
             win32gui.SetWindowPos(handle,win32con.HWND_TOPMOST, 
-                0, 0, 0, 0,win32con.SWP_NOMOVE|win32con.SWP_NOSIZE)
+            0, 0, 0, 0,win32con.SWP_NOMOVE|win32con.SWP_NOSIZE)
         return window
 
     @staticmethod
@@ -384,6 +384,13 @@ class Tools():
         chatList.type_keys('{END}')
     
     @staticmethod
+    def activate_chatHistoryList(chat_history_list):
+        '''点击激活聊天记录列表,这样后续可以按键选中'''
+        first_item=chat_history_list.children(control_type='ListItem')[0]
+        rectangle=first_item.rectangle()
+        mouse.click(coords=(rectangle.right-15,rectangle.mid_point().y))
+    
+    @staticmethod
     def get_next_item(listview:ListViewWrapper,listitem:ListItemWrapper):
         '''获取当前listview中给定的listitem的下一个,如果该listitem是最后一个则返回None'''
         items=listview.children()
@@ -398,12 +405,12 @@ class Tools():
         texts=[listitem.window_text() for listitem in search_result.children(control_type="ListItem")]
         listitems=search_result.children(control_type='ListItem')
         #正常好友群聊服务号公众号的class_name是mmui::SearchContentCellView
-        if '联系人' in texts or '群聊' in texts or '服务号' in texts or '公众号' in texts:
+        if '最近使用' in texts or '联系人' in texts or '群聊' in texts or '服务号' in texts or '公众号' in texts:
             listitems=[listitem for listitem in listitems if listitem.class_name()=="mmui::SearchContentCellView"]
             listitems=[listitem for listitem in listitems if listitem.window_text()==friend]
             if listitems:
                 return listitems[0]
-        if '功能' in texts:#功能比如文件传输助手,微信支付的class_name是mmui::XTableCell
+        if '功能' in texts or '最近使用' in texts:#功能比如文件传输助手,微信支付的class_name是mmui::XTableCell
             listitems=search_result.children(control_type='ListItem',class_name="mmui::XTableCell")
             listitems=[listitem for listitem in listitems if listitem.window_text()==friend]
             if listitems:
@@ -597,7 +604,7 @@ class Navigator():
         wx=WxWindowManage()
         is_running=Tools.is_weixin_running()
         if not is_running:#微信不在运行,主界面看不到窗口，需要先启动
-            weixin_path=Tools.find_weixin_path(copy_to_clipboard=False)
+            weixin_path=Tools.where_weixin(copy_to_clipboard=False)
             os.startfile(weixin_path)
         handle=wx.find_wx_window()
         while not handle:
@@ -1069,7 +1076,7 @@ class Navigator():
             is_contact=True
             texts=[listitem.window_text() for listitem in search_result.children(control_type="ListItem")]
             listitems=search_result.children(control_type='ListItem')
-            if '联系人' in texts or '群聊' in texts :
+            if '联系人' in texts or '群聊' in texts or '最近使用':
                 listitems=[listitem for listitem in listitems if listitem.class_name()=="mmui::SearchContentCellView"]
                 listitems=[listitem for listitem in listitems if listitem.window_text()==friend]
                 if listitems:
