@@ -192,7 +192,7 @@ class AutoReply():
                             reply_content=callback(newMessage.window_text())
                             input_edit.set_text(reply_content)
                             pyautogui.hotkey('alt','s')
-                            dialog_window.minimize()
+                            win32gui.SendMessage(dialog_window.handle, win32con.WM_SYSCOMMAND, win32con.SC_MINIMIZE,0)
                     if newMessage.class_name()=='mmui::ChatBubbleItemView' and newMessage.window_text()[:2]=='[链接]':#
                         link_count+=1
                     if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and newMessage.window_text()=='图片':
@@ -2673,22 +2673,21 @@ class Messages():
         messages=[]
         timestamp_pattern=Regex_Patterns.Chathistory_Timestamp_pattern
         chat_history_window=Navigator.open_chat_history(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin)
-        chat_list=chat_history_window.child_window(**Lists.ChatHistoryList)
-        if not chat_list.exists(timeout=0.1):
+        chat_history_list=chat_history_window.child_window(**Lists.ChatHistoryList)
+        if not chat_history_list.exists(timeout=0.1):
             warn(message=f"你与{friend}的聊天记录为空,无法获取聊天记录",category=NoChatHistoryWarning)
             chat_history_window.close()
             return messages
-        first_item=chat_list.children(control_type='ListItem')[0]
-        rectangle=first_item.rectangle()
-        mouse.click(coords=(rectangle.right-15,rectangle.mid_point().y))
+        first_item=chat_history_list.children(control_type='ListItem')[0]
+        Tools.activate_chatHistoryList(chat_history_list)
         messages.append(first_item.window_text())
         if capture_alia:
             path=os.path.join(alias_folder,f'与{friend}聊天记录_1.png')
             alia_image=Tools.capture_alias(first_item)
             alia_image.save(path)
         while len(messages)<number:
-            chat_list.type_keys('{DOWN}'*2)#按两下下健才会选中listitem，按一下选中的是头像
-            selected=[listitem for listitem in chat_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
+            chat_history_list.type_keys('{DOWN}'*2)#按两下下健才会选中listitem，按一下选中的是头像
+            selected=[listitem for listitem in chat_history_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
             if selected:
                 messages.append(selected[0].window_text())
                 if capture_alia:
@@ -2698,7 +2697,7 @@ class Messages():
                     alia_image.save(path)
             if not selected:
                 break
-        chat_list.type_keys('{HOME}')
+        chat_history_list.type_keys('{HOME}')
         chat_history_window.close()
         messages=messages[:number]
         timestamps=[timestamp_pattern.search(message).group(0) if timestamp_pattern.search(message) else '微信红包或转账(时间戳为图片非文本无法获取)' for message in messages]
