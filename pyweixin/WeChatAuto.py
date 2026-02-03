@@ -2151,9 +2151,9 @@ class Moments():
             text=listitem.window_text()
             text=text.replace('\n','').replace(friend,'')#先去掉头尾的空格去掉换行符
             post_time=sns_detail_pattern.search(text).group(0)
-            if re.search(rf'\s包含(\d+)张图片\s{post_time}',text):
-                photo_num=int(re.search(rf'\s包含(\d+)张图片\s{post_time}',text).group(1))
-            if re.search(rf'\s视频\s{post_time}',text):
+            if re.search(rf'\s包含(\d+)张图片\s',text):
+                photo_num=int(re.search(rf'\s包含(\d+)张图片\s',text).group(1))
+            if re.search(rf'\s视频\s',text):
                 video_num=1
             content=re.sub(rf'\s(包含\d+张图片\s{post_time}|视频\s{post_time}|{post_time})','',text)
             return content,photo_num,video_num,post_time
@@ -2882,3 +2882,4 @@ class Monitor():
         SystemSettings.close_listening_mode()
         if close_dialog_window:dialog_window.close()
         return red_packet_count
+
