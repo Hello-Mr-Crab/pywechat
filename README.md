@@ -185,6 +185,13 @@ Moments.post_moments(texts='''发布朋友圈测试[旺柴]''',medias=[r"E:\Desk
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/发朋友圈.png)
 <br>
 
+#### 好友朋友圈内容导出
+```
+from pyweixin import Moments
+Moments.dump_friend_moments(friend='xxx',number=2,save_detail=True,target_folder=r"E:\Desktop\好友朋友圈内容导出")
+```
+
+
 #### 此外pyweixin内所有方法及函数的一些位置参数支持全局设定,be like:
 ```
 from pyweixin import Navigator,GlobalConfig
@@ -380,6 +387,7 @@ print(check_new_message())
 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！ 
 
 ###### 作者CSDN主页:https://blog.csdn.net/weixin_73953650?spm=1011.2415.3001.5343
+
 
 
 
