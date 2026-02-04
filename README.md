@@ -148,9 +148,6 @@ with ThreadPoolExecutor() as pool:
 for friend,result in zip(friends,results):
     print(friend,result)
 ```
-
-<br>
-
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/自动回复.png)
 
 <br>
@@ -172,8 +169,8 @@ posts=Moments.dump_recent_moments(recent='Today')
 for dic in posts:
     print(dic)
 ```
-
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/朋友圈数据获取.png)
+
 <br>
 
 #### 发布朋友圈
@@ -181,8 +178,8 @@ for dic in posts:
 from pyweixin import Moments
 Moments.post_moments(texts='''发布朋友圈测试[旺柴]''',medias=[r"E:\Desktop\test0.png",r"E:\Desktop\test1.png"])
 ```
-
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/发朋友圈.png)
+
 <br>
 
 #### 好友朋友圈内容导出
@@ -190,7 +187,10 @@ Moments.post_moments(texts='''发布朋友圈测试[旺柴]''',medias=[r"E:\Desk
 from pyweixin import Moments
 Moments.dump_friend_moments(friend='xxx',number=2,save_detail=True,target_folder=r"E:\Desktop\好友朋友圈内容导出")
 ```
+![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/好友朋友圈内容导出.png)
+![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/好友朋友圈内容.png)
 
+<br>
 
 #### 此外pyweixin内所有方法及函数的一些位置参数支持全局设定,be like:
 ```
@@ -387,23 +387,3 @@ print(check_new_message())
 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！ 
 
 ###### 作者CSDN主页:https://blog.csdn.net/weixin_73953650?spm=1011.2415.3001.5343
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
