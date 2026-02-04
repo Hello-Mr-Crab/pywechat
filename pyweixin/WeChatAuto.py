@@ -68,9 +68,8 @@ from typing import Callable
 #####################################################################################
 #内部依赖
 from .Config import GlobalConfig
-from .utils import Regex_Patterns
 from .utils import scan_for_new_messages,get_new_message_num
-from .utils import At,At_all
+from .utils import At,At_all,Regex_Patterns
 from .Warnings import LongTextWarning,NoChatHistoryWarning
 from .WeChatTools import Tools,Navigator,mouse,Desktop
 from .WinSettings import SystemSettings
@@ -1975,7 +1974,7 @@ class Moments():
             listitem.click_input()
             pass
 
-        def get_info(listitem:ListItemWrapper):
+        def parse_post(listitem:ListItemWrapper):
             '''获取朋友圈文本中的时间戳,图片数量,以及剩余内容'''
             #按照空格split比较理想的结果是['昵称','内容','时间戳'],但是有的人昵称中或者发布的内容都含有空格，甚至有可能内容是个时间戳
             #或者转发的是视频号，时间戳不在文本末尾，split后可能是
@@ -1984,7 +1983,6 @@ class Moments():
             video_num=0
             photo_num=0
             text=listitem.window_text()
-            text=text.strip(' ').replace('\n','')#先去掉头尾的空格去掉换行符
             splited_text=text.split(' ')
             possible_timestamps=[text for text in splited_text if sns_timestamp_pattern.match(text)]
             post_time=possible_timestamps[-1]
@@ -1992,7 +1990,7 @@ class Moments():
                 photo_num=int(re.search(rf'\s包含(\d+)张图片\s{post_time}',text).group(1))
             if re.search(rf'\s视频\s{post_time}',text):
                 video_num=1
-            content=re.sub(rf'\s(包含\d+张图片\s{post_time}|视频\s{post_time}|{post_time})','',text)
+            content=re.sub(rf'\s((包含\d+张图片\s|视频\s).*{post_time})\s','',text)
             return content,photo_num,video_num,post_time
         
         if is_maximize is None:
@@ -2018,7 +2016,7 @@ class Moments():
                 listitems=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.class_name() not in not_contents]
                 selected=[listitem for listitem in listitems if listitem.has_keyboard_focus()]
                 if selected:
-                    content,photo_num,video_num,post_time=get_info(selected[0])
+                    content,photo_num,video_num,post_time=parse_post(selected[0])
                     posts.append({'内容':content,'图片数量':photo_num,'视频数量':video_num,'发布时间':post_time})
                     if recent=='Today' and ('昨天' in post_time or '天前' in post_time):
                         break
@@ -2117,22 +2115,46 @@ class Moments():
         return posts
 
     @staticmethod
-    def dump_friend_moments(friend:str,number:int,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
+    def dump_friend_moments(friend:str,number:int,save_detail:bool=False,target_folder:str=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
         '''
         该方法用来获取某个好友的微信朋友圈的内一定数量的内容
         Args:
+            friend:好友备注
             number:具体数量
+            save_detail:是否保存好友单条朋友圈的具体内容到本地(图片,文本,截图)
+            target_folder:save_detail所需的文件夹路径
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
             posts:朋友圈具体内容,list[dict]的格式,具体为[{'内容':xx,'图片数量':xx,'视频数量':xx,'发布时间':xx}]
-
         '''
-        def save_media(listitem):
-            #后期点击保存图片或视频的逻辑
-            listitem.click_input()
-            pass
-        
+        def save_media(sns_detail_list:ListViewWrapper,photo_num:int,detail_folder:str,content:str):
+            content_path=os.path.join(detail_folder,'内容.txt')
+            capture_path=os.path.join(detail_folder,'内容截图.png')
+            #保存截图
+            sns_detail_list.capture_as_image().save(capture_path)
+            #保存内容
+            with open(content_path,'w',encoding='utf-8') as f:
+                f.write(content)
+            #保存图片
+            if photo_num:
+                sns_detail_list.type_keys('{END}')
+                rec=sns_detail_list.rectangle()
+                right_click_position=rec.mid_point().x+20,rec.mid_point().y+25
+                comment_detail=sns_detail_list.children(control_type='ListItem',title='')[1]
+                rec=comment_detail.rectangle()
+                x,y=rec.left+120,rec.top-80
+                mouse.click(coords=(x,y))
+                pyautogui.press('left',presses=photo_num,interval=0.15)
+                for i in range(photo_num):
+                    sns_detail_list.right_click_input(coords=right_click_position)
+                    moments_window.child_window(**MenuItems.CopyMenuItem).click_input()
+                    path=os.path.join(detail_folder,f'{i}.png')
+                    time.sleep(0.5)#0.5s缓存到剪贴板时间
+                    SystemSettings.save_pasted_image(path)
+                    pyautogui.press('right',interval=0.05)
+                backbutton.click_input()#图片预览界面内点击一次backbutton可以退出预览
+           
         def is_at_bottom(listview:ListViewWrapper,listitem:ListItemWrapper):
             '''判断是否到达朋友圈列表底部'''
             next_item=Tools.get_next_item(listview,listitem)
@@ -2140,33 +2162,41 @@ class Moments():
                 return True
             return False
 
-        def get_info(listitem:ListItemWrapper):
+        def parse_friend_post(listitem:ListItemWrapper):
             '''获取朋友圈文本中的时间戳,图片数量,以及剩余内容'''
-            #按照空格split比较理想的结果是['昵称','内容','时间戳'],但是有的人昵称中或者发布的内容都含有空格，甚至有可能内容是个时间戳
-            #或者转发的是视频号，时间戳不在文本末尾，split后可能是
-            #['昵','称','昨天xxx','1小时前','视频号xxx']
-            #但是无论如何，在这个列表中真正满足时间戳格式的字符即使用re.match筛选后，永远在列表的最后
             video_num=0
             photo_num=0
             text=listitem.window_text()
-            text=text.replace('\n','').replace(friend,'')#先去掉头尾的空格去掉换行符
+            text=text.replace(friend,'')#先去掉头尾的空格去掉换行符
             post_time=sns_detail_pattern.search(text).group(0)
             if re.search(rf'\s包含(\d+)张图片\s',text):
-                photo_num=int(re.search(rf'\s包含(\d+)张图片\s',text).group(1))
-            if re.search(rf'\s视频\s',text):
+                photo_num=int(re.search(r'\s包含(\d+)张图片\s',text).group(1))
+            if re.search(rf'\s视频\s{post_time}',text):
                 video_num=1
-            content=re.sub(rf'\s(包含\d+张图片\s{post_time}|视频\s{post_time}|{post_time})','',text)
+            content=re.sub(rf'\s((包含\d+张图片\s|视频\s).*{post_time})\s','',text)
             return content,photo_num,video_num,post_time
 
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
+        if save_detail  and target_folder is None:
+            target_folder=os.path.join(os.getcwd(),f'dump_friend_moments朋友圈图片保存')
+            print(f'未传入文件夹图片和内容将保存到{target_folder}内的 {friend} 文件夹下')
+            os.makedirs(target_folder,exist_ok=True)
+        if save_detail and (not os.path.exists(target_folder) or not os.path.isdir(target_folder)):
+            raise NotFolderError
+        if save_detail and target_folder is not None:
+            friend_folder=os.path.join(target_folder,f'{friend}')
+            os.makedirs(friend_folder,exist_ok=True)
         posts=[]
-        sns_detail_pattern=Regex_Patterns.Snsdetail_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳
-        not_contents=['mmui::AlbumBaseCell','mmui::AlbumTopCell']#置顶,还有好友
+        record_num=0
+        sns_detail_pattern=Regex_Patterns.Snsdetail_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳pattern
+        not_contents=['mmui::AlbumBaseCell','mmui::AlbumTopCell']#置顶内容不需要
         moments_window=Navigator.open_friend_moments(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin)
-        win32gui.SendMessage(moments_window.handle, win32con.WM_SYSCOMMAND, win32con.SC_MAXIMIZE,0)
+        backbutton=moments_window.child_window(**Buttons.BackButton)
+        #直接maximize不行,需要使用win32gui
+        win32gui.SendMessage(moments_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MAXIMIZE,0)
         moments_list=moments_window.child_window(**Lists.MomentsList)
         sns_detail_list=moments_window.child_window(**Lists.SnsDetailList)
         moments_list.type_keys('{PGDN}')
@@ -2179,13 +2209,17 @@ class Moments():
                 if selected and selected[0].class_name() not in not_contents:
                     selected[0].click_input()
                     listitem=sns_detail_list.children(control_type='ListItem')[0]
-                    content,photo_num,video_num,post_time=get_info(listitem)
+                    content,photo_num,video_num,post_time=parse_friend_post(listitem)
                     posts.append({'内容':content,'图片数量':photo_num,'视频数量':video_num,'发布时间':post_time})
-                    backbutton=moments_window.child_window(**Buttons.BackButton)
+                    if save_detail:
+                        detail_folder=os.path.join(friend_folder,f'{record_num}')
+                        os.makedirs(detail_folder,exist_ok=True)
+                        save_media(sns_detail_list,photo_num,detail_folder,content)
+                    record_num+=1
                     backbutton.click_input()
                     if is_at_bottom(moments_list,selected[0]):
                         break
-                if len(posts)>=number:
+                if record_num>=number:
                     break
         moments_window.close()
         return posts
@@ -2779,7 +2813,7 @@ class Monitor():
             raise TimeNotCorrectError
         if (save_file or save_photo ) and target_folder is None:
             target_folder=os.path.join(os.getcwd(),f'{dialog_window.window_text()}_listen_on_chat聊天文件保存')
-            print(f'未传入文件夹路径,文件,图片,群昵称截图将分别保存到{target_folder}内的Files,Images文件夹下\n')
+            print(f'未传入文件夹路径,文件,图片将分别保存到{target_folder}内的Files,Images文件夹下\n')
             os.makedirs(target_folder,exist_ok=True)
         if save_file:
             file_folder=os.path.join(target_folder,'Files')
@@ -2882,4 +2916,3 @@ class Monitor():
         SystemSettings.close_listening_mode()
         if close_dialog_window:dialog_window.close()
         return red_packet_count
-
