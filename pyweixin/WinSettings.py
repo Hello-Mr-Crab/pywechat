@@ -38,6 +38,8 @@ import ctypes
 from ctypes import cast, POINTER
 from comtypes import CLSCTX_ALL
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+from PIL import Image
+import io
 
 #常量
 ES_DISPLAY_REQUIRED=0x00000002
@@ -200,16 +202,27 @@ class SystemSettings():
                 try:
                     shutil.copy2(file_path, target_folder)
                 except Exception:
-
                     pass
-
+    
+    @staticmethod
+    def copy_file(file_path:str,target_folder:str):
+        '''
+        将给定file_path下的文件到复制到目标文件夹
+        Args:
+            file_path: 文件绝对路径:'/path/to/file2.jpg'
+            target_folder: 目标文件夹路径，例如 '/path/to/destination/'
+        '''
+        os.makedirs(target_folder, exist_ok=True)
+        if not os.path.exists(os.path.join(target_folder,os.path.basename(file_path))):
+            shutil.copy2(file_path, target_folder)
+    
     @staticmethod
     def save_pasted_image(img_path:str):
         '''获取复制到剪贴板的图片并保存到指定路径
         Args:
             img_path:图片待存放路径
         '''
-        time.sleep(1)
+        time.sleep(0.8)
         win32clipboard.OpenClipboard()
         if win32clipboard.IsClipboardFormatAvailable(win32clipboard.CF_DIB):
             data=win32clipboard.GetClipboardData(win32clipboard.CF_DIB)
