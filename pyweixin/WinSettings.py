@@ -222,10 +222,10 @@ class SystemSettings():
         Args:
             img_path:图片待存放路径
         '''
-        time.sleep(0.8)
         win32clipboard.OpenClipboard()
         if win32clipboard.IsClipboardFormatAvailable(win32clipboard.CF_DIB):
             data=win32clipboard.GetClipboardData(win32clipboard.CF_DIB)
             image=Image.open(io.BytesIO(data))
             image.save(img_path)
         win32clipboard.CloseClipboard()
+
