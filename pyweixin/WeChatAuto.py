@@ -1007,10 +1007,10 @@ class FriendSettings():
             raise ValueError('mute的取整为0或1!')
         if fold_chat not in {0,1}:
             raise ValueError('fold_chat的取整为0或1!')
-        profile_pane,main_window=Navigator.open_friend_profile(friend=friend,is_maximize=is_maximize)
-        chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton)
-        mute_notification=profile_pane.child_window(**CheckBoxes.MuteNotificationsCheckBox)
-        foldchat=profile_pane.child_window(**CheckBoxes.FoldChatCheckBox)
+        chatinfo_pane,main_window=Navigator.open_chatinfo(friend=friend,is_maximize=is_maximize)
+        chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton)       
+        mute_notification=chatinfo_pane.child_window(**CheckBoxes.MuteNotificationsCheckBox)
+        foldchat=chatinfo_pane.child_window(**CheckBoxes.FoldChatCheckBox)
         if not mute_notification.get_toggle_state() and mute==1:
             mute_notification.click_input()
         if mute_notification.get_toggle_state() and mute==0:
@@ -1039,9 +1039,9 @@ class FriendSettings():
             close_weixin=GlobalConfig.close_weixin
         if state not in {0,1}:
             raise ValueError('state的取整为0或1!')
-        profile_pane,main_window=Navigator.open_friend_profile(friend=friend,is_maximize=is_maximize)
+        chatinfo_pane,main_window=Navigator.open_chatinfo(friend=friend,is_maximize=is_maximize)
         chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton)
-        pinchat=profile_pane.child_window(**CheckBoxes.PinChatCheckBox)
+        pinchat=chatinfo_pane.child_window(**CheckBoxes.PinChatCheckBox)
         if state==1 and not pinchat.get_toggle_state():
             pinchat.click_input()
         if state==0 and pinchat.get_toggle_state():
@@ -1062,10 +1062,10 @@ class FriendSettings():
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
-        profile_pane,main_window=Navigator.open_friend_profile(friend=friend,is_maximize=is_maximize)
+        chatinfo_pane,main_window=Navigator.open_chatinfo(friend=friend,is_maximize=is_maximize)
         chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton)
-        clear_chat_history_button=main_window.child_window(**Buttons.ClearChatHistoryButton)
-        empty_button=profile_pane.child_window(**Buttons.EmptyButton)
+        clear_chat_history_button=chatinfo_pane.child_window(**Buttons.ClearChatHistoryButton)
+        empty_button=main_window.child_window(**Buttons.EmptyButton)
         clear_chat_history_button.click_input()
         empty_button.click_input()
         chatinfo_button.click_input()
@@ -1246,11 +1246,11 @@ class FriendSettings():
             addphone_button=remarkAndtag_window.child_window(**Buttons.AddPhoneNumButon)
             addphone_button.click_input()
             remarkAndtag_window.child_window(control_type='Edit',found_index=1).set_text(phoneNum)
-        description_edit=remarkAndtag_window.child_window(control_type='Edit',found_index=1)
+        if description is not None and isinstance(description,str):
+            description_edit=remarkAndtag_window.child_window(control_type='Edit',found_index=2)
+            description_edit.set_text(description)
         addphone_button=remarkAndtag_window.child_window(**Buttons.AddPhoneNumButon)
         remark_edit.set_text(remark)
-        if description is not None and isinstance(description,str):
-            description_edit.set_text(description)
         confirm_button=remarkAndtag_window.child_window(**Buttons.CompleteButton)
         confirm_button.click_input()
         chatinfo_button.click_input()
@@ -1986,9 +1986,9 @@ class Moments():
             splited_text=text.split(' ')
             possible_timestamps=[text for text in splited_text if sns_timestamp_pattern.match(text)]
             post_time=possible_timestamps[-1]
-            if re.search(rf'\s包含(\d+)张图片\s{post_time}',text):
-                photo_num=int(re.search(rf'\s包含(\d+)张图片\s{post_time}',text).group(1))
-            if re.search(rf'\s视频\s{post_time}',text):
+            if re.search(rf'\s包含(\d+)张图片\s',text):
+                photo_num=int(re.search(rf'\s包含(\d+)张图片\s',text).group(1))
+            if re.search(rf'\s视频\s',text):
                 video_num=1
             content=re.sub(rf'\s((包含\d+张图片\s|视频\s).*{post_time})\s','',text)
             return content,photo_num,video_num,post_time
@@ -2138,7 +2138,6 @@ class Moments():
                 f.write(content)
             #保存图片
             if photo_num:
-                sns_detail_list.type_keys('{END}')
                 rec=sns_detail_list.rectangle()
                 right_click_position=rec.mid_point().x+20,rec.mid_point().y+25
                 comment_detail=sns_detail_list.children(control_type='ListItem',title='')[1]
@@ -2153,7 +2152,7 @@ class Moments():
                     time.sleep(0.5)#0.5s缓存到剪贴板时间
                     SystemSettings.save_pasted_image(path)
                     pyautogui.press('right',interval=0.05)
-                backbutton.click_input()#图片预览界面内点击一次backbutton可以退出预览
+                pyautogui.press('esc')
            
         def is_at_bottom(listview:ListViewWrapper,listitem:ListItemWrapper):
             '''判断是否到达朋友圈列表底部'''
@@ -2366,7 +2365,7 @@ class Messages():
                 main_window.close()
             return dict(zip(new_message_dict.keys(),newMessages))
     
-    #session_pick_window中使用ui自动化选择好友后微信会莫名奇妙卡死，所以先暂时不实现这个方法了
+    #session_pick_window中使用ui自动化选择2个以上好友时微信会莫名奇妙白屏卡死，所以先暂时不实现这个方法了
     # @staticmethod
     # def forward_message(friends:list[str],message:str,clear:bool=None,
     #     send_delay:float=None,is_maximize:bool=None,close_weixin:bool=None)->None:
@@ -2696,6 +2695,14 @@ class Messages():
         Returns:
             (messages,timestamps):发送的消息(时间顺序从晚到早),每条消息对应的发送时间
         '''
+        def is_at_bottom(chat_history_list,listitem):
+            at_bottom=False
+            pyautogui.press('down',presses=2,_pause=False)
+            if Tools.get_next_item(chat_history_list,listitem) is None:
+                at_bottom=True
+            pyautogui.press('up',presses=2,_pause=False)
+            return at_bottom
+        
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
@@ -2720,17 +2727,18 @@ class Messages():
             alia_image=Tools.capture_alias(first_item)
             alia_image.save(path)
         while len(messages)<number:
-            chat_history_list.type_keys('{DOWN}'*2)#按两下下健才会选中listitem，按一下选中的是头像
+            pyautogui.press('down',presses=2,_pause=False)
             selected=[listitem for listitem in chat_history_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
             if selected:
                 messages.append(selected[0].window_text())
                 if capture_alia:
-                    time.sleep(0.2)#必须等待0.2s以上才能截出指定数量的图，不然过快来不及截图
+                    time.sleep(0.1)#必须等待0.2s以上才能截出指定数量的图，不然过快来不及截图
                     path=os.path.join(alias_folder,f'与{friend}聊天记录_{len(messages)}.png')
                     alia_image=Tools.capture_alias(selected[0])
                     alia_image.save(path)
-            if not selected:
-                break
+                if is_at_bottom(chat_history_list,selected[0]):
+                    break
+               
         chat_history_list.type_keys('{HOME}')
         chat_history_window.close()
         messages=messages[:number]
