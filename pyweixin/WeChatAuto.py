@@ -2132,7 +2132,7 @@ class Moments():
             content_path=os.path.join(detail_folder,'内容.txt')
             capture_path=os.path.join(detail_folder,'内容截图.png')
             #保存截图
-            sns_detail_list.capture_as_image().save(capture_path)
+            sns_detail_list.children(control_type='ListItem')[0].capture_as_image().save(capture_path)
             #保存内容
             with open(content_path,'w',encoding='utf-8') as f:
                 f.write(content)
@@ -2924,3 +2924,4 @@ class Monitor():
         SystemSettings.close_listening_mode()
         if close_dialog_window:dialog_window.close()
         return red_packet_count
+
