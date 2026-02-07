@@ -126,6 +126,7 @@ desktop=Desktop(backend='uia')#Window桌面
 pyautogui.FAILSAFE=False#防止鼠标在屏幕边缘处造成的误触
 
 
+
 class WxWindowManage():
     '''win32gui与pywinauto结合的关于微信窗口的'''
     def __init__(self):
@@ -193,18 +194,18 @@ class Tools():
                 weixin_path=os.path.abspath(weixin_path)
             if copy_to_clipboard:
                 SystemSettings.copy_text_to_windowsclipboard(weixin_path)
-                print("已将微信程序路径复制到剪贴板")
+                print("已将微信路径复制到剪贴板")
             return weixin_path
         else:
            
             try:
                 reg_path=r"Software\Tencent\Weixin"
-                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, reg_path) as key:
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER,reg_path) as key:
                     Installdir=winreg.QueryValueEx(key,"InstallPath")[0]
                 weixin_path=os.path.join(Installdir,'Weixin.exe')
                 if copy_to_clipboard:
                     SystemSettings.copy_text_to_windowsclipboard(weixin_path)
-                    print("已将微信程序路径复制到剪贴板")
+                    print("已将微信路径复制到剪贴板")
                 return weixin_path
             except FileNotFoundError:
                 raise NotInstalledError
@@ -377,6 +378,14 @@ class Tools():
         return main_window.child_window(**Buttons.GroupCallButton).exists(timeout=0.1)
 
     @staticmethod
+    def is_sns_at_bottom(listview:ListViewWrapper,listitem:ListItemWrapper):
+        '''判断一个好友的朋友圈详情页面是否到达底部'''
+        next_item=Tools.get_next_item(listview,listitem)
+        if next_item.class_name()=='mmui::AlbumBaseCell' and next_item.window_text()=='':#到达最底部
+            return True
+        return False
+
+    @staticmethod
     def activate_chatList(chatList:ListViewWrapper):
         '''主界面或聊天窗口右侧的消息列表激活至于底部'''
         activate_position=(chatList.rectangle().right-12,chatList.rectangle().mid_point().y)
@@ -392,8 +401,8 @@ class Tools():
     
     @staticmethod
     def get_next_item(listview:ListViewWrapper,listitem:ListItemWrapper):
-        '''获取当前listview中给定的listitem的下一个,如果该listitem是最后一个则返回None'''
-        items=listview.children()
+        '''获取当前listview中给定的listitem的下一个,如果该listitem是最后一个或不在该listview则返回None'''
+        items=listview.children(control_type='ListItem')
         for i in range(len(items)):
             if items[i]==listitem and i<len(items)-1:
                 return items[i+1]
@@ -684,28 +693,6 @@ class Navigator():
                         session_list.type_keys("{PGDN}")
                 session_list.type_keys("{HOME}")
             return is_find,main_window
-    
-    # @staticmethod
-    # def open_wx_tray()->WindowSpecification|None:
-    #     '''
-    #     该方法用于打开微信托盘
-    #     '''
-    #     def hardware_mouse_move(x,y):
-    #         """使用硬件级鼠标移动"""
-    #         #直接设置光标位置
-    #         ctypes.windll.user32.SetCursorPos(x, y)
-    #         for _ in range(3):
-    #             ctypes.windll.user32.mouse_event(0x0001, 1, 0, 0, 0)
-    #             time.sleep(0.05)
-    #     wechat_tray=None
-    #     shell_tray=desktop.window(class_name="Shell_TrayWnd",title="任务栏")
-    #     wx_button=shell_tray.child_window(title_re="",auto_id="NotifyItemIcon",control_type="Button")
-    #     if not wx_button.exists(timeout=1):
-    #         raise NoTrayFindError
-    #     center_x,center_y=wx_button.children()[0].rectangle().mid_point()
-    #     hardware_mouse_move(center_x,center_y)
-    #     wechat_tray=desktop.window(class_name='mmui::UnreadMessageHoverWindow')
-    #     return wechat_tray
 
     @staticmethod
     def open_collections(is_maximize:bool=None)->WindowSpecification:
@@ -765,7 +752,7 @@ class Navigator():
             search_pages=GlobalConfig.search_pages
         chatinfo_pane,main_window=Navigator.open_chatinfo(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         friend_button=chatinfo_pane.child_window(title=friend,control_type='Button')
-        if friend_button.exists(timeout=0.2):
+        if friend_button.exists(timeout=0.1):
             time.sleep(1)
             profile_button=friend_button.children(title='',control_type='Button')[0]
             profile_button.click_input()
@@ -792,13 +779,12 @@ class Navigator():
         if search_pages is None:
             search_pages=GlobalConfig.search_pages
         profile_pane,main_window=Navigator.open_friend_profile(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
-        moments_button=profile_pane.child_window(title='朋友圈',control_type='Button',auto_id='button')
+        moments_button=profile_pane.child_window(**Buttons.MomentsButton)
         moments_button.click_input()
         moments_window=Tools.move_window_to_center(Window=Windows.MomentsWindow)
         if close_weixin:
             main_window.close()
         return moments_window
-       
 
     @staticmethod
     def open_moments(is_maximize:bool=None,close_weixin:bool=None)->WindowSpecification:
@@ -1026,7 +1012,6 @@ class Navigator():
             #这部分代码先判断微信主界面是否可见,如果可见不需要重新打开,这在多个close_wechat为False需要进行来连续操作的方式使用时要用到
             main_window=Navigator.open_weixin(is_maximize=is_maximize)
             chat_button=main_window.child_window(**SideBar.Chats)
-            session_list=main_window.child_window(**Main_window.ConversationList)
             #先看看当前聊天界面是不是好友的聊天界面
             current_chat=main_window.child_window(**Edits.CurrentChatEdit)
             if current_chat.exists(timeout=0.2) and current_chat.window_text()==friend:
@@ -1037,10 +1022,7 @@ class Navigator():
                 return main_window
             else:#否则直接从顶部搜索栏出搜索结果
                 #如果会话列表不存在或者不可见的话才点击一下聊天按钮
-                if not session_list.exists(timeout=0.1):
-                    chat_button.click_input()
-                if not session_list.is_visible():
-                    chat_button.click_input()        
+                chat_button.click_input()      
                 search=main_window.descendants(**Main_window.Search)[0]
                 search.click_input()
                 search.set_text(friend)
@@ -1163,7 +1145,7 @@ class Navigator():
         return chat_history_window
 
     @staticmethod
-    def open_add_friend_panel(is_maximize:bool=None)->WindowSpecification:
+    def open_add_friend_panel(is_maximize:bool=None)->tuple[WindowSpecification,WindowSpecification]:
         '''
         该方法用于打开添加好友窗口
         Args:
