@@ -1933,19 +1933,19 @@ class Moments():
             close_weixin=GlobalConfig.close_weixin
         if not texts and not medias:
             raise ValueError(f'文本与图片视频至少要有一个!')
+        paths=build_path(medias)
+        if not paths:
+            raise ValueError(f'medias列表内无可用图片或视频路径!')
         moments=Navigator.open_moments(is_maximize=is_maximize,close_weixin=close_weixin)
         post_button=moments.child_window(**Buttons.PostButton)
         post_button.right_click_input(),
         pyautogui.press('up',presses=2)
         if medias:
-            paths=build_path(medias)
             pyautogui.press('enter')
-            SystemSettings.copy_text_to_windowsclipboard(paths)
             native_window=desktop.window(**Windows.NativeChooseFileWindow)
             edit=native_window.child_window(**Edits.NativeFileSaveEdit)
-            edit.click_input()
-            pyautogui.hotkey('ctrl','v',_pause=False)
-            pyautogui.press('enter')
+            edit.set_text(paths)
+            pyautogui.hotkey('alt','o')
         if texts and not medias:
             pyautogui.press('down',presses=1)
             pyautogui.press('enter')
@@ -1958,11 +1958,12 @@ class Moments():
         post_button.click_input()
 
     @staticmethod
-    def dump_recent_moments(recent:Literal['Today','Yesterday','Week','Month']='Today',is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
+    def dump_recent_moments(recent:Literal['Today','Yesterday','Week','Month']='Today',number:int=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
         '''
         该方法用来获取最近一月内微信朋友圈内好友发布过的具体内容
         Args:
             recent:最进的时间,取值为['Today','Yesterday','Week','Month']
+            number:指定的数量
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
@@ -1997,6 +1998,8 @@ class Moments():
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
+
+        recorded_num=0
         posts=[]
         sns_timestamp_pattern=Regex_Patterns.Sns_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳
         not_contents=['mmui::TimelineCommentCell','mmui::TimelineCell','mmui::TimelineAdGridImageCell']#评论区，余下x条,广告,这三种不需要
@@ -2018,6 +2021,9 @@ class Moments():
                 if selected:
                     content,photo_num,video_num,post_time=parse_post(selected[0])
                     posts.append({'内容':content,'图片数量':photo_num,'视频数量':video_num,'发布时间':post_time})
+                    recorded_num+=1
+                    if isinstance(number,int) and recorded_num>=number:
+                        break
                     if recent=='Today' and ('昨天' in post_time or '天前' in post_time):
                         break
                     if recent=='Yesterday' and '天前' in post_time:#当前的朋友圈内容发布时间没有天前,说明是当天
@@ -2039,18 +2045,19 @@ class Moments():
         return posts
     
     @staticmethod
-    def posts_like(recent:Literal['Today','Yesterday','Week','Month']='Today',number:int=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
+    def like_posts(recent:Literal['Today','Yesterday','Week','Month']='Today',number:int=None,callback:Callable[[str],str]=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
         '''
-        该方法用来给朋友圈内最近发布的内容点赞
+        该方法用来给朋友圈内最近发布的内容点赞和评论
         Args:
-            recent:最进的时间,取值为['Today','Yesterday','Week','Month']
+            recent:最近的时间,取值为['Today','Yesterday','Week','Month']
+            callback:评论回复函数,入参为字符串是好友朋友圈的内容,返回值为要评论的内容
             number:数量,如果指定了一定的数量,那么点赞数量超过number时结束,如果没有则在recent指定的范围内全部点赞
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
-           posts:点赞的朋友圈内容,list[dict]的格式,具体为[{'内容':xx,'图片数量':xx,'视频数量':xx,'发布时间':xx}]
+           posts:朋友圈内容,list[dict]的格式,具体为[{'内容':xx,'图片数量':xx,'视频数量':xx,'发布时间':xx}]
         '''
-        def get_info(listitem:ListItemWrapper):
+        def parse_listitem(listitem:ListItemWrapper):
             '''获取朋友圈文本中的时间戳,图片数量,以及剩余内容'''
             #按照空格split比较理想的结果是['昵称','内容','时间戳'],但是有的人昵称中或者发布的内容都含有空格，甚至有可能内容是个时间戳
             #或者转发的是视频号，时间戳不在文本末尾，split后可能是
@@ -2070,10 +2077,36 @@ class Moments():
             content=re.sub(rf'\s(包含\d+张图片\s{post_time}|视频\s{post_time}|{post_time})','',text)
             return content,photo_num,video_num,post_time
         
+        def like(moments_list:ListViewWrapper,selected_listitem:ListItemWrapper):
+            #点赞操作
+            comment_listitem=Tools.get_next_item(moments_list,selected_listitem)
+            if comment_listitem is not None:
+                ellipsis_area=(selected_listitem.rectangle().right-40,selected_listitem.rectangle().bottom-15)#省略号按钮所处位置
+                mouse.click(coords=ellipsis_area) 
+                if like_button.exists(timeout=0.1):
+                    like_button.click_input()
+
+        def comment(moments_list:ListViewWrapper,selected_listitem:ListItemWrapper,content:str):
+            #评论操作
+            comment_listitem=Tools.get_next_item(moments_list,selected_listitem)
+            if comment_listitem is not None:
+                ellipsis_area=(selected_listitem.rectangle().right-40,selected_listitem.rectangle().bottom-15)#省略号按钮所处位置
+                mouse.click(coords=ellipsis_area)
+                reply=callback(content) 
+                comment_button.click_input()
+                pyautogui.hotkey('ctrl','a')
+                pyautogui.press('backspace')
+                SystemSettings.copy_text_to_windowsclipboard(text=reply)
+                pyautogui.hotkey('ctrl','v')
+                rectangle=comment_listitem.rectangle()
+                send_button_area=(rectangle.right-70,rectangle.bottom-50)
+                mouse.click(coords=send_button_area)
+
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
+        
         posts=[]
         liked_num=0
         minutes={f'{i}分钟前' for i in range(1,60)}
@@ -2086,6 +2119,8 @@ class Moments():
         sns_timestamp_pattern=Regex_Patterns.Sns_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳
         not_contents=['mmui::TimelineCommentCell','mmui::TimelineCell','mmui::TimelineAdGridImageCell']#评论区，余下x条,广告,这三种不需要
         moments_window=Navigator.open_moments(is_maximize=is_maximize,close_weixin=close_weixin)
+        like_button=moments_window.child_window(control_type='Button',title='赞')
+        comment_button=moments_window.child_window(control_type='Button',title='评论')
         moments_list=moments_window.child_window(**Lists.MomentsList)
         moments_list.type_keys('{HOME}')
         if moments_list.children(control_type='ListItem'):
@@ -2093,8 +2128,13 @@ class Moments():
                 moments_list.type_keys('{DOWN}',pause=0.1)
                 selected=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
                 if selected and selected[0].class_name() not in not_contents:
-                    content,photo_num,video_num,post_time=get_info(selected[0])
-                    if number is not None and liked_num>number:
+                    content,photo_num,video_num,post_time=parse_listitem(selected[0])
+                    posts.append({'内容':content,'图片数量':photo_num,'视频数量':video_num,'发布时间':post_time})
+                    like(moments_list,selected[0])
+                    liked_num+=1
+                    if callback is not None:
+                        comment(moments_list,selected[0],content)
+                    if isinstance(number,int) and liked_num>=number:
                         break
                     if recent=='Today' and ('昨天' in post_time or '天前' in post_time):
                         break
@@ -2104,13 +2144,14 @@ class Moments():
                         break
                     if recent=='Month' and post_time not in month_days:#当前的朋友圈内容发布时间不在一个月的时间内
                         break
-                    comment_area=selected[0].rectangle().right-40,selected[0].rectangle().bottom-15
-                    mouse.click(coords=comment_area) 
-                    like=moments_window.child_window(control_type='Button',title='赞')
-                    if like.exists(timeout=0.1):
-                        like.click_input()
-                        posts.append({'内容':content,'图片数量':photo_num,'视频数量':video_num,'发布时间':post_time})
-                        liked_num+=1
+        if recent=='Today':
+            posts=[post for post in posts if  '天' not in post.get('发布时间')]
+        if recent=='Yesterday':
+            posts=[post for post in posts if post.get('发布时间')=='昨天']
+        if recent=='Week':
+            posts=[post for post in posts if post.get('发布时间') in week_days]
+        if recent=='Month':
+            posts=[post for post in posts if post.get('发布时间') in month_days]
         moments_window.close()
         return posts
 
@@ -2121,7 +2162,7 @@ class Moments():
         Args:
             friend:好友备注
             number:具体数量
-            save_detail:是否保存好友单条朋友圈的具体内容到本地(图片,文本,截图)
+            save_detail:是否保存好友单条朋友圈的具体内容到本地(图片,文本,内容截图)
             target_folder:save_detail所需的文件夹路径
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
@@ -2189,7 +2230,7 @@ class Moments():
             friend_folder=os.path.join(target_folder,f'{friend}')
             os.makedirs(friend_folder,exist_ok=True)
         posts=[]
-        record_num=0
+        recorded_num=0
         sns_detail_pattern=Regex_Patterns.Snsdetail_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳pattern
         not_contents=['mmui::AlbumBaseCell','mmui::AlbumTopCell']#置顶内容不需要
         moments_window=Navigator.open_friend_moments(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin)
@@ -2211,17 +2252,117 @@ class Moments():
                     content,photo_num,video_num,post_time=parse_friend_post(listitem)
                     posts.append({'内容':content,'图片数量':photo_num,'视频数量':video_num,'发布时间':post_time})
                     if save_detail:
-                        detail_folder=os.path.join(friend_folder,f'{record_num}')
+                        detail_folder=os.path.join(friend_folder,f'{recorded_num}')
                         os.makedirs(detail_folder,exist_ok=True)
                         save_media(sns_detail_list,photo_num,detail_folder,content)
-                    record_num+=1
+                    recorded_num+=1
                     backbutton.click_input()
                     if is_at_bottom(moments_list,selected[0]):
                         break
-                if record_num>=number:
+                if recorded_num>=number:
                     break
         moments_window.close()
         return posts
+
+    @staticmethod
+    def like_friend_posts(friend:str,number:int,callback:Callable[[str],str]=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
+        '''
+        该方法用来给某个好友朋友圈内发布的内容点赞和评论
+        Args:
+            friend:好友备注
+            number:点赞或评论的数量
+            callback:评论回复函数,入参为字符串是好友朋友圈的内容,返回值为要评论的内容
+            is_maximize:微信界面是否全屏，默认不全屏
+            close_weixin:任务结束后是否关闭微信，默认关闭
+        Returns:
+           posts:朋友圈内容,list[dict]的格式,具体为[{'内容':xx,'图片数量':xx,'视频数量':xx,'发布时间':xx}]
+        '''
+        def is_at_bottom(listview:ListViewWrapper,listitem:ListItemWrapper):
+            '''判断是否到达朋友圈列表底部'''
+            next_item=Tools.get_next_item(listview,listitem)
+            if next_item.class_name()=='mmui::AlbumBaseCell' and next_item.window_text()=='':#到达最底部
+                return True
+            return False
+
+        def parse_friend_post(listitem:ListItemWrapper):
+            '''获取朋友圈文本中的时间戳,图片数量,以及剩余内容'''
+            video_num=0
+            photo_num=0
+            text=listitem.window_text()
+            text=text.replace(friend,'')#先去掉头尾的空格去掉换行符
+            post_time=sns_detail_pattern.search(text).group(0)
+            if re.search(rf'\s包含(\d+)张图片\s',text):
+                photo_num=int(re.search(r'\s包含(\d+)张图片\s',text).group(1))
+            if re.search(rf'\s视频\s{post_time}',text):
+                video_num=1
+            content=re.sub(rf'\s((包含\d+张图片\s|视频\s).*{post_time})\s','',text)
+            return content,photo_num,video_num,post_time
+
+        def like(content_listitem:ListItemWrapper):
+            #点赞操作
+            mouse.move(coords=center_point)
+            ellipsis_area=(content_listitem.rectangle().right-40,content_listitem.rectangle().bottom-15)#省略号按钮所处位置
+            mouse.click(coords=ellipsis_area)
+            if like_button.exists(timeout=0.1):
+                like_button.click_input()
+
+        def comment(content_listitem:ListItemWrapper,comment_listitem:ListItemWrapper,content:str):
+            #评论操作
+            mouse.move(coords=center_point)
+            ellipsis_area=(content_listitem.rectangle().right-40,content_listitem.rectangle().bottom-15)#省略号按钮所处位置
+            mouse.click(coords=ellipsis_area)
+            reply=callback(content) 
+            comment_button.click_input()
+            pyautogui.hotkey('ctrl','a')
+            pyautogui.press('backspace')
+            SystemSettings.copy_text_to_windowsclipboard(text=reply)
+            pyautogui.hotkey('ctrl','v')
+            rectangle=comment_listitem.rectangle()
+            send_button_area=(rectangle.right-70,rectangle.bottom-50)
+            mouse.click(coords=send_button_area)
+
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+        posts=[]
+        liked_num=0
+        sns_detail_pattern=Regex_Patterns.Snsdetail_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳pattern
+        not_contents=['mmui::AlbumBaseCell','mmui::AlbumTopCell']#置顶内容不需要
+        moments_window=Navigator.open_friend_moments(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin)
+        backbutton=moments_window.child_window(**Buttons.BackButton)
+        #直接maximize不行,需要使用win32gui
+        win32gui.SendMessage(moments_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MAXIMIZE,0)
+        moments_list=moments_window.child_window(**Lists.MomentsList)
+        sns_detail_list=moments_window.child_window(**Lists.SnsDetailList)
+        like_button=moments_window.child_window(control_type='Button',title='赞')
+        comment_button=moments_window.child_window(control_type='Button',title='评论')
+        moments_list.type_keys('{PGDN}')
+        moments_list.type_keys('{PGUP}')
+        contents=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.class_name() not in not_contents]
+        if contents:
+            while True:
+                moments_list.type_keys('{DOWN}')
+                selected=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
+                if selected and selected[0].class_name() not in not_contents:
+                    selected[0].click_input()
+                    center_point=(sns_detail_list.rectangle().mid_point().x,sns_detail_list.rectangle().mid_point().y)
+                    content_listitem=sns_detail_list.children(control_type='ListItem')[0]
+                    comment_listitem=sns_detail_list.children(control_type='ListItem')[1]
+                    content,photo_num,video_num,post_time=parse_friend_post(content_listitem)
+                    posts.append({'内容':content,'图片数量':photo_num,'视频数量':video_num,'发布时间':post_time})
+                    like(content_listitem)
+                    if callback is not None:
+                        comment(content_listitem,comment_listitem,content)
+                    liked_num+=1
+                    backbutton.click_input()
+                    if is_at_bottom(moments_list,selected[0]):
+                        break
+                if liked_num>=number:
+                    break
+        moments_window.close()
+        return posts
+
 
 
 class Messages():
@@ -2366,64 +2507,64 @@ class Messages():
             return dict(zip(new_message_dict.keys(),newMessages))
     
     #session_pick_window中使用ui自动化选择2个以上好友时微信会莫名奇妙白屏卡死，所以先暂时不实现这个方法了
-    # @staticmethod
-    # def forward_message(friends:list[str],message:str,clear:bool=None,
-    #     send_delay:float=None,is_maximize:bool=None,close_weixin:bool=None)->None:
+    @staticmethod
+    def forward_message(friends:list[str],message:str,clear:bool=None,
+        send_delay:float=None,is_maximize:bool=None,close_weixin:bool=None)->None:
      
-    #     if is_maximize is None:
-    #         is_maximize=GlobalConfig.is_maximize
-    #     if send_delay is None:
-    #         send_delay=GlobalConfig.send_delay
-    #     if close_weixin is None:
-    #         close_weixin=GlobalConfig.close_weixin
-    #     if clear is None:
-    #         clear=GlobalConfig.clear
-    #     if len(friends)<2:
-    #         raise ValueError(f'friends数量不足2,无法转发消息!')
-    #     def session_picker():
-    #         session_pick_window=main_window.child_window(**Windows.SessionPickerWindow)
-    #         send_button=session_pick_window.child_window(control_type='Button',title='发送')
-    #         checkbox=session_pick_window.child_window(control_type='CheckBox',found_index=0)
-    #         rec=send_button.rectangle()
-    #         x,y=rec.mid_point().x,rec.mid_point().y
-    #         search_field=session_pick_window.child_window(control_type='Edit',found_index=0)
-    #         search_field.click_input()
-    #         for friend in friends[1:]:
-    #             search_field.type_keys(friend)
-    #             checkbox.click_input()
-    #             search_field.click_input()
-    #             search_field.set_text('')
-    #         pyautogui.click(x=x,y=y)
-    #     main_window=Navigator.open_dialog_window(friend=friends[0],is_maximize=is_maximize)
-    #     edit_area=main_window.child_window(**Edits.CurrentChatEdit)
-    #     chat_list=main_window.child_window(**Lists.FriendChatList)
-    #     if not edit_area.exists(timeout=0.1):
-    #         raise NotFriendError(f'非正常好友,无法发送消息')
-    #     if clear:
-    #         edit_area.set_text('')
-    #     if len(message)==0:
-    #         main_window.close()
-    #         raise CantSendEmptyMessageError
-    #     if 0<len(message)<2000:
-    #         edit_area.set_text(message)
-    #         time.sleep(send_delay)
-    #         pyautogui.hotkey('alt','s',_pause=False)
-    #     elif len(message)>2000:#字数超过200字发送txt文件
-    #         SystemSettings.convert_long_text_to_txt(message)
-    #         pyautogui.hotkey('ctrl','v',_pause=False)
-    #         time.sleep(send_delay)
-    #         pyautogui.hotkey('alt','s',_pause=False)
-    #         warn(message=f"微信消息字数上限为2000,超过2000字部分将被省略,该条长文本消息已为你转换为txt发送",category=LongTextWarning)
-    #     if len(friends)>1:
-    #         listItems=chat_list.children(control_type='ListItem')
-    #         message_sent=listItems[-1]
-    #         rect=message_sent.rectangle()
-    #         mouse.right_click(coords=(rect.right-100,rect.mid_point().y))
-    #         forward_item=main_window.child_window(**MenuItems.ForwardMenuItem)
-    #         forward_item.click_input()
-    #         session_picker()
-    #     if close_weixin:
-    #         main_window.close()
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if send_delay is None:
+            send_delay=GlobalConfig.send_delay
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+        if clear is None:
+            clear=GlobalConfig.clear
+        if len(friends)<2:
+            raise ValueError(f'friends数量不足2,无法转发消息!')
+        def session_picker():
+            session_pick_window=main_window.child_window(**Windows.SessionPickerWindow)
+            send_button=session_pick_window.child_window(control_type='Button',title='发送')
+            checkbox=session_pick_window.child_window(control_type='CheckBox',found_index=0)
+            rec=send_button.rectangle()
+            x,y=rec.mid_point().x,rec.mid_point().y
+            search_field=session_pick_window.child_window(control_type='Edit',found_index=0)
+            search_field.click_input()
+            for friend in friends[1:]:
+                search_field.set_text(friend)
+                checkbox.click_input()
+                search_field.click_input()
+                search_field.set_text('')
+            pyautogui.click(x=x,y=y)
+        main_window=Navigator.open_dialog_window(friend=friends[0],is_maximize=is_maximize)
+        edit_area=main_window.child_window(**Edits.CurrentChatEdit)
+        chat_list=main_window.child_window(**Lists.FriendChatList)
+        if not edit_area.exists(timeout=0.1):
+            raise NotFriendError(f'非正常好友,无法发送消息')
+        if clear:
+            edit_area.set_text('')
+        if len(message)==0:
+            main_window.close()
+            raise CantSendEmptyMessageError
+        if 0<len(message)<2000:
+            edit_area.set_text(message)
+            time.sleep(send_delay)
+            pyautogui.hotkey('alt','s',_pause=False)
+        elif len(message)>2000:#字数超过200字发送txt文件
+            SystemSettings.convert_long_text_to_txt(message)
+            pyautogui.hotkey('ctrl','v',_pause=False)
+            time.sleep(send_delay)
+            pyautogui.hotkey('alt','s',_pause=False)
+            warn(message=f"微信消息字数上限为2000,超过2000字部分将被省略,该条长文本消息已为你转换为txt发送",category=LongTextWarning)
+        if len(friends)>1:
+            listItems=chat_list.children(control_type='ListItem')
+            message_sent=listItems[-1]
+            rect=message_sent.rectangle()
+            mouse.right_click(coords=(rect.right-100,rect.mid_point().y))
+            forward_item=main_window.child_window(**MenuItems.ForwardMenuItem)
+            forward_item.click_input()
+            session_picker()
+        if close_weixin:
+            main_window.close()
 
     @staticmethod
     def dump_recent_sessions(recent:Literal['Today','Yesterday','Week','Month','Year']='Today',
@@ -2924,4 +3065,3 @@ class Monitor():
         SystemSettings.close_listening_mode()
         if close_dialog_window:dialog_window.close()
         return red_packet_count
-
