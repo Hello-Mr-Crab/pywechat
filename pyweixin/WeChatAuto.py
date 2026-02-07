@@ -2081,6 +2081,77 @@ class Moments():
         return posts
     
     @staticmethod
+    def _is_green_pixel(r:int,g:int,b:int)->bool:
+        """微信发送按钮绿色像素启发式判断"""
+        if g < 80:
+            return False
+        if (g - r) < 18 or (g - b) < 8:
+            return False
+        if g < int(r * 1.18):
+            return False
+        if g < int(b * 1.10):
+            return False
+        return True
+
+    @staticmethod
+    def _find_green_button_center(region:tuple[int,int,int,int]):
+        """在给定区域内寻找绿色按钮中心点，找不到返回None"""
+        try:
+            screenshot=pyautogui.screenshot(region=region).convert('RGB')
+        except Exception:
+            return None
+        width,height=screenshot.size
+        if width<=0 or height<=0:
+            return None
+
+        pixels=screenshot.load()
+        min_x,min_y=width,height
+        max_x,max_y=-1,-1
+        hit_count=0
+
+        for y in range(0,height,2):
+            for x in range(0,width,2):
+                r,g,b=pixels[x,y]
+                if Moments._is_green_pixel(r,g,b):
+                    hit_count+=1
+                    if x<min_x:
+                        min_x=x
+                    if y<min_y:
+                        min_y=y
+                    if x>max_x:
+                        max_x=x
+                    if y>max_y:
+                        max_y=y
+
+        if hit_count<16 or max_x<0 or max_y<0:
+            return None
+        if (max_x-min_x)<10 or (max_y-min_y)<6:
+            return None
+
+        center_x=region[0]+(min_x+max_x)//2
+        center_y=region[1]+(min_y+max_y)//2
+        return center_x,center_y
+
+    @staticmethod
+    def _click_send_button(anchor_rect,x_offset:int=70,y_offset:int=42)->bool:
+        """
+        优先使用绿色按钮识别点击发送；
+        识别失败时回退原坐标点击，保证兼容旧逻辑。
+        """
+        fallback_coords=(anchor_rect.right-x_offset,anchor_rect.bottom-y_offset)
+        regions=[
+            (max(fallback_coords[0]-80,0),max(fallback_coords[1]-45,0),170,90),
+            (max(anchor_rect.right-(x_offset+150),0),max(anchor_rect.bottom-(y_offset+90),0),280,170),
+        ]
+        for region in regions:
+            center=Moments._find_green_button_center(region)
+            if center is not None:
+                mouse.click(coords=center)
+                return True
+        mouse.click(coords=fallback_coords)
+        return False
+
+    @staticmethod
     def like_posts(recent:Literal['Today','Yesterday','Week','Month']='Today',number:int=None,callback:Callable[[str],str]=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
         '''
         该方法用来给朋友圈内最近发布的内容点赞和评论
@@ -2134,8 +2205,7 @@ class Moments():
                 SystemSettings.copy_text_to_windowsclipboard(text=reply)
                 pyautogui.hotkey('ctrl','v')
                 rectangle=comment_listitem.rectangle()
-                send_button_area=(rectangle.right-70,rectangle.bottom-42)
-                mouse.click(coords=send_button_area)
+                Moments._click_send_button(rectangle,x_offset=70,y_offset=42)
 
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
@@ -2347,8 +2417,7 @@ class Moments():
                 SystemSettings.copy_text_to_windowsclipboard(text=reply)
                 pyautogui.hotkey('ctrl','v')
                 rectangle=comment_listitem.rectangle()
-                send_button_area=(rectangle.right-70,rectangle.bottom-42)
-                mouse.click(coords=send_button_area)
+                Moments._click_send_button(rectangle,x_offset=70,y_offset=42)
 
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
