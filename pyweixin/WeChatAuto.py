@@ -420,18 +420,27 @@ class Contacts():
         contact_custom=main_window.child_window(**Customs.ContactCustom)
         #右侧自定义面板下的好友信息所在面板
         contact_profile=contact_custom.child_window(**Groups.ContactProfileGroup)
+        area=(contact_custom.rectangle().mid_point().x,contact_custom.rectangle().mid_point().y)
         #联系人分区
         Tools.collapse_contacts(main_window,contact_list)
         contact_item=main_window.child_window(control_type='ListItem',title_re=r'联系人\d+',class_name="mmui::ContactsCellGroupView")
         if contact_item.exists(timeout=0.1):
             total_num=int(re.search(r'\d+',contact_item.window_text()).group(0))
+            if total_num>2000:
+                interval=0.3
+            if 1000<total_num<2000:
+                interval=0.1
+            if total_num<1000:
+                interval=0
             contact_item.click_input()
             #有具体的数量,后续可以更换为for循环
             switch_to_first_friend()
             info=get_specific_info()
             friends_detail.append(info)
+            mouse.move(coords=area)
             for _ in range(total_num-1):
-                pyautogui.keyDown('down',_pause=False)
+                time.sleep(interval)
+                pyautogui.keyDown('down',_pause=False)#不能press,press比keydown更频繁容易被检测
                 info=get_specific_info()
                 friends_detail.append(info)
             Tools.collapse_contacts(main_window,contact_list)
@@ -519,18 +528,27 @@ class Contacts():
         contact_custom=main_window.child_window(**Customs.ContactCustom)
         #右侧自定义面板下的好友信息所在面板
         contact_profile=contact_custom.child_window(**Groups.ContactProfileGroup)
+        area=(contact_custom.rectangle().mid_point().x,contact_custom.rectangle().mid_point().y)
         #企业微信联系人分区
         Tools.collapse_contacts(main_window,contact_list)
         wecom_item=main_window.child_window(control_type='ListItem',title_re=r'企业微信联系人\d+',class_name="mmui::ContactsCellGroupView")
         if not wecom_item.exists(timeout=0.1):
             print(f'你没有企业微信联系人,无法获取企业微信好友信息！')
         if wecom_item.exists(timeout=0.1):
-            total=int(re.search(r'\d+',wecom_item.window_text()).group(0))
+            total_num=int(re.search(r'\d+',wecom_item.window_text()).group(0))
+            if total_num>2000:
+                interval=0.3
+            if 1000<total_num<2000:
+                interval=0.1
+            if total_num<1000:
+                interval=0
             wecom_item.click_input()
             switch_to_first_friend()
             info=get_specific_info()
             friends_detail.append(info)
-            for _ in range(total+1):
+            mouse.move(coords=area)
+            for _ in range(total_num+1):
+                time.sleep(interval)
                 pyautogui.keyDown('Down',_pause=False)
                 info=get_specific_info()
                 friends_detail.append(info)
@@ -593,6 +611,7 @@ class Contacts():
         contact_list,main_window=Navigator.open_contacts(is_maximize=is_maximize)
         #右侧的自定义面板
         contact_custom=main_window.child_window(**Customs.ContactCustom)
+        area=(contact_custom.rectangle().mid_point().x,contact_custom.rectangle().mid_point().y)
         #右侧自定义面板下的好友信息所在面板
         contact_profile=contact_custom.child_window(**Groups.ContactProfileGroup)
         #企业微信联系人分区
@@ -601,12 +620,20 @@ class Contacts():
         if not service_item.exists(timeout=0.1):
             print(f'你没有关注过任何服务号,无法获取服务号信息！')
         if service_item.exists(timeout=0.1):
-            total=int(re.search(r'\d+',service_item.window_text()).group(0))
+            total_num=int(re.search(r'\d+',service_item.window_text()).group(0))
+            if total_num>2000:
+                interval=0.3
+            if 1000<total_num<2000:
+                interval=0.1
+            if total_num<1000:
+                interval=0
             service_item.click_input()
             switch_to_first_friend()
             info=get_specific_info()
             friends_detail.append(info)
-            for _ in range(total):
+            mouse.move(coords=area)
+            for _ in range(total_num):
+                time.sleep(interval)
                 pyautogui.keyDown('Down',_pause=False)
                 info=get_specific_info()
                 friends_detail.append(info)
@@ -670,6 +697,7 @@ class Contacts():
         contact_list,main_window=Navigator.open_contacts(is_maximize=is_maximize)
         #右侧的自定义面板
         contact_custom=main_window.child_window(**Customs.ContactCustom)
+        area=(contact_custom.rectangle().mid_point().x,contact_custom.rectangle().mid_point().y)
         #右侧自定义面板下的好友信息所在面板
         contact_profile=contact_custom.child_window(**Groups.ContactProfileGroup)
         #企业微信联系人分区
@@ -678,12 +706,20 @@ class Contacts():
         if not official_item.exists(timeout=0.1):
             print(f'你没有关注过任何公众号,无法获取公众号信息！')
         if official_item.exists(timeout=0.1):
-            total=int(re.search(r'\d+',official_item.window_text()).group(0))
+            total_num=int(re.search(r'\d+',official_item.window_text()).group(0))
+            if total_num>2000:
+                interval=0.3
+            if 1000<total_num<2000:
+                interval=0.1
+            if total_num<1000:
+                interval=0
             official_item.click_input()
             switch_to_first_friend()
             info=get_specific_info()
             friends_detail.append(info)
-            for _ in range(total):
+            mouse.move(coords=area)
+            for _ in range(total_num):
+                time.sleep(interval)
                 pyautogui.keyDown('Down',_pause=False)
                 info=get_specific_info()
                 friends_detail.append(info)
@@ -2024,9 +2060,9 @@ class Moments():
                     recorded_num+=1
                     if isinstance(number,int) and recorded_num>=number:
                         break
-                    if recent=='Today' and ('昨天' in post_time or '天前' in post_time):
+                    if recent=='Today' and ('昨天' in post_time or '天前' in post_time):#昨天或者x天前在时间戳里不属于今天了
                         break
-                    if recent=='Yesterday' and '天前' in post_time:#当前的朋友圈内容发布时间没有天前,说明是当天
+                    if recent=='Yesterday' and '天前' in post_time:#当前的朋友圈内容发布时间没有天前,说明是当天和昨天
                         break
                     if recent=='Week' and post_time not in week_days:#当前的朋友圈内容发布时间不在一周的时间内
                         break
@@ -2070,36 +2106,35 @@ class Moments():
             splited_text=text.split(' ')
             possible_timestamps=[text for text in splited_text if sns_timestamp_pattern.match(text)]
             post_time=possible_timestamps[-1]
-            if re.search(rf'\s包含(\d+)张图片\s{post_time}',text):
-                photo_num=int(re.search(rf'\s包含(\d+)张图片\s{post_time}',text).group(1))
-            if re.search(rf'\s视频\s{post_time}',text):
+            if re.search(rf'\s包含(\d+)张图片\s',text):
+                photo_num=int(re.search(rf'\s包含(\d+)张图片\s',text).group(1))
+            if re.search(rf'\s视频\s',text):
                 video_num=1
-            content=re.sub(rf'\s(包含\d+张图片\s{post_time}|视频\s{post_time}|{post_time})','',text)
+            content=re.sub(rf'\s((包含\d+张图片\s|视频\s).*{post_time})','',text)
             return content,photo_num,video_num,post_time
         
-        def like(moments_list:ListViewWrapper,selected_listitem:ListItemWrapper):
+        def like(content_listitem:ListItemWrapper):
             #点赞操作
-            comment_listitem=Tools.get_next_item(moments_list,selected_listitem)
-            if comment_listitem is not None:
-                ellipsis_area=(selected_listitem.rectangle().right-40,selected_listitem.rectangle().bottom-15)#省略号按钮所处位置
-                mouse.click(coords=ellipsis_area) 
-                if like_button.exists(timeout=0.1):
-                    like_button.click_input()
+            mouse.move(coords=center_point)
+            ellipsis_area=(content_listitem.rectangle().right-44,content_listitem.rectangle().bottom-15)#省略号按钮所处位置
+            mouse.click(coords=ellipsis_area)
+            if like_button.exists(timeout=0.1):
+                like_button.click_input()
 
-        def comment(moments_list:ListViewWrapper,selected_listitem:ListItemWrapper,content:str):
+        def comment(content_listitem:ListItemWrapper,comment_listitem:ListItemWrapper,content:str):
             #评论操作
-            comment_listitem=Tools.get_next_item(moments_list,selected_listitem)
-            if comment_listitem is not None:
-                ellipsis_area=(selected_listitem.rectangle().right-40,selected_listitem.rectangle().bottom-15)#省略号按钮所处位置
-                mouse.click(coords=ellipsis_area)
-                reply=callback(content) 
+            mouse.move(coords=center_point)
+            ellipsis_area=(content_listitem.rectangle().right-44,content_listitem.rectangle().bottom-15)#省略号按钮所处位置
+            mouse.click(coords=ellipsis_area)
+            reply=callback(content) 
+            if comment_button.exists(timeout=0.1) and reply:
                 comment_button.click_input()
                 pyautogui.hotkey('ctrl','a')
                 pyautogui.press('backspace')
                 SystemSettings.copy_text_to_windowsclipboard(text=reply)
                 pyautogui.hotkey('ctrl','v')
                 rectangle=comment_listitem.rectangle()
-                send_button_area=(rectangle.right-70,rectangle.bottom-50)
+                send_button_area=(rectangle.right-70,rectangle.bottom-42)
                 mouse.click(coords=send_button_area)
 
         if is_maximize is None:
@@ -2122,6 +2157,7 @@ class Moments():
         like_button=moments_window.child_window(control_type='Button',title='赞')
         comment_button=moments_window.child_window(control_type='Button',title='评论')
         moments_list=moments_window.child_window(**Lists.MomentsList)
+        center_point=(moments_list.rectangle().mid_point().x,moments_list.rectangle().mid_point().y)
         moments_list.type_keys('{HOME}')
         if moments_list.children(control_type='ListItem'):
             while True:
@@ -2130,10 +2166,11 @@ class Moments():
                 if selected and selected[0].class_name() not in not_contents:
                     content,photo_num,video_num,post_time=parse_listitem(selected[0])
                     posts.append({'内容':content,'图片数量':photo_num,'视频数量':video_num,'发布时间':post_time})
-                    like(moments_list,selected[0])
+                    like(selected[0])
                     liked_num+=1
                     if callback is not None:
-                        comment(moments_list,selected[0],content)
+                        comment_listitem=Tools.get_next_item(moments_list,selected[0])
+                        comment(selected[0],comment_listitem,content)
                     if isinstance(number,int) and liked_num>=number:
                         break
                     if recent=='Today' and ('昨天' in post_time or '天前' in post_time):
@@ -2194,6 +2231,7 @@ class Moments():
                     SystemSettings.save_pasted_image(path)
                     pyautogui.press('right',interval=0.05)
                 pyautogui.press('esc')
+                backbutton.click_input()
            
         def is_at_bottom(listview:ListViewWrapper,listitem:ListItemWrapper):
             '''判断是否到达朋友圈列表底部'''
@@ -2256,7 +2294,8 @@ class Moments():
                         os.makedirs(detail_folder,exist_ok=True)
                         save_media(sns_detail_list,photo_num,detail_folder,content)
                     recorded_num+=1
-                    backbutton.click_input()
+                    if sns_detail_list.exists(timeout=0.1):
+                        backbutton.click_input()
                     if is_at_bottom(moments_list,selected[0]):
                         break
                 if recorded_num>=number:
@@ -2277,13 +2316,6 @@ class Moments():
         Returns:
            posts:朋友圈内容,list[dict]的格式,具体为[{'内容':xx,'图片数量':xx,'视频数量':xx,'发布时间':xx}]
         '''
-        def is_at_bottom(listview:ListViewWrapper,listitem:ListItemWrapper):
-            '''判断是否到达朋友圈列表底部'''
-            next_item=Tools.get_next_item(listview,listitem)
-            if next_item.class_name()=='mmui::AlbumBaseCell' and next_item.window_text()=='':#到达最底部
-                return True
-            return False
-
         def parse_friend_post(listitem:ListItemWrapper):
             '''获取朋友圈文本中的时间戳,图片数量,以及剩余内容'''
             video_num=0
@@ -2298,28 +2330,32 @@ class Moments():
             content=re.sub(rf'\s((包含\d+张图片\s|视频\s).*{post_time})\s','',text)
             return content,photo_num,video_num,post_time
 
-        def like(content_listitem:ListItemWrapper):
+        def like(listview:ListViewWrapper,content_listitem:ListItemWrapper):
             #点赞操作
+            center_point=(listview.rectangle().mid_point().x,listview.rectangle().mid_point().y)
             mouse.move(coords=center_point)
-            ellipsis_area=(content_listitem.rectangle().right-40,content_listitem.rectangle().bottom-15)#省略号按钮所处位置
+            ellipsis_area=(content_listitem.rectangle().right-44,content_listitem.rectangle().bottom-15)#省略号按钮所处位置
             mouse.click(coords=ellipsis_area)
             if like_button.exists(timeout=0.1):
                 like_button.click_input()
 
-        def comment(content_listitem:ListItemWrapper,comment_listitem:ListItemWrapper,content:str):
+        def comment(listview:ListViewWrapper,content_listitem:ListItemWrapper,content:str):
             #评论操作
+            comment_listitem=Tools.get_next_item(listview,content_listitem)
+            center_point=(listview.rectangle().mid_point().x,listview.rectangle().mid_point().y)
             mouse.move(coords=center_point)
-            ellipsis_area=(content_listitem.rectangle().right-40,content_listitem.rectangle().bottom-15)#省略号按钮所处位置
+            ellipsis_area=(content_listitem.rectangle().right-44,content_listitem.rectangle().bottom-15)#省略号按钮所处位置
             mouse.click(coords=ellipsis_area)
             reply=callback(content) 
-            comment_button.click_input()
-            pyautogui.hotkey('ctrl','a')
-            pyautogui.press('backspace')
-            SystemSettings.copy_text_to_windowsclipboard(text=reply)
-            pyautogui.hotkey('ctrl','v')
-            rectangle=comment_listitem.rectangle()
-            send_button_area=(rectangle.right-70,rectangle.bottom-50)
-            mouse.click(coords=send_button_area)
+            if comment_button.exists(timeout=0.1):
+                comment_button.click_input()
+                pyautogui.hotkey('ctrl','a')
+                pyautogui.press('backspace')
+                SystemSettings.copy_text_to_windowsclipboard(text=reply)
+                pyautogui.hotkey('ctrl','v')
+                rectangle=comment_listitem.rectangle()
+                send_button_area=(rectangle.right-70,rectangle.bottom-42)
+                mouse.click(coords=send_button_area)
 
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
@@ -2346,17 +2382,16 @@ class Moments():
                 selected=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
                 if selected and selected[0].class_name() not in not_contents:
                     selected[0].click_input()
-                    center_point=(sns_detail_list.rectangle().mid_point().x,sns_detail_list.rectangle().mid_point().y)
                     content_listitem=sns_detail_list.children(control_type='ListItem')[0]
-                    comment_listitem=sns_detail_list.children(control_type='ListItem')[1]
+                    # comment_listitem=sns_detail_list.children(control_type='ListItem')[1]
                     content,photo_num,video_num,post_time=parse_friend_post(content_listitem)
                     posts.append({'内容':content,'图片数量':photo_num,'视频数量':video_num,'发布时间':post_time})
-                    like(content_listitem)
+                    like(sns_detail_list,content_listitem)
                     if callback is not None:
-                        comment(content_listitem,comment_listitem,content)
+                        comment(sns_detail_list,content_listitem,content)
                     liked_num+=1
                     backbutton.click_input()
-                    if is_at_bottom(moments_list,selected[0]):
+                    if Tools.is_sns_at_bottom(moments_list,selected[0]):
                         break
                 if liked_num>=number:
                     break
@@ -2891,7 +2926,7 @@ class Monitor():
     '''监听消息的一些方法'''
 
     @staticmethod
-    def  listen_on_chat(dialog_window:WindowSpecification,duration:str,save_file:bool=False,save_photo:bool=False,target_folder:str=None,close_dialog_window:bool=True)->dict:
+    def listen_on_chat(dialog_window:WindowSpecification,duration:str,save_file:bool=False,save_photo:bool=False,target_folder:str=None,close_dialog_window:bool=True)->dict:
         '''
         该方法用来在指定时间内监听会话窗口内的新消息(可以配合多线程使用,一次监听多个会话内的消息)
         Args:
@@ -3023,7 +3058,6 @@ class Monitor():
         details={'新消息总数':total,'文本数量':len(texts),'文件数量':len(files),'图片数量':image_count,'视频数量':video_count,'链接数量':link_count,'文本内容':texts}
         return details
     
-
     @staticmethod
     def grab_red_packet(dialog_window:WindowSpecification,duration:str,close_dialog_window:bool=True)->int:
         '''
