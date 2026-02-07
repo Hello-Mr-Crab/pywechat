@@ -2152,7 +2152,7 @@ class Moments():
         return False
 
     @staticmethod
-    def like_posts(recent:Literal['Today','Yesterday','Week','Month']='Today',number:int=None,callback:Callable[[str],str]=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
+    def like_posts(recent:Literal['Today','Yesterday','Week','Month']='Today',number:int=None,callback:Callable[[str],str]=None,is_maximize:bool=None,close_weixin:bool=None,use_green_send:bool=False)->list[dict]:
         '''
         该方法用来给朋友圈内最近发布的内容点赞和评论
         Args:
@@ -2161,6 +2161,7 @@ class Moments():
             number:数量,如果指定了一定的数量,那么点赞数量超过number时结束,如果没有则在recent指定的范围内全部点赞
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
+            use_green_send:是否启用绿色发送按钮识别，默认False（保持原坐标点击）
         Returns:
            posts:朋友圈内容,list[dict]的格式,具体为[{'内容':xx,'图片数量':xx,'视频数量':xx,'发布时间':xx}]
         '''
@@ -2205,7 +2206,11 @@ class Moments():
                 SystemSettings.copy_text_to_windowsclipboard(text=reply)
                 pyautogui.hotkey('ctrl','v')
                 rectangle=comment_listitem.rectangle()
-                Moments._click_send_button(rectangle,x_offset=70,y_offset=42)
+                if use_green_send:
+                    Moments._click_send_button(rectangle,x_offset=70,y_offset=42)
+                else:
+                    send_button_area=(rectangle.right-70,rectangle.bottom-42)
+                    mouse.click(coords=send_button_area)
 
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
@@ -2367,7 +2372,7 @@ class Moments():
         return posts
 
     @staticmethod
-    def like_friend_posts(friend:str,number:int,callback:Callable[[str],str]=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
+    def like_friend_posts(friend:str,number:int,callback:Callable[[str],str]=None,is_maximize:bool=None,close_weixin:bool=None,use_green_send:bool=False)->list[dict]:
         '''
         该方法用来给某个好友朋友圈内发布的内容点赞和评论
         Args:
@@ -2376,6 +2381,7 @@ class Moments():
             callback:评论回复函数,入参为字符串是好友朋友圈的内容,返回值为要评论的内容
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
+            use_green_send:是否启用绿色发送按钮识别，默认False（保持原坐标点击）
         Returns:
            posts:朋友圈内容,list[dict]的格式,具体为[{'内容':xx,'图片数量':xx,'视频数量':xx,'发布时间':xx}]
         '''
@@ -2417,7 +2423,11 @@ class Moments():
                 SystemSettings.copy_text_to_windowsclipboard(text=reply)
                 pyautogui.hotkey('ctrl','v')
                 rectangle=comment_listitem.rectangle()
-                Moments._click_send_button(rectangle,x_offset=70,y_offset=42)
+                if use_green_send:
+                    Moments._click_send_button(rectangle,x_offset=70,y_offset=42)
+                else:
+                    send_button_area=(rectangle.right-70,rectangle.bottom-42)
+                    mouse.click(coords=send_button_area)
 
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
