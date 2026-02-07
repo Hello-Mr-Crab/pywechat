@@ -2232,13 +2232,6 @@ class Moments():
                     pyautogui.press('right',interval=0.05)
                 pyautogui.press('esc')
                 backbutton.click_input()
-           
-        def is_at_bottom(listview:ListViewWrapper,listitem:ListItemWrapper):
-            '''判断是否到达朋友圈列表底部'''
-            next_item=Tools.get_next_item(listview,listitem)
-            if next_item.class_name()=='mmui::AlbumBaseCell' and next_item.window_text()=='':#到达最底部
-                return True
-            return False
 
         def parse_friend_post(listitem:ListItemWrapper):
             '''获取朋友圈文本中的时间戳,图片数量,以及剩余内容'''
@@ -2296,7 +2289,7 @@ class Moments():
                     recorded_num+=1
                     if sns_detail_list.exists(timeout=0.1):
                         backbutton.click_input()
-                    if is_at_bottom(moments_list,selected[0]):
+                    if Tools.is_sns_at_bottom(moments_list,selected[0]):
                         break
                 if recorded_num>=number:
                     break
