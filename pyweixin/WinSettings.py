@@ -13,7 +13,7 @@ SystemSettings:
     - `copy_files_to_windowsclipboard`: 将多个文件粘贴到windows剪贴板
     - `copy_text_to_windwosclipboard`: 将文本粘贴到windows剪贴板
     - `copy_files`: 使用复制粘贴的方式将文件迁移(主要是导出微信聊天文件时要用到)
-    
+    - `save_pasted_image`:将复制到剪贴板的图片数据保存到指定路径
 
 Examples:
 ========
@@ -29,7 +29,6 @@ Examples:
 
 '''
 import os
-import time
 import shutil
 import ctypes
 import win32com.client
@@ -218,9 +217,10 @@ class SystemSettings():
     
     @staticmethod
     def save_pasted_image(img_path:str):
-        '''获取复制到剪贴板的图片并保存到指定路径
+        '''
+        将复制到剪贴板的图片数据并保存到指定路径
         Args:
-            img_path:图片待存放路径
+            img_path:图片待保存路径
         '''
         win32clipboard.OpenClipboard()
         if win32clipboard.IsClipboardFormatAvailable(win32clipboard.CF_DIB):
@@ -228,4 +228,3 @@ class SystemSettings():
             image=Image.open(io.BytesIO(data))
             image.save(img_path)
         win32clipboard.CloseClipboard()
-
