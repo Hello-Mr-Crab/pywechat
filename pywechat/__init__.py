@@ -63,6 +63,7 @@ from.Errors import NotInstalledError
 if not is_wechat_installed():
     raise NotInstalledError
 #Author:Hello-Mr-Crab
-#Contributor:Chanpoe,mrhan1993
+#Contributor:Viper,Chanpoe,mrhan1993,nmhjklnm,clen1,guanjt3
 #version:1.9.8
+
 
