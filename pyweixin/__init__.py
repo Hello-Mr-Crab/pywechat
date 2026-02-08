@@ -47,4 +47,4 @@ from pyweixin.WeChatTools import Tools,Navigator
 from pyweixin.WinSettings import SystemSettings
 from pyweixin.Config import GlobalConfig
 #Author:Hello-Mr-Crab
-#version:1.9.7``
+#Contributor:Viper,Chanpoe,mrhan1993,nmhjklnm,clen1,guanjt3
