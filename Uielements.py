@@ -76,12 +76,12 @@ class Buttons():
         self.ConfirmEmptyChatHistoryButon={'title':'清空','control_type':'Button'}#点击清空聊天记录后弹出的query界面内的清空按钮
         self.MoreButton={'title':'更多','control_type':'Button'}#打开微信好友设置界面更多按钮
         self.LogoutButton={'title':'退出登录','control_type':'Button'}#设置界面里退出登录按钮
-        self.MomentsButton={'title':'朋友圈','control_type':'Button','auto_id':'button'}#好友个人简介界面内的朋友圈按钮(不是主页左侧的)
         self.RefreshButton={'title':'刷新','control_type':'Button'}#朋友圈的刷新按钮
         self.RectentGroupButton={'title':'最近群聊','control_type':'Button'}#通讯录设置界面里的最近群聊按钮
         self.GroupCallButton={'title':'多人通话','control_type':'Button'}#群聊界面里的多人通话
         self.PostButton={'title':'发表','control_type':'Button'}#微信朋友圈界面里的发表按钮
         self.BackButton={'title':'返回','control_type':'Button'}#微信朋友圈内的返回按钮
+        self.MomentsButton={'title':'朋友圈','control_type':'Button','auto_id':'button'}#好友个人简介界面内的朋友圈按钮(不是主页左侧的)
 
 class Edits():
     '''微信主界面内所有类型为Edit(不包含独立窗口)的UI控件'''
