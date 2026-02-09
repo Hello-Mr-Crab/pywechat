@@ -23,5 +23,5 @@ install_requires=[
 )
 '''
 Author:Hello-Mr-Crab
-Contributor:Chanpoe;mrhan1993;nmhjklnm
+Contributor:Viper,Chanpoe,mrhan1993,nmhjklnm,clen1,guanjt3
 '''

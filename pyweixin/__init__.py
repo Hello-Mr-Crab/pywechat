@@ -36,7 +36,7 @@ Examples:
 
 支持版本:
     - `操作系统`: window10,windows11
-    - `Python版本`: 3.8+(需支持TypeHint)
+    - `Python版本`: 3.10+(需支持TypeHint)
 
     
 Have fun in WechatAutomation (＾＿－)
@@ -46,5 +46,5 @@ from pyweixin.WeChatAuto import Messages,Contacts,Files,FriendSettings,Moments,A
 from pyweixin.WeChatTools import Tools,Navigator
 from pyweixin.WinSettings import SystemSettings
 from pyweixin.Config import GlobalConfig
-#Author:Hello-Mr-Crab
-#version:1.9.7``
+#@Author:Hello-Mr-Crab,Chanpoe,ImViper,clen1,mrhan1993,nmhjklnm,guanjt3
+#@version:1.9.8``

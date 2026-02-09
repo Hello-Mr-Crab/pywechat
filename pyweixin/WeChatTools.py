@@ -1067,6 +1067,7 @@ class Navigator():
                 is_contact=False
                 listitems=[listitem for listitem in listitems if listitem.class_name()=="mmui::SearchContentCellView"]
                 listitems=[listitem for listitem in listitems if listitem.window_text()==friend]
+                is_contact=False
                 if listitems:
                     return listitems[0],is_contact
             if '功能' in texts:
@@ -1192,9 +1193,10 @@ class Navigator():
         pyautogui.hotkey('ctrl','v')
         pyautogui.press('enter')
         search_result=search_window.child_window(control_type="Button",found_index=0,framework_id="Chrome",title_re=name)
-        if search_result.exists(timeout=load_delay,retry_interval=0.1):
+        if search_result.exists(timeout=load_delay):
             search_result.click_input()
-            official_acount_window=desktop.window(**Independent_window.OfficialAccountWindow)
+            official_acount_window=Tools.move_window_to_center(Window=Independent_window.OfficialAccountWindow)
+            # official_acount_window=desktop.window(**Independent_window.OfficialAccountWindow)
             search_window.close()
             return official_acount_window
         else:

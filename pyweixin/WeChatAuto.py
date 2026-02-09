@@ -1696,6 +1696,7 @@ class Files():
         fileList=chatfile_window.child_window(**Lists.FileList)
         fileList.type_keys('{END}'*5)
         last_file=fileList.children(control_type='ListItem',class_name='mmui::FileListCell')[-1].window_text()
+        print(last_file)
         fileList.type_keys('{HOME}')
         labels=[listitem.window_text() for listitem in fileList.children(control_type='ListItem',class_name='mmui::FileListCell')]
         while labels[-1]!=last_file:
@@ -2055,6 +2056,7 @@ class Moments():
                 listitems=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.class_name() not in not_contents]
                 selected=[listitem for listitem in listitems if listitem.has_keyboard_focus()]
                 if selected:
+                    # selected[0].capture_as_image().save('test.png')
                     content,photo_num,video_num,post_time=parse_post(selected[0])
                     posts.append({'内容':content,'图片数量':photo_num,'视频数量':video_num,'发布时间':post_time})
                     recorded_num+=1
@@ -2455,7 +2457,6 @@ class Moments():
                 if selected and selected[0].class_name() not in not_contents:
                     selected[0].click_input()
                     content_listitem=sns_detail_list.children(control_type='ListItem')[0]
-                    # comment_listitem=sns_detail_list.children(control_type='ListItem')[1]
                     content,photo_num,video_num,post_time=parse_friend_post(content_listitem)
                     posts.append({'内容':content,'图片数量':photo_num,'视频数量':video_num,'发布时间':post_time})
                     like(sns_detail_list,content_listitem)
@@ -2512,7 +2513,7 @@ class Messages():
         for message in messages:
             if 0<len(message)<2000:
                 edit_area.click_input()
-                SystemSettings.copy_text_to_windowsclipboard(message)
+                SystemSettings.copy_text_to_windowsclipboard(message)#不要直接set_text,直接set_text相当于默认clear了
                 pyautogui.hotkey('ctrl','v',_pause=False)
                 time.sleep(send_delay)
                 pyautogui.hotkey('alt','s',_pause=False)
@@ -2587,8 +2588,16 @@ class Messages():
 
     @staticmethod
     def check_new_messages(is_maximize:bool=None,search_pages:int=None,close_weixin:bool=None):
+    
         '''
-        该方法用来检查一遍会话列表内的所有新消息具体内容
+        该函数用来检查一遍微信会话列表内的新消息
+        Args:
+            
+            search_pages:打开好友聊天窗口时
+            is_maximize:微信界面是否全屏，默认不全屏
+            close_weixin:任务结束后是否关闭微信，默认关闭
+        Returns:
+            newMessages_dict
         '''
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
@@ -2596,82 +2605,81 @@ class Messages():
             close_weixin=GlobalConfig.close_weixin
         if search_pages is None:
             search_pages=GlobalConfig.search_pages
-        newMessages=[]
+        newMessages_dict={}
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
-        new_message_num=get_new_message_num(main_window)
-        if not new_message_num:
-            if close_weixin:
-                main_window.close()
-            print(f'未发现新消息')
-            return {}
-        else:
-            new_message_dict=scan_for_new_messages(is_maximize=is_maximize,close_weixin=False)
+        new_message_num=get_new_message_num(main_window,close_weixin=False)
+        if new_message_num:
+            new_messages=[]
+            new_message_dict=scan_for_new_messages(main_window=main_window,is_maximize=is_maximize,close_weixin=False)
             for friend,num in new_message_dict.items():
-                message=Messages.pull_messages(friend=friend,number=num,close_weixin=False)
-                newMessages.append(message)
-            if close_weixin:
-                main_window.close()
-            return dict(zip(new_message_dict.keys(),newMessages))
-    
-    #session_pick_window中使用ui自动化选择2个以上好友时微信会莫名奇妙白屏卡死，所以先暂时不实现这个方法了
-    @staticmethod
-    def forward_message(friends:list[str],message:str,clear:bool=None,
-        send_delay:float=None,is_maximize:bool=None,close_weixin:bool=None)->None:
-     
-        if is_maximize is None:
-            is_maximize=GlobalConfig.is_maximize
-        if send_delay is None:
-            send_delay=GlobalConfig.send_delay
-        if close_weixin is None:
-            close_weixin=GlobalConfig.close_weixin
-        if clear is None:
-            clear=GlobalConfig.clear
-        if len(friends)<2:
-            raise ValueError(f'friends数量不足2,无法转发消息!')
-        def session_picker():
-            session_pick_window=main_window.child_window(**Windows.SessionPickerWindow)
-            send_button=session_pick_window.child_window(control_type='Button',title='发送')
-            checkbox=session_pick_window.child_window(control_type='CheckBox',found_index=0)
-            rec=send_button.rectangle()
-            x,y=rec.mid_point().x,rec.mid_point().y
-            search_field=session_pick_window.child_window(control_type='Edit',found_index=0)
-            search_field.click_input()
-            for friend in friends[1:]:
-                search_field.set_text(friend)
-                checkbox.click_input()
-                search_field.click_input()
-                search_field.set_text('')
-            pyautogui.click(x=x,y=y)
-        main_window=Navigator.open_dialog_window(friend=friends[0],is_maximize=is_maximize)
-        edit_area=main_window.child_window(**Edits.CurrentChatEdit)
-        chat_list=main_window.child_window(**Lists.FriendChatList)
-        if not edit_area.exists(timeout=0.1):
-            raise NotFriendError(f'非正常好友,无法发送消息')
-        if clear:
-            edit_area.set_text('')
-        if len(message)==0:
-            main_window.close()
-            raise CantSendEmptyMessageError
-        if 0<len(message)<2000:
-            edit_area.set_text(message)
-            time.sleep(send_delay)
-            pyautogui.hotkey('alt','s',_pause=False)
-        elif len(message)>2000:#字数超过200字发送txt文件
-            SystemSettings.convert_long_text_to_txt(message)
-            pyautogui.hotkey('ctrl','v',_pause=False)
-            time.sleep(send_delay)
-            pyautogui.hotkey('alt','s',_pause=False)
-            warn(message=f"微信消息字数上限为2000,超过2000字部分将被省略,该条长文本消息已为你转换为txt发送",category=LongTextWarning)
-        if len(friends)>1:
-            listItems=chat_list.children(control_type='ListItem')
-            message_sent=listItems[-1]
-            rect=message_sent.rectangle()
-            mouse.right_click(coords=(rect.right-100,rect.mid_point().y))
-            forward_item=main_window.child_window(**MenuItems.ForwardMenuItem)
-            forward_item.click_input()
-            session_picker()
+                message=Messages.pull_messages(friend=friend,number=num,close_weixin=False,search_pages=search_pages)
+                new_messages.append(message)
+            newMessages_dict=dict(zip(new_message_dict.keys(),new_messages))
+        if not new_message_num:
+            print(f'未发现新消息')
         if close_weixin:
             main_window.close()
+        return newMessages_dict
+    
+    #session_pick_window中使用ui自动化选择2个以上好友时微信会莫名奇妙白屏卡死，所以先暂时不实现这个方法了
+    # @staticmethod
+    # def forward_message(friends:list[str],message:str,clear:bool=None,
+    #     send_delay:float=None,is_maximize:bool=None,close_weixin:bool=None)->None:
+     
+    #     if is_maximize is None:
+    #         is_maximize=GlobalConfig.is_maximize
+    #     if send_delay is None:
+    #         send_delay=GlobalConfig.send_delay
+    #     if close_weixin is None:
+    #         close_weixin=GlobalConfig.close_weixin
+    #     if clear is None:
+    #         clear=GlobalConfig.clear
+    #     if len(friends)<2:
+    #         raise ValueError(f'friends数量不足2,无法转发消息!')
+    #     def session_picker():
+    #         session_pick_window=main_window.child_window(**Windows.SessionPickerWindow)
+    #         send_button=session_pick_window.child_window(control_type='Button',title='发送')
+    #         checkbox=session_pick_window.child_window(control_type='CheckBox',found_index=0)
+    #         rec=send_button.rectangle()
+    #         x,y=rec.mid_point().x,rec.mid_point().y
+    #         search_field=session_pick_window.child_window(control_type='Edit',found_index=0)
+    #         search_field.click_input()
+    #         for friend in friends[1:]:
+    #             search_field.set_text(friend)
+    #             checkbox.click_input()
+    #             search_field.click_input()
+    #             search_field.set_text('')
+    #         pyautogui.click(x=x,y=y)
+    #     main_window=Navigator.open_dialog_window(friend=friends[0],is_maximize=is_maximize)
+    #     edit_area=main_window.child_window(**Edits.CurrentChatEdit)
+    #     chat_list=main_window.child_window(**Lists.FriendChatList)
+    #     if not edit_area.exists(timeout=0.1):
+    #         raise NotFriendError(f'非正常好友,无法发送消息')
+    #     if clear:
+    #         edit_area.set_text('')
+    #     if len(message)==0:
+    #         main_window.close()
+    #         raise CantSendEmptyMessageError
+    #     if 0<len(message)<2000:
+    #         edit_area.set_text(message)
+    #         time.sleep(send_delay)
+    #         pyautogui.hotkey('alt','s',_pause=False)
+    #     elif len(message)>2000:#字数超过200字发送txt文件
+    #         SystemSettings.convert_long_text_to_txt(message)
+    #         pyautogui.hotkey('ctrl','v',_pause=False)
+    #         time.sleep(send_delay)
+    #         pyautogui.hotkey('alt','s',_pause=False)
+    #         warn(message=f"微信消息字数上限为2000,超过2000字部分将被省略,该条长文本消息已为你转换为txt发送",category=LongTextWarning)
+    #     if len(friends)>1:
+    #         listItems=chat_list.children(control_type='ListItem')
+    #         message_sent=listItems[-1]
+    #         rect=message_sent.rectangle()
+    #         mouse.right_click(coords=(rect.right-100,rect.mid_point().y))
+    #         forward_item=main_window.child_window(**MenuItems.ForwardMenuItem)
+    #         forward_item.click_input()
+    #         session_picker()
+    #     if close_weixin:
+    #         main_window.close()
 
     @staticmethod
     def dump_recent_sessions(recent:Literal['Today','Yesterday','Week','Month','Year']='Today',
