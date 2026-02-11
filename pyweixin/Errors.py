@@ -35,21 +35,11 @@ class NotFolderError(Exception):
 class NoSuchFriendError(Exception):
     def __init__(self, Error='好友或群聊备注有误！查无此人！'):
         super().__init__(Error)
-class AlreadyInContactsError(Exception):
-    def __init__(self, Error='好友已在通讯录中,无需添加！'):
-        super().__init__(Error)
-class CantSendEmptyMessageError(Exception):
-    def __init__(self, Error='不能发送空白消息！'):
-        super().__init__(Error)
 class NotInstalledError(Exception):
     def __init__(self, Error='未找到微信注册表路径,可能未安装4.0版本PC微信!'):
         super().__init__(Error)
-class NoTrayFindError(Exception):
-    def __init__(self,Error='未找到微信托盘,可能未启动或已隐藏！'):
-        super().__init__(Error)
 class NotFolderError(Exception):
     def __init__(self,Error='该路径非文件夹,无法保存文件！'):
-        super().__init__(Error)
         super().__init__(Error)
 class NotFriendError(Exception):
     def __init__(self, Error):

@@ -1,6 +1,6 @@
 from setuptools import setup,find_packages
 setup(name='pywechat127',
-version='1.9.7',
+version='1.9.9',
 author='Hello-Mr-Crab',
 author_email='3083256475@qq.com',
 classifiers=[
@@ -12,10 +12,6 @@ long_description=open('README.md','r',encoding='utf-8').read(),
 long_description_content_type='text/markdown',  
 url='https://github.com/Hello-Mr-Crab/pywechat',
 packages=find_packages(),
-package_data={
-    "pywechat": ["ffmpeg/ffmpeg.exe"], 
-},
-include_package_data=True,
 license='LGPL',
 keywords=['rpa','windows','wechat','automation'],
 install_requires=[

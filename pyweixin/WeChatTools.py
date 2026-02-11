@@ -1026,7 +1026,7 @@ class Navigator():
                 search=main_window.descendants(**Main_window.Search)[0]
                 search.click_input()
                 search.set_text(friend)
-                time.sleep(1)
+                time.sleep(0.8)
                 search_results=main_window.child_window(title='',control_type='List')
                 search_result=Tools.get_search_result(friend=friend,search_result=search_results)
                 if search_result:

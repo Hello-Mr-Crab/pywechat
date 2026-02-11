@@ -75,7 +75,6 @@ from .WeChatTools import Tools,Navigator,mouse,Desktop
 from .WinSettings import SystemSettings
 from .Errors import TimeNotCorrectError
 from .Errors import NoFilesToSendError
-from .Errors import CantSendEmptyMessageError
 from .Errors import NotFolderError
 from .Errors import NotFriendError
 from .Uielements import (Main_window,SideBar,Independent_window,Buttons,
@@ -860,7 +859,7 @@ class Contacts():
         该函数用来获取单个好友的个人简介信息
         Args:
             friend:好友备注
-            search_pages:在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,当search_pages为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
+            search_pages:在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
@@ -1026,12 +1025,13 @@ class FriendSettings():
             main_window.close()
 
     @staticmethod
-    def mute_notification(friend:str,mute:int=0,fold_chat:int=0,is_maximize:bool=None,close_weixin:bool=None):
+    def mute_notification(friend:str,mute:int=0,fold_chat:int=0,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None):
         '''该方法用来将好友消息设置为免打扰和折叠聊天,只有在免打扰开启的时候才可以设置折叠聊天
         Args:
             friend:好友备注
             mute:关闭或设置为消息免打扰,0:关闭消息免打扰,1:开启消息免打扰
             fold_chat:是否折叠聊天,0:取消折叠聊天,1:开启折叠聊天
+            search_pages:在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭 
         '''
@@ -1039,11 +1039,13 @@ class FriendSettings():
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
+        if search_pages is None:
+            search_pages=GlobalConfig.search_pages
         if mute not in {0,1}:
             raise ValueError('mute的取整为0或1!')
         if fold_chat not in {0,1}:
             raise ValueError('fold_chat的取整为0或1!')
-        chatinfo_pane,main_window=Navigator.open_chatinfo(friend=friend,is_maximize=is_maximize)
+        chatinfo_pane,main_window=Navigator.open_chatinfo(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton)       
         mute_notification=chatinfo_pane.child_window(**CheckBoxes.MuteNotificationsCheckBox)
         foldchat=chatinfo_pane.child_window(**CheckBoxes.FoldChatCheckBox)
@@ -1061,11 +1063,12 @@ class FriendSettings():
             main_window.close()
 
     @staticmethod
-    def pin_chat(friend:str,state:int=0,is_maximize:bool=None,close_weixin:bool=None):
+    def pin_chat(friend:str,state:int=0,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None):
         '''该方法用来将好友聊天置顶
         Args:
             friend:好友备注
             state:置顶或不置顶,0:不置顶,1:置顶
+            search_pages:在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭 
         '''
@@ -1073,9 +1076,11 @@ class FriendSettings():
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
+        if search_pages is None:
+            search_pages=GlobalConfig.search_pages
         if state not in {0,1}:
             raise ValueError('state的取整为0或1!')
-        chatinfo_pane,main_window=Navigator.open_chatinfo(friend=friend,is_maximize=is_maximize)
+        chatinfo_pane,main_window=Navigator.open_chatinfo(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton)
         pinchat=chatinfo_pane.child_window(**CheckBoxes.PinChatCheckBox)
         if state==1 and not pinchat.get_toggle_state():
@@ -1087,10 +1092,11 @@ class FriendSettings():
             main_window.close()
 
     @staticmethod
-    def clear_chat_histpry(friend:str,is_maximize:bool=None,close_weixin:bool=None):
+    def clear_chat_histpry(friend:str,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None):
         '''该方法用来清空与好友的聊天记录
         Args:
             friend:好友备注
+            search_pages:在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭 
         '''
@@ -1098,7 +1104,9 @@ class FriendSettings():
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
-        chatinfo_pane,main_window=Navigator.open_chatinfo(friend=friend,is_maximize=is_maximize)
+        if search_pages is None:
+            search_pages=GlobalConfig.search_pages
+        chatinfo_pane,main_window=Navigator.open_chatinfo(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton)
         clear_chat_history_button=chatinfo_pane.child_window(**Buttons.ClearChatHistoryButton)
         empty_button=main_window.child_window(**Buttons.EmptyButton)
@@ -1109,12 +1117,13 @@ class FriendSettings():
             main_window.close()
 
     @staticmethod
-    def change_privacy(friend:str,chat_privacy:int=1,sns_privacy:int=0,is_maximize:bool=None,close_weixin:bool=None):
+    def change_privacy(friend:str,chat_privacy:int=1,sns_privacy:int=0,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None):
         '''该方法用来设置好友权限
         Args:
             friend:好友备注
             chat_privacy:0:仅聊天,1:聊天,朋友圈,微信运动等
             sns_privacy:0:取消所有朋友圈权限,1:不让他看,2:不看他
+            search_pages:在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭 
         '''
@@ -1122,6 +1131,8 @@ class FriendSettings():
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
+        if search_pages is None:
+            search_pages=GlobalConfig.search_pages
         if chat_privacy not in {0,1}:
             raise ValueError('chat_privacy的取整为0或1!')
         if sns_privacy not in {0,1,}:
@@ -1159,11 +1170,12 @@ class FriendSettings():
             main_window.close()
 
     @staticmethod
-    def star_friend(friend:str,state:int=1,is_maximize:bool=None,close_weixin:bool=None):
+    def star_friend(friend:str,state:int=1,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None):
         '''该方法用来将好友设为星标朋友或取消星标朋友
         Args:
             friend:好友备注
             state:设置为星标朋友还是取消设置为星标朋友
+            search_pages:在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭 
         '''
@@ -1171,9 +1183,11 @@ class FriendSettings():
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
+        if search_pages is None:
+            search_pages=GlobalConfig.search_pages
         if state not in {0,1}:
             raise ValueError('state的取整为0或1!')
-        profile_pane,main_window=Navigator.open_friend_profile(friend=friend,is_maximize=is_maximize)
+        profile_pane,main_window=Navigator.open_friend_profile(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton)
         more_button=profile_pane.child_window(**Buttons.MoreButton)
         more_button.click_input()
@@ -1189,12 +1203,13 @@ class FriendSettings():
             main_window.close()
 
     @staticmethod
-    def delete_friend(friend:str,clear_chat_history:int=1,is_maximize:bool=None,close_weixin:bool=None):
+    def delete_friend(friend:str,clear_chat_history:int=1,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None):
         '''该方法用来删除好友
         Args:
             friend:好友备注
-            is_maximize:微信界面是否全屏，默认不全屏
             clear_chat_history:删除好友时是否勾选清空聊天记录,1清空,0不清空
+            search_pages:在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
+            is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭 
         '''
         if is_maximize is None:
@@ -1203,7 +1218,7 @@ class FriendSettings():
             close_weixin=GlobalConfig.close_weixin
         if clear_chat_history not in {0,1}:
             raise ValueError('clear_chat_history的取整为0或1!')
-        profile_pane,main_window=Navigator.open_friend_profile(friend=friend,is_maximize=is_maximize)
+        profile_pane,main_window=Navigator.open_friend_profile(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton)
         more_button=profile_pane.child_window(**Buttons.MoreButton)
         more_button.click_input()
@@ -1219,11 +1234,12 @@ class FriendSettings():
             main_window.close()
     
     @staticmethod
-    def add_to_blacklist(friend:str,state:int=0,is_maximize:bool=None,close_weixin:bool=None):
+    def add_to_blacklist(friend:str,state:int=0,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None):
         '''该方法用来将好友添加至黑名单或从黑名单移出
         Args:
             friend:好友备注
             state:将好友移出黑名单还是加入黑名单,0移出黑名单,1加入黑名单
+            search_pages:在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭 
         '''
@@ -1231,9 +1247,11 @@ class FriendSettings():
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
+        if search_pages is None:
+            search_pages=GlobalConfig.search_pages
         if state not in {0,1}:
             raise ValueError('state的取整为0或1!')
-        profile_pane,main_window=Navigator.open_friend_profile(friend=friend,is_maximize=is_maximize)
+        profile_pane,main_window=Navigator.open_friend_profile(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton)
         more_button=profile_pane.child_window(**Buttons.MoreButton)
         more_button.click_input()
@@ -1251,7 +1269,7 @@ class FriendSettings():
             main_window.close()
     
     @staticmethod
-    def change_remark(friend:str,remark:str,description:str=None,phoneNum:str=None,clear_phoneNum:bool=False,is_maximize:bool=None,close_weixin:bool=None):
+    def change_remark(friend:str,remark:str,description:str=None,phoneNum:str=None,clear_phoneNum:bool=False,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None):
         '''该方法用来修改好友备注,描述,电话号码等内容
         Args:
             friend:好友备注
@@ -1259,6 +1277,7 @@ class FriendSettings():
             description:对好友的描述
             phoneNum:电话号码
             clear_phoneNum:清空之前所有的电话号码
+            search_pages:在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭 
         '''
@@ -1266,7 +1285,9 @@ class FriendSettings():
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
-        profile_pane,main_window=Navigator.open_friend_profile(friend=friend,is_maximize=is_maximize)
+        if search_pages is None:
+            search_pages=GlobalConfig.search_pages
+        profile_pane,main_window=Navigator.open_friend_profile(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton)
         more_button=profile_pane.child_window(**Buttons.MoreButton)
         more_button.click_input()
@@ -1380,22 +1401,22 @@ class Files():
             main_window.close()
 
     @staticmethod
-    def send_files_to_friends(friends:list[str],files_lists:list[list[str]],
-        with_messages:bool=False,messages_lists:list[list[str]]=[],messages_first:bool=False,
+    def send_files_to_friends(friends:list[str],files_list:list[list[str]],
+        with_messages:bool=False,messages_list:list[list[str]]=[],messages_first:bool=False,
         clear:bool=None,send_delay:float=None,is_maximize:bool=None,close_weixin:bool=None)->None:
         '''
         该方法用于给多个好友或群聊发送文件
         Args:
             friends:好友或群聊备注。格式:friends=["好友1","好友2","好友3"]
-            folder_paths:待发送文件列表,格式[[一些文件],[另一些文件],...[]]
+            files_list:待发送文件列表,格式[[一些文件],[另一些文件],...[]]
             with_messages:发送文件时是否给好友发消息。True发送消息,默认为False
-            messages_lists:待发送消息列表,格式:message=[[一些消息],[另一些消息]....]
+            messages_list:待发送消息列表,格式:message=[[一些消息],[另一些消息]....]
             messages_first:先发送消息还是先发送文件,默认先发送文件
             clear:是否删除编辑区域已有的内容,默认删除。
             send_delay:发送单条消息延迟,单位:秒/s,默认0.2s。
             is_maximize:微信界面是否全屏,默认不全屏。
             close_weixin:任务结束后是否关闭微信,默认关闭
-        注意! messages_lists,files_lists与friends长度需一致且顺序一致,否则会出现发错的尴尬情况
+        注意! messages_list,files_list与friends长度需一致且顺序一致,否则会出现发错的尴尬情况
         '''
         def verify(Files):
             verified_files=dict()
@@ -1410,29 +1431,19 @@ class Files():
                     print(f'发给{friend}的文件列表内没有可发送的文件！')
             return verified_files
 
-        def get_searh_result(friend,search_result):#查看搜索列表里有没有名为friend的listitem
-            texts=[listitem.window_text() for listitem in search_result.children(control_type="ListItem")]
-            if '联系人' in texts or '群聊' in texts:
-                contacts=[item for item in search_result.children(control_type="ListItem")]
-                names=[re.sub(r'[\u2002\u2004\u2005\u2006\u2009]',' ',item.window_text()) for item in search_result.children(control_type="ListItem")]
-                if friend in names:#如果在的话就返回整个搜索到的所有联系人,以及其所处的index
-                    location=names.index(friend)         
-                    return contacts[location]
-            return None
         
         def open_dialog_window_by_search(friend):
             search=main_window.descendants(**Main_window.Search)[0]
             search.click_input()
-            SystemSettings.copy_text_to_windowsclipboard(friend)
-            pyautogui.hotkey('ctrl','v')
+            search.set_text(friend)
+            time.sleep(0.8)
             search_results=main_window.child_window(**Main_window.SearchResult)
-            if search_results.exists(timeout=2,retry_interval=0.1):
-                friend_button=get_searh_result(friend=friend,search_result=search_results)
-                if friend_button:
-                    friend_button.click_input()
-                    rec=main_window.rectangle()
-                    x,y=rec.right-50,rec.bottom-100
-                    mouse.click(coords=(x,y))
+            friend_listitem=Tools.get_search_result(friend=friend,search_result=search_results)
+            if friend_listitem is not None:
+                friend_listitem.click_input()
+                edit_area=main_window.child_window(**Edits.CurrentChatEdit)
+                if edit_area.exists(timeout=0.1):
+                    edit_area.click_input()
                     return True
             return False
         
@@ -1481,17 +1492,18 @@ class Files():
             close_weixin=GlobalConfig.close_weixin
         if clear is None:
             clear=GlobalConfig.clear
-        Files=dict(zip(friends,files_lists))
+        Files=dict(zip(friends,files_list))
         Files=verify(Files)
         if not Files:
             raise NoFilesToSendError
-        Chats=dict(zip(friends,messages_lists))
+        Chats=dict(zip(friends,messages_list))
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
         edit_area=main_window.child_window(**Edits.CurrentChatEdit)
         chat_button=main_window.child_window(**SideBar.Chats)
         chat_button.click_input()
-        if with_messages and messages_lists:#文件消息一起发且message_lists不空
+        if with_messages and messages_list:#文件消息一起发且message_list不空
             for friend in Files:
+                Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize,search_pages=0)
                 ret=open_dialog_window_by_search(friend)
                 if clear:
                    edit_area.set_text('')
@@ -1567,8 +1579,8 @@ class Files():
             raise NotFolderError(f'所选路径不是文件夹!无法保存聊天记录,请重新选择!')
         if not folder_path:
             folder_name='save_files聊天文件保存'
-            os.makedirs(name=folder_name,exist_ok=True)
-            folder_path=os.path.join(os.getcwd(),folder_name)
+            folder_path=os.path.join(os.getcwd(),folder_name,friend)
+            os.makedirs(name=folder_path,exist_ok=True)
             print(f'未传入文件夹路径,聊天文件将保存至 {folder_path}')
 
         filepaths=[]
@@ -2051,6 +2063,7 @@ class Moments():
         week_days.update(minutes)
         week_days.update(hours)
         month_days.update(week_days)
+        time.sleep(2)#等待一下刷新
         if moments_list.children(control_type='ListItem'):
             while True:
                 listitems=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.class_name() not in not_contents]
@@ -2270,7 +2283,7 @@ class Moments():
         return posts
 
     @staticmethod
-    def dump_friend_moments(friend:str,number:int,save_detail:bool=False,target_folder:str=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
+    def dump_friend_moments(friend:str,number:int,save_detail:bool=False,target_folder:str=None,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
         '''
         该方法用来获取某个好友的微信朋友圈的内一定数量的内容
         Args:
@@ -2278,6 +2291,7 @@ class Moments():
             number:具体数量
             save_detail:是否保存好友单条朋友圈的具体内容到本地(图片,文本,内容截图)
             target_folder:save_detail所需的文件夹路径
+            search_pages:在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
@@ -2328,6 +2342,8 @@ class Moments():
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
+        if search_pages is None:
+            search_pages=GlobalConfig.search_pages
         if save_detail  and target_folder is None:
             target_folder=os.path.join(os.getcwd(),f'dump_friend_moments朋友圈图片保存')
             print(f'未传入文件夹图片和内容将保存到{target_folder}内的 {friend} 文件夹下')
@@ -2341,7 +2357,7 @@ class Moments():
         recorded_num=0
         sns_detail_pattern=Regex_Patterns.Snsdetail_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳pattern
         not_contents=['mmui::AlbumBaseCell','mmui::AlbumTopCell']#置顶内容不需要
-        moments_window=Navigator.open_friend_moments(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin)
+        moments_window=Navigator.open_friend_moments(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin,search_pages=search_pages)
         backbutton=moments_window.child_window(**Buttons.BackButton)
         #直接maximize不行,需要使用win32gui
         win32gui.SendMessage(moments_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MAXIMIZE,0)
@@ -2476,7 +2492,7 @@ class Moments():
 class Messages():
     @staticmethod
     def send_messages_to_friend(friend:str,messages:list[str],at_members:list[str]=[],
-        at_all:bool=False,clear:bool=None,
+        at_all:bool=False,search_pages:bool=None,clear:bool=None,
         send_delay:float=None,is_maximize:bool=None,close_weixin:bool=None)->None:
         '''
         该方法用于给单个好友或群聊发送信息
@@ -2484,6 +2500,8 @@ class Messages():
             friend:好友或群聊备注。格式:friend="好友或群聊备注"
             messages:所有待发送消息列表。格式:message=["消息1","消息2"]
             at_members:群聊内所有需要@的群成员昵称列表(注意必须是群昵称)
+            at_all:群聊内@所有人,默认为False
+            search_pages:在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
             send_delay:发送单条消息延迟,单位:秒/s,默认0.2s(0.1-0.2之间是极限)。
             clear:是否删除编辑区域已有的内容,默认删除
             is_maximize:微信界面是否全屏,默认不全屏。
@@ -2495,12 +2513,14 @@ class Messages():
             send_delay=GlobalConfig.send_delay
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
+        if search_pages is None:
+            search_pages=GlobalConfig.search_pages
         if clear is None:
             clear=GlobalConfig.clear
         if not messages:
-            raise CantSendEmptyMessageError
+            raise ValueError(f'不能发送空白消息!')
         #先使用open_dialog_window打开对话框
-        main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize)
+        main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         edit_area=main_window.child_window(**Edits.CurrentChatEdit)
         if not edit_area.exists(timeout=0.1):
             raise NotFriendError(f'非正常好友,无法发送消息')
@@ -2572,8 +2592,7 @@ class Messages():
         for friend in Chats:
             search=main_window.descendants(**Main_window.Search)[0]
             search.click_input()
-            SystemSettings.copy_text_to_windowsclipboard(friend)
-            pyautogui.hotkey('ctrl','v')
+            search.set_text(friend)
             time.sleep(1)
             search_results=main_window.child_window(title='',control_type='List')
             friend_button=Tools.get_search_result(friend=friend,search_result=search_results)
@@ -2592,8 +2611,7 @@ class Messages():
         '''
         该函数用来检查一遍微信会话列表内的新消息
         Args:
-            
-            search_pages:打开好友聊天窗口时
+            search_pages:打开好友聊天窗口时在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
@@ -2901,6 +2919,7 @@ class Messages():
         Args:
             friend:好友名称
             number:获取的消息数量
+            search_pages:打开好友聊天窗口时在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
@@ -2939,13 +2958,14 @@ class Messages():
         return messages
 
     @staticmethod
-    def dump_chat_history(friend:str,number:int,capture_alia:bool=False,alias_folder:str=None,is_maximize:bool=None,close_weixin:bool=None)->tuple[list,list]:
+    def dump_chat_history(friend:str,number:int,capture_alia:bool=False,alias_folder:str=None,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->tuple[list,list]:
         '''该函数用来获取一定数量的聊天记录
         Args:  
             friend:好友名称
             number:获取的消息数量
             capture_alia:是否截取聊天记录中聊天对象的昵称
             alias_folder:保存聊天对象昵称截图的文件夹
+            search_pages:打开好友聊天窗口时在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
@@ -2963,13 +2983,15 @@ class Messages():
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
+        if search_pages is None:
+            search_pages=GlobalConfig.search_pages
         if capture_alia and alias_folder is None:
             alias_folder=os.path.join(os.getcwd(),f'dump_chat_history好友昵称截图',f'{friend}')
             print(f'未传入文件夹路径,好友昵称截图将分别保存到{alias_folder}内')
             os.makedirs(alias_folder,exist_ok=True)
         messages=[]
         timestamp_pattern=Regex_Patterns.Chathistory_Timestamp_pattern
-        chat_history_window=Navigator.open_chat_history(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin)
+        chat_history_window=Navigator.open_chat_history(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin,search_pages=search_pages)
         chat_history_list=chat_history_window.child_window(**Lists.ChatHistoryList)
         if not chat_history_list.exists(timeout=0.1):
             warn(message=f"你与{friend}的聊天记录为空,无法获取聊天记录",category=NoChatHistoryWarning)
@@ -2994,7 +3016,6 @@ class Messages():
                     alia_image.save(path)
                 if is_at_bottom(chat_history_list,selected[0]):
                     break
-               
         chat_history_list.type_keys('{HOME}')
         chat_history_window.close()
         messages=messages[:number]
