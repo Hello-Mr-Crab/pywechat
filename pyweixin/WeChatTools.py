@@ -1066,16 +1066,15 @@ class Navigator():
             is_contact=True
             texts=[listitem.window_text() for listitem in search_result.children(control_type="ListItem")]
             listitems=search_result.children(control_type='ListItem')
-            if '联系人' in texts or '群聊' in texts or '最近使用':
+            if ('联系人' in texts) or ('群聊' in texts) or ('最近使用' in texts):
                 listitems=[listitem for listitem in listitems if listitem.class_name()=="mmui::SearchContentCellView"]
                 listitems=[listitem for listitem in listitems if listitem.window_text()==friend]
                 if listitems:
                     return listitems[0],is_contact
-            if  '服务号' in texts or '公众号' in texts:
+            if  ('服务号' in texts) or ('公众号' in texts):
                 is_contact=False
                 listitems=[listitem for listitem in listitems if listitem.class_name()=="mmui::SearchContentCellView"]
                 listitems=[listitem for listitem in listitems if listitem.window_text()==friend]
-                is_contact=False
                 if listitems:
                     return listitems[0],is_contact
             if '功能' in texts:
@@ -1103,7 +1102,6 @@ class Navigator():
         search_result,is_contact=get_search_result(friend=friend,search_result=search_results)
         if search_result:
             search_result.click_input()
-            time.sleep(1)
             if is_contact:
                 listItems=session_list.children(control_type='ListItem')
                 friend_listitem=[listitem for listitem in listItems if listitem.is_selected()][0]
