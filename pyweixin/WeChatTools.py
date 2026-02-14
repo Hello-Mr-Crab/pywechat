@@ -909,7 +909,7 @@ class Navigator():
         '''
         该方法用于打开微信通信录界面
         Args:
-            is_maximize:微信界面是否全屏,默认不全屏。
+            is_maximize:微信界面是否全屏,默认不全屏
         '''
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
@@ -924,11 +924,13 @@ class Navigator():
         return contact_list,main_window
 
     @staticmethod
-    def open_contacts_manage(is_maximize:bool=None,close_weixin:bool=None)->WindowSpecification:
+    def open_contacts_manage(is_maximize:bool=None,window_maximize:bool=None,close_weixin:bool=None)->WindowSpecification:
         '''
-        该方法用于打开微信通信录管理界面
+        该方法用于打开微信通讯录管理界面
         Args:
-            is_maximize:微信界面是否全屏,默认不全屏。
+            is_maximize:微信界面是否全屏,默认不全屏
+            window_maximize:打开的通讯录管理窗口是否全屏,默认不全屏
+            close_weixin:任务结束后是否关闭微信,默认关闭
         '''
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
@@ -937,28 +939,35 @@ class Navigator():
         contact_list,main_window=Navigator.open_contacts(is_maximize=is_maximize)
         contact_list.children()[0].click_input()
         contact_manager=Tools.move_window_to_center(Independent_window.ContactManagerWindow)
+        if window_maximize:
+            win32gui.SendMessage(contact_manager.handle, win32con.WM_SYSCOMMAND, win32con.SC_MAXIMIZE, 0)
         if close_weixin:
             main_window.close()
         return contact_manager
     
     @staticmethod
-    def open_chatfiles(is_maximize:bool=None,close_weixin:bool=None)->WindowSpecification:
+    def open_chatfiles(is_maximize:bool=None,window_maximize:bool=None,close_weixin:bool=None)->WindowSpecification:
         '''
         该方法用来打开微信聊天文件。
         Args:
-            is_maximize:微信界面是否全屏,默认不全屏。
+            is_maximize:微信界面是否全屏,默认不全屏
+            window_maximize:打开的聊天文件窗口是否全屏,默认不全屏
             close_weixin:任务结束后是否关闭微信,默认关闭
         '''   
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
+        if window_maximize is None:
+            window_maximize=GlobalConfig.window_maximize
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
         more=main_window.child_window(**SideBar.More)
         more.click_input()
         chatfiles_button=main_window.child_window(**Buttons.ChatFilesButton)
         chatfiles_button.click_input()
         chatfiles_window=Tools.move_window_to_center(Independent_window.ChatFilesWindow)
+        if window_maximize:
+            win32gui.SendMessage(chatfiles_window.handle, win32con.WM_SYSCOMMAND, win32con.SC_MAXIMIZE, 0)
         if close_weixin:
             main_window.close() 
         return chatfiles_window
@@ -979,7 +988,6 @@ class Navigator():
             is_maximize=GlobalConfig.is_maximize
         if search_pages is None:
             search_pages=GlobalConfig.search_pages
-
         #如果search_pages不为0,即需要在会话列表中滚动查找时，使用find_friend_in_SessionList方法找到好友,并点击打开对话框
         if search_pages:
             is_find,main_window=Navigator.find_friend_in_SessionList(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
@@ -1112,12 +1120,13 @@ class Navigator():
             raise NoSuchFriendError
 
     @staticmethod
-    def open_chat_history(friend:str,TabItem:str=None,is_maximize:bool=None,close_weixin:bool=None)->WindowSpecification:
+    def open_chat_history(friend:str,TabItem:str=None,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->WindowSpecification:
         '''
         该方法用于打开好友聊天记录界面
         Args:
             friend:好友备注名称,需提供完整名称
             TabItem:聊天记录界面打开的具体分区{'文件','图片与视频','链接','音乐与音频','小程序','视频号','日期'}中的任意一个
+            search_pages:在会话列表中查询查找好友时滚动列表的次数,默认为5,一次可查询5-12人,当search_pages为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
             is_maximize:微信界面是否全屏,默认不全屏
             close_weixin:任务结束后是否关闭微信,默认关闭
         '''
@@ -1125,7 +1134,9 @@ class Navigator():
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
-        main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize)
+        if search_pages is None:
+            search_pages=GlobalConfig.search_pages
+        main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         chat_history_button=main_window.child_window(**Buttons.ChatHistoryButton)
         if not chat_history_button.exists(timeout=0.1):
             main_window.close()
@@ -1180,7 +1191,6 @@ class Navigator():
             load_delay=GlobalConfig.load_delay
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
-        desktop=Desktop(**Independent_window.Desktop)
         search_window=Navigator.open_search(is_maximize=is_maximize,close_weixin=close_weixin)
         official_acount_button=search_window.child_window(**Buttons.OfficialAcountButton)
         if not official_acount_button.exists(timeout=load_delay,retry_interval=0.1):
@@ -1196,7 +1206,6 @@ class Navigator():
         if search_result.exists(timeout=load_delay):
             search_result.click_input()
             official_acount_window=Tools.move_window_to_center(Window=Independent_window.OfficialAccountWindow)
-            # official_acount_window=desktop.window(**Independent_window.OfficialAccountWindow)
             search_window.close()
             return official_acount_window
         else:
@@ -1237,10 +1246,9 @@ class Navigator():
             print('网络不良,请尝试增加load_delay时长,或更换网络!')
             return None
            
-   
     @staticmethod
     def search_miniprogram(name:str,load_delay:float=None,is_maximize:bool=None,
-        close_weixin:bool=None,close_program_pane:bool=True)->WindowSpecification:
+        close_weixin:bool=None)->WindowSpecification:
         '''
         该方法用于搜索并打开指定小程序
         Args:
@@ -1279,8 +1287,7 @@ class Navigator():
         text=search_result.child_window(title=name,control_type='Text',found_index=0)
         if text.exists(timeout=load_delay,retry_interval=0.1):
             text.click_input()
-            if close_program_pane:
-                program_window.close()
+            program_window.close()
             program=desktop.window(control_type='Pane',title=name)
             return program
         else:

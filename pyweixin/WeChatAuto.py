@@ -188,9 +188,10 @@ class AutoReply():
                         is_my_bubble=Tools.is_my_bubble(dialog_window,newMessage,input_edit)
                         if not is_my_bubble:
                             reply_content=callback(newMessage.window_text())
-                            input_edit.set_text(reply_content)
-                            pyautogui.hotkey('alt','s')
-                            win32gui.SendMessage(dialog_window.handle, win32con.WM_SYSCOMMAND, win32con.SC_MINIMIZE,0)
+                            if reply_content is not None:
+                                input_edit.set_text(reply_content)
+                                pyautogui.hotkey('alt','s')
+                                win32gui.SendMessage(dialog_window.handle, win32con.WM_SYSCOMMAND, win32con.SC_MINIMIZE,0)
                     if newMessage.class_name()=='mmui::ChatBubbleItemView' and newMessage.window_text()[:2]=='[链接]':#
                         link_count+=1
                     if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and newMessage.window_text()=='图片':
@@ -264,7 +265,7 @@ class Collections():
             close_weixin=GlobalConfig.close_weixin
 
         def copy_url(listitem):
-            y=listitem.rectangle().mid_point().y# 竖直方向上居中,水平方向上靠右
+            y=listitem.rectangle().mid_point().y#竖直方向上居中,水平方向上靠右
             x=listitem.rectangle().right-offset
             mouse.right_click(coords=(x,y))
             copylink_item.click_input()
@@ -439,7 +440,7 @@ class Contacts():
             mouse.move(coords=area)
             for _ in range(total_num-1):
                 time.sleep(interval)
-                pyautogui.keyDown('down',_pause=False)#不能press,press比keydown更频繁容易被检测
+                pyautogui.keyDown('down',_pause=False)#不能press,press比keydown更频繁容易被检测,keydown是一直长按
                 info=get_specific_info()
                 friends_detail.append(info)
             Tools.collapse_contacts(main_window,contact_list)
@@ -753,9 +754,8 @@ class Contacts():
         chat_button.click_input()
         search=main_window.descendants(**Main_window.Search)[0]
         search.click_input()
-        SystemSettings.copy_text_to_windowsclipboard(myname)
-        pyautogui.hotkey('ctrl','v',_pause=False)
-        time.sleep(1)#必须停顿1s等待加载出结果来
+        search.set_text(myname)
+        time.sleep(0.8)#必须停顿0.8s等待加载出结果来
         search_results=main_window.child_window(title='',control_type='List')
         group_label=search_results.child_window(control_type='ListItem',title='群聊',class_name="mmui::XTableCell")
         check_all_buttons=[button for button in search_results.children() if r'查看全部' in button.window_text()]
@@ -2011,8 +2011,8 @@ class Moments():
         '''
         该方法用来获取最近一月内微信朋友圈内好友发布过的具体内容
         Args:
-            recent:最进的时间,取值为['Today','Yesterday','Week','Month']
-            number:指定的数量
+            recent:最近的时间,取值为['Today','Yesterday','Week','Month']
+            number:指定的数量(如果传入了该参数那么按照recent和数量返回内容,如果不传入那么只按照recent的时间节点返回内容)
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
@@ -2069,7 +2069,6 @@ class Moments():
                 listitems=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.class_name() not in not_contents]
                 selected=[listitem for listitem in listitems if listitem.has_keyboard_focus()]
                 if selected:
-                    # selected[0].capture_as_image().save('test.png')
                     content,photo_num,video_num,post_time=parse_post(selected[0])
                     posts.append({'内容':content,'图片数量':photo_num,'视频数量':video_num,'发布时间':post_time})
                     recorded_num+=1
@@ -2214,7 +2213,7 @@ class Moments():
             ellipsis_area=(content_listitem.rectangle().right-44,content_listitem.rectangle().bottom-15)#省略号按钮所处位置
             mouse.click(coords=ellipsis_area)
             reply=callback(content) 
-            if comment_button.exists(timeout=0.1) and reply:
+            if comment_button.exists(timeout=0.1) and reply is not None:
                 comment_button.click_input()
                 pyautogui.hotkey('ctrl','a')
                 pyautogui.press('backspace')
@@ -2434,7 +2433,7 @@ class Moments():
             ellipsis_area=(content_listitem.rectangle().right-44,content_listitem.rectangle().bottom-15)#省略号按钮所处位置
             mouse.click(coords=ellipsis_area)
             reply=callback(content) 
-            if comment_button.exists(timeout=0.1):
+            if comment_button.exists(timeout=0.1) and reply is not None:
                 comment_button.click_input()
                 pyautogui.hotkey('ctrl','a')
                 pyautogui.press('backspace')
@@ -2490,6 +2489,7 @@ class Moments():
 
 
 class Messages():
+
     @staticmethod
     def send_messages_to_friend(friend:str,messages:list[str],at_members:list[str]=[],
         at_all:bool=False,search_pages:bool=None,clear:bool=None,
@@ -2535,6 +2535,7 @@ class Messages():
                 edit_area.click_input()
                 SystemSettings.copy_text_to_windowsclipboard(message)#不要直接set_text,直接set_text相当于默认clear了
                 pyautogui.hotkey('ctrl','v',_pause=False)
+
                 time.sleep(send_delay)
                 pyautogui.hotkey('alt','s',_pause=False)
             elif len(message)>2000:#字数超过200字发送txt文件
@@ -2543,6 +2544,59 @@ class Messages():
                 time.sleep(send_delay)
                 pyautogui.hotkey('alt','s',_pause=False)
                 warn(message=f"微信消息字数上限为2000,超过2000字部分将被省略,该条长文本消息已为你转换为txt发送",category=LongTextWarning)
+        if close_weixin:
+            main_window.close()
+
+    @staticmethod
+    def message_chain(group:str,content:str=None,theme:str=None,example:str=None,description:str=None,search_pages:bool=None,
+       is_maximize:bool=None,close_weixin:bool=None)->None:
+        '''
+        该方法用来在群聊中发起接龙
+        Args:
+            group:群聊备注
+            content:发起接龙时自己所填的内容(默认是自己的群昵称)
+            theme:接龙的主题
+            example:接龙的例子
+            description:接龙详细描述
+            search_pages:在会话列表中查找群聊时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面 
+            is_maximize:微信界面是否全屏,默认不全屏。
+            close_weixin:任务结束后是否关闭微信,默认关闭
+        '''
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+        if search_pages is None:
+            search_pages=GlobalConfig.search_pages
+        #先使用open_dialog_window打开对话框
+        main_window=Navigator.open_dialog_window(friend=group,is_maximize=is_maximize,search_pages=search_pages)
+        edit_area=main_window.child_window(**Edits.CurrentChatEdit)
+        if not edit_area.exists(timeout=0.1):
+            raise NotFriendError(f'非正常好友,无法发送消息')
+        if Tools.is_group_chat(main_window):
+            edit_area.set_text('#接龙')
+            pyautogui.press('down')
+            pyautogui.press('enter')
+            solitaire_window=main_window.child_window(**Windows.SolitaireWindow)
+            solitaire_button=solitaire_window.child_window(**Buttons.SolitaireButton)
+            solitaire_list=solitaire_window.child_window(**Lists.SolitaireList)
+            if content is not None:
+                SystemSettings.copy_text_to_windowsclipboard(content)
+                solitaire_list.click_input()#自己填写的内容正好在接龙列表的中间,所以直接click_input()
+                pyautogui.hotkey('ctrl','a')#全选删除然后复制content
+                pyautogui.press('backspace')
+                pyautogui.hotkey('ctrl','v')
+            if theme is not None:
+                solitaire_window.child_window(control_type='Edit',found_index=0).set_text(theme)
+            if example is not None:
+                solitaire_window.child_window(control_type='Edit',found_index=1).set_text(example)
+            if description is not None:
+                text=solitaire_window.child_window(**Texts.AddContentText)
+                rec=text.rectangle()
+                position=rec.left+2,rec.mid_point().y
+                mouse.click(coords=position)
+                solitaire_window.child_window(control_type='Edit',found_index=2).set_text(description)
+            solitaire_button.click_input()
         if close_weixin:
             main_window.close()
 

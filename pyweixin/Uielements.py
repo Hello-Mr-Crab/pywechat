@@ -82,6 +82,7 @@ class Buttons():
         self.GroupCallButton={'title':'多人通话','control_type':'Button'}#群聊界面里的多人通话
         self.PostButton={'title':'发表','control_type':'Button'}#微信朋友圈界面里的发表按钮
         self.BackButton={'title':'返回','control_type':'Button'}#微信朋友圈内的返回按钮
+        self.SolitaireButton={'title':'发起接龙','control_type':'Button'}#接龙窗口内的发起接龙按钮
 
 class Edits():
     '''微信主界面内所有类型为Edit(不包含独立窗口)的UI控件'''
@@ -123,6 +124,7 @@ class Texts():
         self.SearchContactsResult={'title_re':'搜索','control_type':'Text'}#搜索联系人时的文本结果
         self.LanguageText={'title':'语言','control_type':'Text'}#语言文本，修改微信语言时要用到
         self.GroupNameText={'title':'群聊名称','control_type':'Text'}#群聊设置界面内的群聊名称文本
+        self.AddContentText={'title':'添加补充内容','control_type':'Text'}#群聊接龙界面内的添加补充内容文本
 
 class TabItems():
     def __init__(self):
@@ -156,6 +158,7 @@ class Lists():
         self.FileList={'control_type':'List','auto_id':'file_list','class_name':'mmui::XRecyclerTableView'}#聊天文件右侧的文件列表
         self.MomentsList={'control_type':'List','auto_id':'sns_list','found_index':0}#朋友圈列表
         self.SnsDetailList={'control_type':'List','auto_id':'sns_detail_list'}#好友的朋友圈内点开一个项目后内部的列表
+        self.SolitaireList={'control_type':'List','auto_id':'solitaire_list'}#群聊接龙界面内的接龙列表
 
 class Panes():
     def __init__(self):
@@ -222,6 +225,7 @@ class Windows():
         self.VerifyFriendWindow={'control_type':'Window','title':'申请添加朋友','class_name':'mmui::VerifyFriendWindow'}#添加新朋友时的申请添加朋友界面
         self.RemarkAndTagWindow={'control_type':'Window','title':'设置备注和标签','class_name':'mmui::ProfileUniquePop'}#修改好友备注时的界面
         self.PopOverWindow={'control_type':'Window','class_name':'mmui::XPopover'}#当微信窗口足够小的时候,会收起一部分侧边栏按钮到这个窗口内,此时需要点击...后在这个界面内点击
+        self.SolitaireWindow={'control_type':'Window','class_name':'mmui::SolitaireWindow'}#群接龙窗口
 
 
 class Login_window():

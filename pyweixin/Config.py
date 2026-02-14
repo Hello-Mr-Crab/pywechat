@@ -27,7 +27,7 @@ class globalConfig:
             cls._instance = super().__new__(cls)
             cls._instance._is_maximize=False
             cls._instance._close_weixin=True
-            cls._instance._load_delay=1.5
+            cls._instance._load_delay=3.5
             cls._instance._search_pages=5
             cls._instance._window_maximize=False
             cls._instance._send_delay=0.2
