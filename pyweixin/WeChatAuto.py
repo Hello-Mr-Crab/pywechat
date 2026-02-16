@@ -9,6 +9,7 @@ WeChatAuto
     - `AutoReply`:微信自动回复的一些方法
     - `Call`: 给某个好友打视频或语音电话
     - `Collections`: 与收藏相关的一些方法
+    - `Contacts`: 获取通讯录联系人的一些方法
     - `Files`:  关于微信文件的一些方法,包括发送文件,导出文件等功能
     - `Messages`: 关于微信消息的一些方法,包括收发消息,获取聊天记录,获取聊天会话等功能
     - `Monitor`: 关于微信监听消息的一些方法,包括监听单个聊天窗口的消息
@@ -148,7 +149,7 @@ class AutoReply():
             details:该聊天窗口内的新消息(文本内容),格式为{'新消息总数':x,'文本数量':x,'文件数量':x,'图片数量':x,'视频数量':x,'链接数量':x,'文本内容':x}
         '''
         duration=Tools.match_duration(duration)#将's','min','h'转换为秒
-        if not duration:#不按照指定的时间格式输入,需要提前中断退出
+        if duration is None:#不按照指定的时间格式输入,需要提前中断退出
             raise TimeNotCorrectError
         if save_file and target_folder is None:
             target_folder=os.path.join(os.getcwd(),f'{dialog_window.window_text()}_listen_on_chat聊天文件保存')
@@ -1533,11 +1534,11 @@ class Files():
             main_window.close()
 
     @staticmethod
-    def save_chatfiles(friend:str,folder_path:str=None,number:int=10,is_maximize:bool=None,close_weixin:bool=None):
+    def save_chatfiles(friend:str,number:int,target_folder:str=None,is_maximize:bool=None,close_weixin:bool=None):
         '''该方法用来导出与某个好友的聊天文件,过期未下载的无法导出
         Args:
             friend:好友或群聊的名称
-            folder_path:导出文件存放的文件夹路径,不传入会自动在本地新建一个
+            target_folder:导出文件存放的文件夹路径,不传入会自动在本地新建一个
             number:导出的文件数量
             is_maximize:微信界面是否全屏,默认不全屏。
             close_weixin:任务结束后是否关闭微信,默认关闭
@@ -1561,27 +1562,26 @@ class Files():
             return bool(pattern.match(filename))
         
         def extract_info(text:str):
-            text=text.replace(friend,'')
             texts=text.split('|')
             filename=filename_pattern.search(texts[0]).group(0)
             timestamp=timestamp_pattern.search(texts[1]).group(1) 
-            year=time.strftime('%Y')
-            month=time.strftime('%m')
+            year=int(time.strftime('%Y'))
+            month=int(time.strftime('%m'))
             timestamp_folder=time.strftime('%Y-%m')#默认当年当月
             if '年' in timestamp:
-                year=re.search(r'(\d+)年',timestamp).group(1)
+                year=int(re.search(r'(\d+)年',timestamp).group(1))
             if '月' in timestamp:
-                month=re.search(r'(\d+)月',timestamp).group(1)
-            timestamp_folder=f'{year}-{month}'
+                month=int(re.search(r'(\d+)月',timestamp).group(1))
+            timestamp_folder=f'{year}-{month}' if month>10 else f'{year}-0{month}'
             return filename,timestamp_folder
         
-        if folder_path and not os.path.isdir(folder_path):
+        if target_folder is not None and not os.path.isdir(target_folder):
             raise NotFolderError(f'所选路径不是文件夹!无法保存聊天记录,请重新选择!')
-        if not folder_path:
+        if target_folder is None:
             folder_name='save_files聊天文件保存'
-            folder_path=os.path.join(os.getcwd(),folder_name,friend)
-            os.makedirs(name=folder_path,exist_ok=True)
-            print(f'未传入文件夹路径,聊天文件将保存至 {folder_path}')
+            target_folder=os.path.join(os.getcwd(),folder_name,friend)
+            os.makedirs(name=target_folder,exist_ok=True)
+            print(f'未传入文件夹路径,聊天文件将保存至 {target_folder}')
 
         filepaths=[]
         filenames=[]
@@ -1601,7 +1601,7 @@ class Files():
         fileList=chatfile_window.child_window(**Lists.FileList)
         search_result=chatfile_window.descendants(control_type='Text')[-1]
         total_num=int(re.search(r'\d+',search_result.window_text()).group(0))
-        fileList.type_keys('{END}')
+        fileList.type_keys('{END}'*100)
         last_file=fileList.children(control_type='ListItem',class_name='mmui::FileListCell')[-1].window_text()
         fileList.type_keys('{HOME}')
         labels=[listitem.window_text() for listitem in fileList.children(control_type='ListItem',class_name='mmui::FileListCell')]
@@ -1609,15 +1609,14 @@ class Files():
         while len(labels)<number:
             fileList.type_keys('{PGDN}')
             last=fileList.children(control_type='ListItem',class_name='mmui::FileListCell')[-1].window_text()
-            texts=[listitem.window_text() for listitem in fileList.children(control_type='ListItem',class_name='mmui::FileListCell') 
-            if '未下载' not in listitem.window_text() 
-            or '已过期' in listitem.window_text()]
+            texts=[listitem.window_text() for listitem in fileList.children(control_type='ListItem',class_name='mmui::FileListCell')]
             texts=[file for file in texts if file not in labels]
             labels.extend(texts)
             if len(labels)>=total_num:#大于等于总数
                 break
             if last==last_file:#到达底部
                 break
+        labels=[label for label in labels if '未下载' not in labels or '已过期' not in label]
         for label in labels:
             filename,timestamp=extract_info(label)
             filepath=os.path.join(chatfile_folder,timestamp,filename)
@@ -1640,18 +1639,18 @@ class Files():
                 #os.listdir()列出上一级文件夹然后遍历,查找所有包含纯文件名的文件,然后使用os.path.join将其与folder结合
                 #samefilepaths中的是所有名字重复但实际上是:'文件(1).docx,文件名(2).docx,..文件名(n-1).docx,文件名.docx'格式的文件的路径
                 samefilepaths=[os.path.join(folder,file) for file in os.listdir(folder) if is_duplicate_filename(filename,file)]
-                SystemSettings.copy_files(samefilepaths,folder_path)
+                SystemSettings.copy_files(samefilepaths,target_folder)
             else:#没有重复的直接移动就行
                 #当然还得保证,folder_path里没有该文件
-                SystemSettings.copy_file(filepath,folder_path)
+                SystemSettings.copy_file(filepath,target_folder)
         chatfile_window.close()
         return filepaths
 
     @staticmethod
-    def export_recent_files(folder_path:str=None,is_maximize:bool=None,close_weixin:bool=None):
+    def export_recent_files(target_folder:str=None,is_maximize:bool=None,close_weixin:bool=None):
         '''该方法用来导出与某个好友的聊天文件,过期未下载的无法导出
         Args:
-            folder_path:导出文件存放的文件夹路径,不传入会自动在本地新建一个
+            target_folder:导出文件存放的文件夹路径,不传入会自动在本地新建一个
             is_maximize:微信界面是否全屏,默认不全屏。
             close_weixin:任务结束后是否关闭微信,默认关闭
         Returns:
@@ -1672,23 +1671,23 @@ class Files():
             texts=text.split('|')
             filename=filename_pattern.search(texts[0]).group(0)
             timestamp=timestamp_pattern.search(texts[1]).group(1) 
-            year=time.strftime('%Y')
-            month=time.strftime('%m')
+            year=int(time.strftime('%Y'))
+            month=int(time.strftime('%m'))
             timestamp_folder=time.strftime('%Y-%m')#默认当年当月
             if '年' in timestamp:
-                year=re.search(r'(\d+)年',timestamp).group(1)
+                year=int(re.search(r'(\d+)年',timestamp).group(1))
             if '月' in timestamp:
-                month=re.search(r'(\d+)月',timestamp).group(1)
-            timestamp_folder=f'{year}-{month}'
+                month=int(re.search(r'(\d+)月',timestamp).group(1))
+            timestamp_folder=f'{year}-{month}' if month>10 else f'{year}-0{month}'
             return filename,timestamp_folder
         
-        if folder_path and not os.path.isdir(folder_path):
+        if target_folder and not os.path.isdir(target_folder):
             raise NotFolderError(f'所选路径不是文件夹!无法保存聊天记录,请重新选择!')
-        if not folder_path:
+        if not target_folder:
             folder_name='export_recent最近聊天文件保存'
             os.makedirs(name=folder_name,exist_ok=True)
-            folder_path=os.path.join(os.getcwd(),folder_name)
-            print(f'未传入文件夹路径,聊天文件将保存至 {folder_path}')
+            target_folder=os.path.join(os.getcwd(),folder_name)
+            print(f'未传入文件夹路径,聊天文件将保存至 {target_folder}')
         '''该方法用来导出最近打开使用的文件'''
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
@@ -1708,19 +1707,15 @@ class Files():
         fileList=chatfile_window.child_window(**Lists.FileList)
         fileList.type_keys('{END}'*5)
         last_file=fileList.children(control_type='ListItem',class_name='mmui::FileListCell')[-1].window_text()
-        print(last_file)
         fileList.type_keys('{HOME}')
         labels=[listitem.window_text() for listitem in fileList.children(control_type='ListItem',class_name='mmui::FileListCell')]
         while labels[-1]!=last_file:
             fileList.type_keys('{PGDN}')
             listitems=fileList.children(control_type='ListItem',class_name='mmui::FileListCell')
-            texts=[listitem.window_text() for listitem in listitems
-            if '未下载' not in listitem.window_text() 
-            or '已过期' in listitem.window_text()
-            or '发送中断' not in listitem.window_text()]
+            texts=[listitem.window_text() for listitem in listitems]
             texts=[file for file in texts if file not in labels]
             labels.extend(texts)
-        labels=[label for label in labels if '未下载' not in labels or '已过期' not in label or '发送中断' not in label]
+        labels=[label for label in labels if ('未下载' not in label) or ('已过期' not in label) or ('发送中断' not in label)]
         for label in labels:
             filename,timestamp=extract_info(label)
             filepath=os.path.join(chatfile_folder,timestamp,filename)
@@ -1742,10 +1737,10 @@ class Files():
                 #os.listdir()列出上一级文件夹然后遍历,查找所有包含纯文件名的文件,然后使用os.path.join将其与folder结合
                 #samefilepaths中的是所有名字重复但实际上是:'文件(1).docx,文件名(2).docx,..文件名(n-1).docx,文件名.docx'格式的文件的路径
                 samefilepaths=[os.path.join(folder,file) for file in os.listdir(folder) if is_duplicate_filename(filename,file)]
-                SystemSettings.copy_files(samefilepaths,folder_path)
+                SystemSettings.copy_files(samefilepaths,target_folder)
             else:#没有重复的直接移动就行
-                #当然还得保证,folder_path里没有该文件
-                SystemSettings.copy_file(filepath,folder_path)
+                #当然还得保证,target_folder里没有该文件
+                SystemSettings.copy_file(filepath,target_folder)
         chatfile_window.close()
         return filepaths
     
@@ -1761,11 +1756,11 @@ class Files():
             exported_videos:导出的mp4视频路径列表
         '''
         folder_name=f'{year}-{month}微信聊天视频导出' if month else f'{year}微信聊天视频导出' 
-        if not target_folder:
+        if target_folder is None:
             os.makedirs(name=folder_name,exist_ok=True)
             target_folder=os.path.join(os.getcwd(),folder_name)
             print(f'未传入文件夹路径,所有导出的微信聊天视频将保存至 {target_folder}')
-        if not os.path.isdir(target_folder):
+        if target_folder is not None and not os.path.isdir(target_folder):
             raise NotFolderError(f'给定路径不是文件夹,无法导入保存聊天文件')
         chatfiles_folder=Tools.where_video_folder()
         folders=os.listdir(chatfiles_folder)
@@ -1813,7 +1808,6 @@ class Files():
         return exported_files
 
 
-
 class Settings():
 
     @staticmethod
@@ -1858,7 +1852,7 @@ class Settings():
         '''
         该方法用来修改微信的语言
         Args:
-            language:语言,0:跟随系统,1:浅色模式,2:深色模式
+            language:语言,0:跟随系统,1:简体中文,2:'English',3:'繁體中文'
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         '''
@@ -1892,8 +1886,10 @@ class Settings():
             pyautogui.press('down',presses=3)
         pyautogui.press('enter')
         confirm_button=settings_window.child_window(**Buttons.ConfirmButton)
-        confirm_button.click_input()
+        if confirm_button.exists(timeout=0.1):
+            confirm_button.click_input()
         print(f'已将语言设置为{language_map.get(language)}')
+        settings_window.close()
 
     @staticmethod
     def auto_download_size(size:int=1024,state:bool=True,is_maximize:bool=None,close_weixin:bool=None):
@@ -3148,7 +3144,7 @@ class Monitor():
             win32gui.SendMessage(dialog_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MINIMIZE,0)
 
         duration=Tools.match_duration(duration)#将's','min','h'转换为秒
-        if not duration:#不按照指定的时间格式输入,需要提前中断退出
+        if duration is None:#不按照指定的时间格式输入,需要提前中断退出
             raise TimeNotCorrectError
         if (save_file or save_photo ) and target_folder is None:
             target_folder=os.path.join(os.getcwd(),f'{dialog_window.window_text()}_listen_on_chat聊天文件保存')
