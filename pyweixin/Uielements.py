@@ -83,7 +83,12 @@ class Buttons():
         self.PostButton={'title':'发表','control_type':'Button'}#微信朋友圈界面里的发表按钮
         self.BackButton={'title':'返回','control_type':'Button'}#微信朋友圈内的返回按钮
         self.SolitaireButton={'title':'发起接龙','control_type':'Button'}#接龙窗口内的发起接龙按钮
-
+        self.CommonGroupButton={'title_re':r'\d+个','control_type':'Button'}#共同群聊后边的名称为\d+个的按钮
+        self.SubScribeButton={'title':'关注','control_type':'Button'}#公众号窗口内的关注按钮
+        self.HomePageButton={'title':'公众号主页','control_type':'Button'}#公众号主页内右上角的公众号主页按钮
+        self.NotificationButton={'title':'通知','control_type':'Button'}#微信设置里的通知按钮
+        self.AddButton={'title':'添加','control_type':'Button'}#通讯录管理点击新建标签后右侧的添加按钮
+        
 class Edits():
     '''微信主界面内所有类型为Edit(不包含独立窗口)的UI控件'''
     def __init__(self):
@@ -111,6 +116,7 @@ class ListItems():
         self.AllListItem={'title':'全部','control_type':'ListItem','class_name':'mmui::XTableCell'}#聊天文件界面中的全部
         self.SnsContentListItem={'control_type':'ListItem','class_name':'mmui::TimeLineContentCell'}#朋友圈内容ListItem
         self.LinkListItem={'control_type':'ListItem','title':'链接'}#微信收藏界面组边链接分组
+        self.CreateLabelListItem={'control_type':'ListItem','title':'新建标签','class_name':'mmui::ContactsManagerControlCreateLabelCell'}#通讯录管理界面中的新建标签
 
 class Texts():
     '''微信主界面以及设置界面内所有类型为Text的UI控件'''
@@ -159,6 +165,7 @@ class Lists():
         self.MomentsList={'control_type':'List','auto_id':'sns_list','found_index':0}#朋友圈列表
         self.SnsDetailList={'control_type':'List','auto_id':'sns_detail_list'}#好友的朋友圈内点开一个项目后内部的列表
         self.SolitaireList={'control_type':'List','auto_id':'solitaire_list'}#群聊接龙界面内的接龙列表
+        self.CommonGroupList={'control_type':'List','auto_id':'same_chat_room_contact_list'}#共同群聊列表
 
 class Panes():
     def __init__(self):
@@ -166,6 +173,8 @@ class Panes():
         self.ConfirmPane={'title':'','class_name':'WeUIDialog','control_type':'Pane'}#通用的确认框
         self.ChangeShortcutPane={'title':'','control_type':'Pane','class_name':'SetAcceleratorWnd'}#修改快捷键时弹出的框
         self.MomentsPane={'title':'朋友圈','control_type':'Pane','class_name':'sg_ichat_main_wnd'}#好友朋友圈窗口
+        self.OfficialAccountPane={'title':'公众号','control_type':'Pane','class_name':'Chrome_WidgetWin_0','framework_id':'Win32'}#公众号窗口
+
 
 class Menus():
     def __init__(self):
@@ -189,7 +198,7 @@ class MenuItems():
         self.AddToFavoritesMenuItem={'title':'收藏','control_type':'MenuItem'}#添加到收藏夹
         self.TranslateMenuItem={'title':'翻译','control_type':'MenuItem'}#右键文本消息后的翻译选项
         self.EditMenuItem={'title':'编辑','control_type':'MenuItem'}#右键图片后的编辑选项
-        self.DeleteMenuItem={'title':'删除','control_type':'MenuItem'}#右键消息后的删除选项
+        self.DeleteMenuItem={'title':'删除','control_type':'MenuItem','auto_id':'XMenuItem'}#右键消息后的删除选项
         self.SearchMenuItem={'title':'搜一搜','control_type':'MenuItem'}#右键消息后的搜索选项
         self.QuoteMeunItem={'title':'引用','control_type':'MenuItem'}#右键消息后的引用选项
         self.SelectMenuItem={'title':'多选','control_type':'MenuItem'}#右键消息后的多选选项
@@ -206,6 +215,11 @@ class CheckBoxes():
         self.MuteNotificationsCheckBox={'title':'消息免打扰','control_type':'CheckBox'}#消息免打扰
         self.PinChatCheckBox={'title':'置顶聊天','control_type':'CheckBox'}#置顶聊天
         self.FoldChatCheckBox={'title':'折叠聊天','control_type':'CheckBox'}#折叠聊天
+        self.newMessageAlertCheckBox={'title':'新消息通知声音','control_type':'CheckBox'}
+        self.CallAlertCheckBox={'title':'语音和视频通话通知声音','control_type':'CheckBox'}
+        self.MomentsCheckBox={'title':'通知标记朋友圈','control_type':'CheckBox'}
+        self.GameCheckBox={'title':'通知标记游戏','control_type':'CheckBox'}
+        self.InteractionOnlyCheckBox={'title':'仅提醒朋友与我的互动','control_type':'CheckBox'}
         
 
 class Customs():
@@ -299,7 +313,7 @@ class Independent_window():
         self.NewVoiceCallWindow={'title':'微信','class_name':'ILinkAudioWnd'}#新版本接通语音电话后通话窗口
         self.OldVideoCallWindow={'title':'微信','class_name':'VoipWnd'}#新版本接通语音电话后通话窗口
         self.NewVideoCallWindow={'title':'微信','class_name':'ILinkVoipWnd'}#新版本接通视频电话后通话窗口
-        self.OfficialAccountWindow={'title':'公众号','control_type':'Window','class_name':'H5SubscriptionProfileWnd'}#公众号窗口
+        self.OfficialAccountWindow={'title':'公众号','control_type':'Pane','class_name':'Chrome_WidgetWin_0','framework_id':'Win32'}#公众号窗口
 
 class Groups():
     def __init__(self):

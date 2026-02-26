@@ -1,8 +1,8 @@
 '''
-微信自动化过程中可能引发的warning
+微信UI自动化过程中可能引发几个的Warning
 '''
 class LongTextWarning(Warning):
-    '''消息字数超长警告'''
+    '''微信消息字数超长警告'''
     #微信字数限制2000字，超长部分不发送，这时需要转化为txt发送
     pass
 class NoChatHistoryWarning(Warning):

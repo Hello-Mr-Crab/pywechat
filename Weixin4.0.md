@@ -7,14 +7,16 @@
 
 ## 已经实现的一些方法(pyweixin内)
 - WeChatTools.Navigator
-- WechatTools.Tools
-- WeChatAuto.Messages
-- WeChatAuto.Files
-- WeChatAuto.Call
-- WeChatAuto.Monitor
-- WeChatAuto.Moments
+- WeChatTools.Tools
 - WeChatAuto.AutoReply
+- WeChatAuto.Call
+- WeChatAuto.Collections
 - WeChatAuto.Contacts
+- WeChatAuto.Files
+- WeChatAuto.Messages
+- WeChatAuto.Moments
+- WeChatAuto.Monitor
+- WeChatAuto.Settings
   
 ## 原理:
 Windows的可访问性API（UI Automation）在设计上必须向屏幕阅读器暴露所有UI元素的信息（包括隐藏、禁用元素）

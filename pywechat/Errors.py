@@ -104,9 +104,6 @@ class HaveBeenSetError(Exception):
 class NoResultsError(Exception):
     def __init__(self, Error):
         super().__init__(Error)
-class TaskNotBuildError(Exception):
-    def __init__(self,Error):
-        super().__init__(Error)
 class AlreadyCloseError(Exception):
     def __init__(self,Error):
         super().__init__(Error)

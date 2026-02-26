@@ -33,8 +33,8 @@ class Regex_Patterns():
         self.GroupMember_Num_pattern=re.compile(r'\((\d+)\)$')#通讯录设置界面中每个最近群聊ListItem后边的数字
         self.QtWindow_pattern=re.compile(r'Qt\d+QWindowIcon')#qt窗口通用classname
         self.Filename_pattern=re.compile(r'.*\.\w+\s')#用来匹配.docx,.ppt等文件名，只适合在微信聊天文件界面中使用
-        self.File_Pattern=re.compile(r'文件\n(.*)\n')#微信聊天窗口发送的聊天文件卡片上的内容(有两个换行符)
-        
+        self.File_pattern=re.compile(r'文件\n(.*)\n')#微信聊天窗口发送的聊天文件卡片上的内容(有两个换行符)
+        self.Article_Timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日|\d{1,2}月\d{1,2}日|昨天|星期\w|今天)')#公众号文章的时间戳
 
 def auto_reply_to_friend_decorator(duration:str,friend:str,search_pages:int=5,is_maximize:bool=False,close_weixin:bool=False):
     '''
@@ -274,7 +274,7 @@ def language_detector()->(str|None):
     lang=None
     for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
         if proc.info['name'] and 'wechatappex' in proc.info['name'].lower():
-            cmdline = proc.info['cmdline']
+            cmdline=proc.info['cmdline']
             if not cmdline:
                 continue
     cmd_str=' '.join(cmdline).lower()

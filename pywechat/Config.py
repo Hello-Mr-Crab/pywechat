@@ -5,12 +5,13 @@ class Config:
         #初始化默认值
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance._is_maximize=True
-            cls._instance._close_weixin=True
-            cls._instance._load_delay=1.5
+            cls._instance._is_maximize=False
+            cls._instance._close_wechat=True
+            cls._instance._load_delay=3.5
             cls._instance._search_pages=5
             cls._instance._window_maximize=False
             cls._instance._send_delay=0.2
+            cls._instance._window_size=(1000,800)
         return cls._instance
     
     @property
@@ -25,15 +26,26 @@ class Config:
         self._is_maximize=value
     
     @property
-    def close_weixin(self):
-        """任务结束是否关闭微信"""
-        return self._close_weixin
+    def window_size(self):
+        """微信主界面大小"""
+        return self._window_size
     
-    @close_weixin.setter
-    def close_weixin(self, value):
+    @window_size.setter
+    def window_size(self,value):
+        if not isinstance(value,tuple):
+            raise TypeError(f"window_size必须是bool类型,但传入了{type(value)}:{value}")
+        self._window_size=value
+    
+    @property
+    def close_wechat(self):
+        """任务结束是否关闭微信"""
+        return self._close_wechat
+    
+    @close_wechat.setter
+    def close_wechat(self, value):
         if not isinstance(value,bool):
-            raise TypeError(f"close_weixin必须是bool类型,但传入了{type(value)}:{value}")
-        self._close_weixin=value
+            raise TypeError(f"close_wechat必须是bool类型,但传入了{type(value)}:{value}")
+        self._close_wechat=value
     
     @property
     def load_delay(self):

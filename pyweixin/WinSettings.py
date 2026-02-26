@@ -29,6 +29,7 @@ Examples:
 
 '''
 import os
+import io
 import shutil
 import ctypes
 import win32com.client
@@ -38,7 +39,6 @@ from ctypes import cast, POINTER
 from comtypes import CLSCTX_ALL
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 from PIL import Image
-import io
 
 #常量
 ES_DISPLAY_REQUIRED=0x00000002
@@ -51,11 +51,11 @@ class SystemSettings():
     '''
     @staticmethod
     def set_system_volume(volume_level:float=100.0):
-        """
+        '''
         设置系统主音量
         Args:
             volume_level:音量级别,范围为0.0到100.0
-        """
+        '''
         if not (0<=volume_level<=100):
             raise ValueError("音量级别必须在0到100之间")
         devices=AudioUtilities.GetSpeakers()
@@ -81,24 +81,12 @@ class SystemSettings():
 
     @staticmethod   
     def close_listening_mode():
-        '''需要与open_listening_mode函数结合使用,单独使用无意义''' 
+        '''需要与open_listening_mode方法结合使用,单独使用无意义''' 
         ES_CONTINUOUS=0x80000000
         ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS)
 
-    @staticmethod   
-    def speaker(text:str,times:int=1):
-        '''
-        调用windows Word中朗读文本的API来进行语音播报
-        Args:
-            text:朗读文本的内容
-            times:重复朗读次数
-        '''
-        speaker=win32com.client.Dispatch("SAPI.SpVoice")
-        for _ in range(times):
-            speaker.speak(text)
-
     @staticmethod
-    def copy_files_to_windowsclipboard(filepaths_list:list[str]):
+    def copy_files_to_clipboard(filepaths_list:list[str]):
         '''
         该方法将给定绝对路径的路径列表内所有文件复制到windows系统下的剪贴板
         Args:
@@ -106,19 +94,19 @@ class SystemSettings():
         '''
         filepaths_list=[file_path.replace('/','\\') for file_path in filepaths_list]
         class DROPFILES(ctypes.Structure):
-            _fields_ = [
+            _fields_=[
                 ("pFiles", ctypes.c_uint),
                 ("x", ctypes.c_long),
                 ("y", ctypes.c_long),
                 ("fNC", ctypes.c_int),
                 ("fWide", ctypes.c_bool),
             ]
-        pDropFiles = DROPFILES()
-        pDropFiles.pFiles = ctypes.sizeof(DROPFILES)
-        pDropFiles.fWide = True
+        pDropFiles=DROPFILES()
+        pDropFiles.pFiles=ctypes.sizeof(DROPFILES)
+        pDropFiles.fWide=True
         #获取文件绝对路径
-        files = ("\0".join(filepaths_list)).replace("/", "\\")
-        data = files.encode("U16")[2:] + b"\0\0"#结尾一定要两个\0\0字符，这是规定！
+        files=("\0".join(filepaths_list)).replace("/", "\\")
+        data=files.encode("U16")[2:] + b"\0\0"#结尾一定要两个\0\0字符，这是规定！
         win32clipboard.OpenClipboard()#打开剪贴板（独占）
         try:
             #若要将信息放在剪贴板上，首先需要使用 EmptyClipboard 函数清除当前的剪贴板内容
@@ -130,27 +118,27 @@ class SystemSettings():
             win32clipboard.CloseClipboard()#最后,无论什么情况都关闭剪贴板
 
     @staticmethod
-    def copy_file_to_windowsclipboard(file_path:str):
+    def copy_file_to_clipboard(file_path:str):
         '''
         该方法将给定绝对路径的文件复制到windows系统下的剪贴板
         Args:
             file_path:文件的绝对路径
         '''
         class DROPFILES(ctypes.Structure):
-            _fields_ = [
+            _fields_=[
                 ("pFiles", ctypes.c_uint),
                 ("x", ctypes.c_long),
                 ("y", ctypes.c_long),
                 ("fNC", ctypes.c_int),
                 ("fWide", ctypes.c_bool),
             ]
-        pDropFiles = DROPFILES()
-        pDropFiles.pFiles = ctypes.sizeof(DROPFILES)
-        pDropFiles.fWide = True
+        pDropFiles=DROPFILES()
+        pDropFiles.pFiles=ctypes.sizeof(DROPFILES)
+        pDropFiles.fWide=True
         #获取文件绝对路径
-        files = file_path.replace("/", "\\")
-        data=files.encode("U16")[2:] + b"\0\0"     #结尾一定要两个\0\0字符，这是规定！
-        win32clipboard.OpenClipboard()  #打开剪贴板（独占）
+        files=file_path.replace("/", "\\")
+        data=files.encode("U16")[2:]+b"\0\0"     #结尾一定要两个\0\0字符，这是规定！
+        win32clipboard.OpenClipboard()#打开剪贴板（独占）
         try:
             #若要将信息放在剪贴板上，首先需要使用 EmptyClipboard 函数清除当前的剪贴板内容
             win32clipboard.EmptyClipboard() #清空当前的剪贴板信息
@@ -161,7 +149,7 @@ class SystemSettings():
             win32clipboard.CloseClipboard() #c出错后关闭剪贴板
     
     @staticmethod
-    def copy_text_to_windowsclipboard(text:str):
+    def copy_text_to_clipboard(text:str):
         '''
         该方法使用pywin32的windowsAPI复制文本到剪贴板
         Args:

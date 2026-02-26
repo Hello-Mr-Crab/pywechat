@@ -1,23 +1,30 @@
 '''
 Uielements
 ---------
-PC微信中的各种Ui-Object,我将其分成两大类\n
-一类是按照属性分类,有Buttons,Edits,Texts,TabItems等,每一个类内基本包含了微信内\n
-所有的control_type与类名一致的UI控件\n
-另一类是按照其属的父级窗口,可分为Login_window(登录界面),Main_window(主界面)\n
-Independent_window(独立窗口)这三类\n
+PC微信中的各种Ui-Object,包括:
+    - `Main_Window`: 主界面窗口内的一些Ui
+    - `Login_Window`: 登录界面内的一些Ui
+    - `Independent_Window`: 独立界面窗口
+    - `SideBar`: 主界面导航栏内的所有Button
+    - `Buttons`: Button类型Ui 
+    - `Windows`: Window类型Ui
+    - `Texts`: Text类型Ui
+    - `Edits`: Edit类型Ui
+    - `Lists`: List类型Ui
+    - `Groups`: Group类型Ui
+    - `ListItems`: ListItem类型Ui
+    - `Customs`: 自定义类型Ui
+
+    
+Examples
+--------
 使用时只需要:
-```
-from pywechat import Tools
-from pywechat.Uielements import Edits
-#返回值为kwargs字典,可以直接使用**解包给pywinauto的child_window或descendants方法
-searchbar=Edits().SearchEdit
-main_window=Tools.open_wechat()
-main_window.child_window(**searchbar).type_keys('你好!')
-```
-即可获取到每个类别下的各个组件\n
-使用时无需担心语言对UI控件的影响,导入Uielements时会自动根据微信的语言调整控件中的title属性\n
-如果需要自行指定,language的取值为:'简体中文','繁体中文','英文'
+    
+    >>> from pywechat.Uielements import Edits
+    >>> #返回值为kwargs字典,可以直接使用**解包传入到descendants,children,window,child_window内
+    >>> Edits=Edits()
+    >>> searchbar=main_window.child_window(**Edits.SearchEdit)
+    
 '''
 import winreg
 from pywechat.Errors import NotInstalledError
@@ -43,7 +50,7 @@ language=language_detector()
 
 class Buttons():
     '''
-    微信主界面内所有类型为Button的UI控件\n
+    微信主界面内所有类型为Button的UI控件
     '''
     def __init__(self,language=language):
         self.language=language
@@ -246,7 +253,8 @@ class Edits():
             self.RequestContentEdit={'control_type':'Edit','found_index':0}#添加好友(从群里或者是主页)时,发送请求时的内容
             self.SearchGroupMemeberEdit={'title':'搜索群成员','control_type':'Edit'}#添加或删除群成员时,在弹出的界面里顶部的搜索栏
             self.EditWnd={'control_type':'Edit','class_name':'EditWnd','framework_id':'Win32'}#通用的编辑框,主要出现在好友和群聊设置界面里
-
+            self.InputEdit={'control_type':'Edit','title':'输入'}#好友单独的聊天窗口内的输入框
+            
         if self.language=='英文':
             self.SearchEdit={'title':'Search','control_type':'Edit','found_index':0}#主界面和一些其他界面内通用的搜索框
             self.SearchNewFriendEdit={'title':'Weixin ID/Mobile','control_type':'Edit'}#微信主界面下当前的聊天窗口
@@ -258,7 +266,8 @@ class Edits():
             self.RequestContentEdit={'control_type':'Edit','found_index':0}#添加好友(从群里或者是主页)时,发送请求时的内容
             self.SearchGroupMemeberEdit={'title':'Search','control_type':'Edit'}#添加或删除群成员时,在弹出的界面里顶部的搜索栏
             self.EditWnd={'control_type':'Edit','class_name':'EditWnd','framework_id':'Win32'}#通用的编辑框,主要出现在好友和群聊设置界面里
-
+            self.InputEdit={'control_type':'Edit','title':'输入'}#好友单独的聊天窗口内的输入框
+            
         if self.language=='繁体中文':
             self.SearchEdit={'title':'搜尋','control_type':'Edit','found_index':0}#主界面和一些其他界面内通用的搜索框
             self.CurrentChatEdit={'control_type':'Edit','found_index':1}#微信主界面下当前的聊天窗口
@@ -270,7 +279,8 @@ class Edits():
             self.RequestContentEdit={'control_type':'Edit','found_index':0}#添加好友(从群里或者是主页)时,发送请求时的内容
             self.SearchGroupMemeberEdit={'title':'搜尋','control_type':'Edit'}#添加或删除群成员时,在弹出的界面里顶部的搜索栏
             self.EditWnd={'control_type':'Edit','class_name':'EditWnd','framework_id':'Win32'}#通用的编辑框,主要出现在好友和群聊设置界面里
-
+            self.InputEdit={'control_type':'Edit','title':'输入'}#好友单独的聊天窗口内的输入框
+            
 class Texts():
     '''微信主界面以及设置界面内所有类型为Text的UI控件\n'''
     def __init__(self,language=language):

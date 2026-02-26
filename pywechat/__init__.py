@@ -9,12 +9,12 @@ pywechat
 模块:
 ====
 
-WechatTools:
+WeChatTools:
 ------------
-该模块中封装了一系列关于PC微信的工具,主要包括:检测微信运行状态;
+该模块中封装了一系列关于PC微信的工具与Tools这个静态类内,主要用来:检测微信运行状态;
 打开微信主界面内绝大多数界面;打开指定公众号与微信小程序以及视频号
 
-WechatAuto:
+WeChatAuto:
 -----------
 pywechat的主要模块,其内部包含了:
 -   Messages:5种类型的发送消息功能包括:单人单条,单人多条,多人单条,多人多条,转发消息:多人同一条消息
@@ -36,10 +36,6 @@ Uielements:
 -----------------
 微信主界面内UI的封装
 
-Clocks:
------------------
-用于实现pywechat内所有方法定时操作的模块
-
 Warnings:
 -----------------------
 一些可能触发的警告
@@ -50,18 +46,23 @@ Errors:
 
 支持版本
 ---------------
--   OS-Version:windows7,window10,windows11
--   Python-version:3.9+(win7最高支持版本),WechatVersion:3.9.12.5x
+-   OS-Version:windows7,window10
+-   Python-version:3.9+(win7最高支持版本)
+-   WeChatVersion:3.9.12.5x
 
 ----------------------------------
 Have fun in WechatAutomation (＾＿－)
 ====
 '''
-from.WechatAuto import *
-from.WechatTools import *
+import sys
+from.WeChatAuto import *
+from.WeChatTools import *
 from.Errors import NotInstalledError
+if sys.maxsize==2**63-1:#64位操作系统
+    raise ImportError(f'3.9版本微信已无法在64位Windows系统上使用,使用32位Window系统才可以导入使用pywechat!')
 if not is_wechat_installed():
     raise NotInstalledError
+
 #Author:Hello-Mr-Crab
 #Contributor:Chanpoe,mrhan1993
 #version:1.9.8

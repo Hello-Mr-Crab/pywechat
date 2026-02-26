@@ -10,7 +10,7 @@ Examples
     ```
     from pyweixin import Navigator
     from pyweixin.Config import GlobalConfig
-    GlobalConfig.load_delay=1.5
+    GlobalConfig.load_delay=3.5
     GlobalConfig.is_maximize=True
     GlobalConfig.close_weixin=False
     Navigator.search_channels(search_content='微信4.0')
@@ -18,9 +18,26 @@ Examples
     Navigator.search_official_account(name='微信')
     ```
 '''
+
+# @property修饰getter函数可以实现直接访问类内属性,也就是class().xx,而不通过类内方法class().getter()的格式访问
+# @xx.setter修饰setter函数可以实现直接等号赋值来修改类内属性值而不是通过类内的setter方法修改,
+# 也就是class().xx=yy,而不是class().setter(newValue)=yy
+# @xx.setter与@property修饰的方法名需要一致,必须先定义@property，再定义@xxx.setter
+
+#example:
+#方法调用,不够优雅
+# t=Traditional(10)
+# t.set_value(20)  
+# print(t.get_value())
+
+#像属性一样赋值,更加Pythonic
+# m=Modern(10)
+# m.value=20  
+# print(m.value)
+
 class globalConfig:
-    """位置参数全局配置"""
-    _instance = None
+    '''位置参数全局配置'''
+    _instance=None
     def __new__(cls):
         #初始化默认值
         if cls._instance is None:
@@ -32,11 +49,12 @@ class globalConfig:
             cls._instance._window_maximize=False
             cls._instance._send_delay=0.2
             cls._instance._clear=True
+            cls._window_size=(1000,1000)
         return cls._instance
     
     @property
     def is_maximize(self):
-        """微信主界面全屏"""
+        '''微信主界面全屏'''
         return self._is_maximize
     
     @is_maximize.setter
@@ -46,8 +64,20 @@ class globalConfig:
         self._is_maximize=value
     
     @property
+    def window_size(self):
+        """微信主界面全屏"""
+        return self._window_size
+    
+    @window_size.setter
+    def window_size(self,value):
+        '''微信主界面大小设定(宽,高)'''
+        if not isinstance(value,tuple):
+            raise TypeError(f"window_size必须是tuple类型,但传入了{type(value)}:{value}")
+        self._window_size=value
+
+    @property
     def close_weixin(self):
-        """任务结束是否关闭微信"""
+        '''任务结束是否关闭微信'''
         return self._close_weixin
     
     @close_weixin.setter
@@ -59,7 +89,7 @@ class globalConfig:
     
     @property
     def load_delay(self):
-        """打开小程序、视频号、公众号的加载时长"""
+        '''打开小程序、视频号、公众号的加载时长'''
         return self._load_delay
     
     @load_delay.setter
@@ -70,7 +100,7 @@ class globalConfig:
     
     @property
     def search_pages(self):
-        """会话列表搜索页数"""
+        '''会话列表搜索页数'''
         return self._search_pages
     
     @search_pages.setter
@@ -81,7 +111,7 @@ class globalConfig:
     
     @property
     def window_maximize(self):
-        """独立窗口全屏"""
+        '''独立窗口全屏'''
         return self._window_maximize
     
     @window_maximize.setter
@@ -92,24 +122,22 @@ class globalConfig:
     
     @property
     def send_delay(self):
-        """独立窗口全屏"""
+        '''发送消息的间隔'''
         return self._send_delay
     
     @send_delay.setter
     def send_delay(self,value):
-        '''发送消息的间隔'''
         if not isinstance(value,float):
             raise TypeError(f"send_delay必须是float类型,但传入了{type(value)}:{value}")
         self._send_delay=value
     
     @property
     def clear(self):
-        """发送消息,文件时是否先清除可能已有的内容"""
+        '''发送消息,文件时是否先清除可能已有的内容'''
         return self._clear
     
     @clear.setter
     def clear(self,value):
-        '''发送消息,文件时是否先清除可能已有的内容'''
         if not isinstance(value,bool):
             raise TypeError(f"clear必须是bool类型,但传入了{type(value)}:{value}")
         self._clear=value

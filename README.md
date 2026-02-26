@@ -204,7 +204,7 @@ Navigator.search_official_account(name='微信')
 ```
 <br>
 
-#### 其他类内method使用方法可见代码中详细的文档注释
+#### 其他类内method使用方法可见代码中详细的文档注释以及pyweixin操作手册.docx
 <br>
 
 ### Pywechat模块介绍
@@ -304,8 +304,6 @@ newMessages=check_new_message(duration='5min',save_file=True,target_folder=files
 #newMessages是[{'好友名称':'路人甲','好友类型':'群聊,好友或公众号','新消息条数':xx,'消息内容':[],'消息类型':[]}]
 #格式的list[dict]
 ```
-##### 运行效果可查看
-https://blog.csdn.net/weixin_73953650/article/details/148619622?spm=1001.2014.3001.5501
 
 #### 转发与某个好友的一定数量文件给其他好友
  ```
