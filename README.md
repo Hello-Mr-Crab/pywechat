@@ -212,6 +212,18 @@ Navigator.search_official_account(name='微信')
 ```
 <br>
 
+#### 公众号文章url获取
+```
+from pyweixin import Collections
+Collections.collect_offAcc_articles(name='新华社',number=10)
+urls=Collections.cardLink_to_url(number=10)
+for url,text in urls.items():
+    print(f'{text}\n{url}')
+```
+![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/公众号文章url获取.png)
+
+<br>
+
 #### 其他类内method使用方法可见代码中详细的文档注释以及pyweixin操作手册.docx
 <br>
 
