@@ -82,6 +82,7 @@ import subprocess
 import win32com.client
 import ctypes
 from pywinauto import mouse,Desktop
+###########################内部依赖###################################
 from .WinSettings import SystemSettings
 from pywinauto.controls.uia_controls import ListItemWrapper
 from pywinauto.controls.uia_controls import ListViewWrapper
@@ -93,9 +94,6 @@ from .Errors import NoSuchFriendError
 from .Errors import ScanCodeToLogInError
 from .Errors import NoResultsError,NotFriendError,NotInstalledError
 from .Errors import ElementNotFoundError
-from .Errors import WrongParameterError
-from .Errors import NoPaymentLedgerError
-from pywinauto.findwindows import ElementNotFoundError
 from .Uielements import (Login_window,Main_window,SideBar,Lists,
 Independent_window,Buttons,Texts,Menus,TabItems,MenuItems,Edits,Windows,Panes,SpecialMessages)
 ##########################################################################################
@@ -117,7 +115,8 @@ pyautogui.FAILSAFE=False#防止鼠标在屏幕边缘处造成的误触
 desktop=Desktop(backend='uia')
 
 class Tools():
-    '''该类中封装了一些关于PC微信的工具
+    '''
+    该类中封装了一些关于PC微信的工具
     '''
     @staticmethod
     def is_wechat_installed():
@@ -276,7 +275,7 @@ class Tools():
         class_name=Window['class_name'] if 'class_name' in Window else None
         title=Window['title'] if 'title' in Window else None
         if not class_name:
-            raise WrongParameterError(f'参数错误!kwargs参数字典中必须包含class_name')
+            raise ValueError(f'参数错误!kwargs参数字典中必须包含class_name')
         if handle==0:
             handle=win32gui.FindWindow(class_name,title)
         while not handle:
@@ -302,78 +301,35 @@ class Tools():
             win32gui.MoveWindow(handle, new_left, new_top, window_width, window_height, True)
         return window
 
-
-    @staticmethod
-    def pull_messages(number:int,friend:str=None,chatWnd:WindowSpecification=None,parse:bool=True,chats_only:bool=True,search_pages:int=5,is_maximize:bool=True,close_wechat:bool=True):
+    def match_duration(duration:str)->float:
         '''
-        该方法用来从主界面右侧的聊天区域或单独的聊天窗口内获取指定条数的聊天记录消息
-        消息具体类型:{'文本','图片','视频','语音','文件','动画表情','视频号','链接','卡片链接','微信转账','系统消息'}
+        该函数用来将字符串类型的时间段转换为秒
         Args:
-            number:聊天记录条数
-            friend:好友或群聊备注
-            chatWnd:独立的好友聊天窗口
-            parse:是否解析聊天记录为文本(主界面右侧聊天区域内的聊天记录形式为ListItem),设置为False时返回的类型为ListItem
-            chats_only:是否只查找聊天消息不包含系统消息,设置为False时连同灰色的系统消息一起查找
-            search_pages:在会话列表中查询查找好友时滚动列表的次数,默认为10,一次可查询5-12人,当search_pages为0时,直接从顶部搜索栏法搜索好友信息打开聊天界面
-            is_maximize:微信主界面是否全屏,默认全屏。
-            close_wechat:任务结束后是否关闭微信,默认关闭
-        Returns:
-            chats:[{'发送人':'','消息内容':'','消息类型':''}]*number
-            list[ListItemWrapper]:聊天消息的ListItem形式
-
+            duration:持续时间,格式为:'30s','1min','1h'
         '''
-        chats=[]
-        friendtype='好友'#默认是好友
-        if chatWnd is not None:
-            main_window=chatWnd
-        if friend is None and chatWnd is None:
-            raise ValueError('friend与ChatWnd至少要有一个!')
-        if chatWnd is None and friend is not None:
-            main_window=Navigator.open_dialog_window(friend=friend,search_pages=search_pages,is_maximize=is_maximize)[1]
-            chat_history_button=main_window.child_window(**Buttons.ChatHistoryButton)
-            if not chat_history_button.exists():#没有聊天记录按钮是公众号或其他类型的东西
-                raise NotFriendError(f'{friend}不是好友，无法获取聊天记录！')
-        chatList=main_window.child_window(**Main_window.FriendChatList)#聊天区域内的消息列表
-        scrollable=Tools.is_VerticalScrollable(chatList)
-        viewMoreMesssageButton=main_window.child_window(**Buttons.CheckMoreMessagesButton)#查看更多消息按钮
-        if len(chatList.children(control_type='ListItem'))==0:#没有聊天记录直接返回空列表
-            return []
-        video_call_button=main_window.child_window(**Buttons.VideoCallButton)
-        if not video_call_button.exists():##没有视频聊天按钮是群聊
-            friendtype='群聊'
-        #if message.descendants(conrol_type)是用来筛选这个消息(control_type为ListItem)内有没有按钮(消息是人发的必然会有头像按钮这个UI,系统消息比如'8:55'没有这个UI)
-        ListItems=[message for message in chatList.children(control_type='ListItem') if message.window_text()!=Buttons.CheckMoreMessagesButton['title']]#产看更多消息内部也有按钮,所以需要筛选一下
-        if chats_only:
-            ListItems=[message for message in ListItems if message.descendants(control_type='Button')]
-        #点击聊天区域侧边栏和头像之间的位置来激活滑块,不直接main_window.click_input()是为了防止点到消息
-        x,y=chatList.rectangle().left+8,(main_window.rectangle().top+main_window.rectangle().bottom)//2#
-        if len(ListItems)>=number:#聊天区域内部不需要遍历就可以获取到的消息数量大于number条
-            ListItems=ListItems[-number:]#返回从后向前数number条消息
-        if len(ListItems)<number:#
-            ##########################################################
-            if scrollable:
-                mouse.click(coords=(chatList.rectangle().right-10,chatList.rectangle().bottom-5))
-                while len(ListItems)<number:
-                    chatList.iface_scroll.SetScrollPercent(verticalPercent=0.0,horizontalPercent=1.0)#调用SetScrollPercent方法向上滚动,verticalPercent=0.0表示直接将scrollbar一下子置于顶部
-                    mouse.scroll(coords=(x,y),wheel_dist=1000)
-                    ListItems=[message for message in chatList.children(control_type='ListItem') if message.window_text()!=Buttons.CheckMoreMessagesButton['title']]
-                    if chats_only:
-                        ListItems=[message for message in ListItems if message.descendants(control_type='Button')]
-                    if not viewMoreMesssageButton.exists():#向上遍历时如果查看更多消息按钮不在存在说明已经到达最顶部,没有必要继续向上,直接退出循环
-                        break
-                ListItems=ListItems[-number:]
-            else:#无法滚动,说明就这么多了,有可能是刚添加好友或群聊或者是清空了聊天记录,只发了几条消息
-                ListItems=ListItems[-number:]
-        #######################################################
-        if close_wechat:
-            main_window.close()
-        if parse:
-            for ListItem in ListItems:
-                message_sender,message_content,message_type=Tools.parse_message_content(ListItem=ListItem,friendtype=friendtype)
-                chats.append({'发送人':message_sender,'消息内容':message_content,'消息类型':message_type})
-            return chats
+        if "s" in duration:
+            try:
+                duration=duration.replace('s','')
+                duration=float(duration)
+                return duration
+            except Exception:
+                return None
+        elif 'min' in duration:
+            try:
+                duration=duration.replace('min','')
+                duration=float(duration)*60
+                return duration
+            except Exception:
+                return None
+        elif 'h' in duration:
+            try:
+                duration=duration.replace('h','')
+                duration=float(duration)*60*60
+                return duration
+            except Exception:
+                return None
         else:
-            return ListItems
+            return None
 
     @staticmethod
     def parse_message_content(ListItem:ListItemWrapper,friendtype:str):
@@ -795,7 +751,7 @@ class Tools():
         return folder_path
 
     @staticmethod
-    def where_chatfiles_folder(open_folder:bool=False)->str:
+    def where_chatfile_folder(open_folder:bool=False)->str:
         '''
         该方法用来获取微信聊天文件存放路径(文件夹)
         使用时微信必须登录,否则无法获取到完整路径
@@ -1492,7 +1448,7 @@ class Navigator():
         tabItems={'文件':TabItems.FileTabItem,'图片与视频':TabItems.PhotoAndVideoTabItem,'链接':TabItems.LinkTabItem,'音乐与音频':TabItems.MusicTabItem,'小程序':TabItems.MiniProgramTabItem,'视频号':TabItems.ChannelTabItem,'日期':TabItems.DateTabItem}
         if TabItem:
             if TabItem not in tabItems.keys():
-                raise WrongParameterError('TabItem参数错误!')
+                raise ValueError('TabItem参数错误!')
         main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize,search_pages=search_pages)[1]
         chat_toolbar=main_window.child_window(**Main_window.ChatToolBar)
         chat_history_button=chat_toolbar.child_window(**Buttons.ChatHistoryButton)
@@ -1818,48 +1774,3 @@ class Navigator():
         except ElementNotFoundError:
             channel_widow.close()
             print('网络不良,请尝试增加load_delay时长,或更换网络')
-    
-
-
-def match_duration(duration:str)->float:
-    '''
-    该函数用来将字符串类型的时间段转换为秒
-    Args:
-        duration:持续时间,格式为:'30s','1min','1h'
-    '''
-    if "s" in duration:
-        try:
-            duration=duration.replace('s','')
-            duration=float(duration)
-            return duration
-        except Exception:
-            return None
-    elif 'min' in duration:
-        try:
-            duration=duration.replace('min','')
-            duration=float(duration)*60
-            return duration
-        except Exception:
-            return None
-    elif 'h' in duration:
-        try:
-            duration=duration.replace('h','')
-            duration=float(duration)*60*60
-            return duration
-        except Exception:
-            return None
-    else:
-        return None
-
-def is_wechat_installed():
-    '''
-    该方法通过查询注册表来判断本机是否安装微信
-    '''
-    #微信注册表的一般路径
-    reg_path=r"Software\Tencent\WeChat"
-    is_installed=True
-    try:
-        winreg.OpenKey(winreg.HKEY_CURRENT_USER, reg_path)
-    except Exception:
-        is_installed=False
-    return is_installed

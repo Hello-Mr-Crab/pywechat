@@ -4,7 +4,7 @@ WechatAuto
 类:
 ---------------
 -   AutoReply:包含对指定好友,群聊,会话列表中新消息好友的自动回复消息,以及自动接听语音或视频电话
--   Messages:5种类型的发送消息功能包括:单人单条,单人多条,多人单条,多人多条,转发消息:多人同一条消息
+-   Messages:发送消息功能包括:单人单条,单人多条,多人单条,多人多条,转发消息:多人同一条消息
 -   Files:5种类型的发送文件功能包括:单人单个,单人多个,多人单个,多人多个,转发文件:多人同一个文件
 -   FriendSettings:涵盖了PC微信针对某个好友的全部操作
 -   GroupSettings:涵盖了PC微信针对某个群聊的全部操作
@@ -41,37 +41,29 @@ import json
 import pyautogui
 from warnings import warn
 from typing import Literal
-from .Config import GlobalConfig
 from pywinauto import WindowSpecification
-from .utils import at,at_all
+######################内部依赖#######################
+from .Config import GlobalConfig
 from .Warnings import LongTextWarning,ChatHistoryNotEnough
 from .WeChatTools import Tools,Navigator,mouse,Desktop
 from .WinSettings import SystemSettings
-from .Errors import PrivacyNotCorrectError
 from .Errors import EmptyFileError
 from .Errors import NotFileError
 from .Errors import NotFolderError
 from .Errors import NotFriendError
 from .Errors import NoPermissionError
-from .Errors import SameNameError
-from .Errors import AlreadyCloseError
-from .Errors import AlreadyInContactsError
 from .Errors import NoChatHistoryError
-from .Errors import CantSendEmptyMessageError
-from .Errors import WrongParameterError
 from .Errors import TimeNotCorrectError
 from .Errors import TickleError
 from .Errors import ElementNotFoundError
 from .Errors import TimeoutError
 from .Errors import NoGroupsError
-from .Errors import NoSubScribedOAError
+from .Errors import NoSubOffAccError
 from .Errors import NoChatsError
-from .Errors import NoMomentsError
 from .Errors import CantCreateGroupError
 from .Errors import NoSuchFriendError
 from .Uielements import (Main_window,SideBar,Independent_window,Buttons,SpecialMessages,
-Edits,Texts,TabItems,Lists,Panes,Windows,CheckBoxes,MenuItems,Menus,ListItems)
-from .WeChatTools import match_duration
+Edits,Texts,TabItems,Lists,Panes,Windows,CheckBoxes,MenuItems,Menus,ListItems) 
 #######################################################################################
 language=Tools.language_detector()#有些功能需要判断语言版本
 Main_window=Main_window()#主界面UI
@@ -90,7 +82,7 @@ Menus=Menus()#所有Menu类型UI
 ListItems=ListItems()#所有ListItem类型UI
 SpecialMessages=SpecialMessages()#特殊消息
 pyautogui.FAILSAFE=False#防止鼠标在屏幕边缘处造成的误触
-desktop=Desktop(backend='uia')
+desktop=Desktop(backend='uia')#pywinauto windows桌面的WindowSpecification实例
 
 class Messages():
     '''针对微信消息的一些方法,主要包括发送消息和检查新消息'''
@@ -165,7 +157,7 @@ class Messages():
         for message in messages:
             if len(message)==0:
                 main_window.close()
-                raise CantSendEmptyMessageError
+                raise ValueError(f'不能发送空白消息！')
             if len(message)<2000:
                 SystemSettings.copy_text_to_clipboard(message)
                 pyautogui.hotkey('ctrl','v',_pause=False)
@@ -210,7 +202,7 @@ class Messages():
             for message in Chats.get(friend):
                 if len(message)==0:
                     main_window.close()
-                    raise CantSendEmptyMessageError
+                    raise ValueError(f'不能发送空白消息！')
                 if len(message)<2000:
                     SystemSettings.copy_text_to_clipboard(message)
                     pyautogui.hotkey('ctrl','v',_pause=False)
@@ -286,7 +278,7 @@ class Messages():
         if close_wechat is None:
             close_wechat=GlobalConfig.close_wechat
         if len(message)==0:
-            raise CantSendEmptyMessageError
+            raise ValueError(f'不能发送空白消息！')
         edit_area,main_window=Navigator.open_dialog_window(friends[0],is_maximize=is_maximize,search_pages=search_pages)
         #超过2000字发txt
         if len(message)<2000:
@@ -757,6 +749,77 @@ class Messages():
         chat_history_window.close()
 
     @staticmethod
+    def pull_messages(number:int,friend:str=None,chatWnd:WindowSpecification=None,parse:bool=True,chats_only:bool=True,search_pages:int=5,is_maximize:bool=True,close_wechat:bool=True):
+        '''
+        该方法用来从主界面右侧的聊天区域或单独的聊天窗口内获取指定条数的聊天记录消息
+        消息具体类型:{'文本','图片','视频','语音','文件','动画表情','视频号','链接','卡片链接','微信转账','系统消息'}
+        Args:
+            number:聊天记录条数
+            friend:好友或群聊备注
+            chatWnd:独立的好友聊天窗口
+            parse:是否解析聊天记录为文本(主界面右侧聊天区域内的聊天记录形式为ListItem),设置为False时返回的类型为ListItem
+            chats_only:是否只查找聊天消息不包含系统消息,设置为False时连同灰色的系统消息一起查找
+            search_pages:在会话列表中查询查找好友时滚动列表的次数,默认为10,一次可查询5-12人,当search_pages为0时,直接从顶部搜索栏法搜索好友信息打开聊天界面
+            is_maximize:微信主界面是否全屏,默认全屏。
+            close_wechat:任务结束后是否关闭微信,默认关闭
+        Returns:
+            chats:[{'发送人':'','消息内容':'','消息类型':''}]*number
+            list[ListItemWrapper]:聊天消息的ListItem形式
+
+        '''
+        chats=[]
+        friendtype='好友'#默认是好友
+        if chatWnd is not None:
+            main_window=chatWnd
+        if friend is None and chatWnd is None:
+            raise ValueError('friend与ChatWnd至少要有一个!')
+        if chatWnd is None and friend is not None:
+            main_window=Navigator.open_dialog_window(friend=friend,search_pages=search_pages,is_maximize=is_maximize)[1]
+            chat_history_button=main_window.child_window(**Buttons.ChatHistoryButton)
+            if not chat_history_button.exists():#没有聊天记录按钮是公众号或其他类型的东西
+                raise NotFriendError(f'{friend}不是好友，无法获取聊天记录！')
+        chatList=main_window.child_window(**Main_window.FriendChatList)#聊天区域内的消息列表
+        scrollable=Tools.is_VerticalScrollable(chatList)
+        viewMoreMesssageButton=main_window.child_window(**Buttons.CheckMoreMessagesButton)#查看更多消息按钮
+        if len(chatList.children(control_type='ListItem'))==0:#没有聊天记录直接返回空列表
+            return []
+        video_call_button=main_window.child_window(**Buttons.VideoCallButton)
+        if not video_call_button.exists():##没有视频聊天按钮是群聊
+            friendtype='群聊'
+        #if message.descendants(conrol_type)是用来筛选这个消息(control_type为ListItem)内有没有按钮(消息是人发的必然会有头像按钮这个UI,系统消息比如'8:55'没有这个UI)
+        ListItems=[message for message in chatList.children(control_type='ListItem') if message.window_text()!=Buttons.CheckMoreMessagesButton['title']]#产看更多消息内部也有按钮,所以需要筛选一下
+        if chats_only:
+            ListItems=[message for message in ListItems if message.descendants(control_type='Button')]
+        #点击聊天区域侧边栏和头像之间的位置来激活滑块,不直接main_window.click_input()是为了防止点到消息
+        x,y=chatList.rectangle().left+8,(main_window.rectangle().top+main_window.rectangle().bottom)//2#
+        if len(ListItems)>=number:#聊天区域内部不需要遍历就可以获取到的消息数量大于number条
+            ListItems=ListItems[-number:]#返回从后向前数number条消息
+        if len(ListItems)<number:#
+            ##########################################################
+            if scrollable:
+                mouse.click(coords=(chatList.rectangle().right-10,chatList.rectangle().bottom-5))
+                while len(ListItems)<number:
+                    chatList.iface_scroll.SetScrollPercent(verticalPercent=0.0,horizontalPercent=1.0)#调用SetScrollPercent方法向上滚动,verticalPercent=0.0表示直接将scrollbar一下子置于顶部
+                    mouse.scroll(coords=(x,y),wheel_dist=1000)
+                    ListItems=[message for message in chatList.children(control_type='ListItem') if message.window_text()!=Buttons.CheckMoreMessagesButton['title']]
+                    if chats_only:
+                        ListItems=[message for message in ListItems if message.descendants(control_type='Button')]
+                    if not viewMoreMesssageButton.exists():#向上遍历时如果查看更多消息按钮不在存在说明已经到达最顶部,没有必要继续向上,直接退出循环
+                        break
+                ListItems=ListItems[-number:]
+            else:#无法滚动,说明就这么多了,有可能是刚添加好友或群聊或者是清空了聊天记录,只发了几条消息
+                ListItems=ListItems[-number:]
+        #######################################################
+        if close_wechat:
+            main_window.close()
+        if parse:
+            for ListItem in ListItems:
+                message_sender,message_content,message_type=Tools.parse_message_content(ListItem=ListItem,friendtype=friendtype)
+                chats.append({'发送人':message_sender,'消息内容':message_content,'消息类型':message_type})
+            return chats
+        else:
+            return ListItems
+    @staticmethod
     def check_new_message(duration:str=None,save_file:bool=False,target_folder:str=None,is_maximize:bool=None,close_wechat:bool=None):
         '''
         该方法用来查看新消息,若传入了duration参数,那么可以用来持续监听会话列表内所有人的新消息
@@ -965,8 +1028,8 @@ class Messages():
 
         else:#有持续时间,需要在指定时间内一直遍历,最终返回结果
             if not scrollable:#聊天列表不足12人以上,会话列表没有满,没有滑块，不用遍历,直接原地等待即可
-                SystemSettings.open_listening_mode(full_volume=False)
-                duration=match_duration(duration)
+                SystemSettings.open_listening_mode()
+                duration=Tools.Tools.match_duration(duration)
                 if not duration:#不是指定形式的duration报错
                     main_window.close()
                     raise TimeNotCorrectError
@@ -995,11 +1058,11 @@ class Messages():
                 x,y=messageList.rectangle().right-5,messageList.rectangle().top+8
                 mouse.click(coords=(x,y))#点击右上方激活滑块
                 pyautogui.press('Home')
-                duration=match_duration(duration)
+                duration=Tools.match_duration(duration)
                 if not duration:
                     main_window.close()
                     raise TimeNotCorrectError
-                SystemSettings.open_listening_mode(full_volume=False)
+                SystemSettings.open_listening_mode()
                 end_timestamp=time.time()+duration#根据秒数计算截止时间
                 while time.time()<end_timestamp:
                   #一直等截止时间
@@ -1174,7 +1237,7 @@ class Messages():
             close_wechat=GlobalConfig.close_wechat
         recent_modes=['Today','Yesterday','Week','Month','Year']
         if recent not in recent_modes:
-            raise WrongParameterError('只能获取当天,昨天,本周,本月,本年的聊天对象!')
+            raise ValueError('只能获取当天,昨天,本周,本月,本年的聊天对象!')
         if no_official:
             officialAccounts=Contacts.get_subscribed_offAcc(is_json=False,is_maximize=is_maximize,close_wechat=False)
             #这几个公众号是不会出现在已关注的公众号列表中，需要额外补充
@@ -1253,7 +1316,7 @@ class Messages():
 
 
     @staticmethod
-    def get_chat_history(
+    def dump_chat_history(
         friend:str,number:int,is_json:bool=True,
         capture_screen:bool=False,folder_path:str=None,
         search_pages:int=5,
@@ -1355,7 +1418,7 @@ class Messages():
         return chat_history
     
     @staticmethod
-    def get_recent_chat_history(friend:str,recent:Literal['Today','Yesterday','Week','Month','Year'],
+    def dump_recent_chat_history(friend:str,recent:Literal['Today','Yesterday','Week','Month','Year'],
         is_json:bool=True,capture_screen:bool=False,
         folder_path:str=None,search_pages:int=None,
         is_maximize:bool=None,close_wechat:bool=None):    
@@ -1489,7 +1552,7 @@ class Messages():
         temp=False
         recent_modes=['Today','Yesterday','Week','Month','Year']
         if recent not in recent_modes:
-            raise WrongParameterError('recent取值错误!')
+            raise ValueError('recent取值错误!')
         if capture_screen and not folder_path:
             folder_name=f'{friend}聊天记录截图'
             folder_path=os.path.join(os.getcwd(),folder_name)
@@ -1605,7 +1668,7 @@ class Files():
                 for message in messages:
                     if len(message)==0:
                         main_window.close()
-                        raise CantSendEmptyMessageError
+                        raise ValueError(f'不能发送空白消息！')
                     if len(message)<2000:
                         SystemSettings.copy_text_to_clipboard(message)
                         pyautogui.hotkey('ctrl','v',_pause=False)
@@ -1623,7 +1686,7 @@ class Files():
                 for message in messages:
                     if len(message)==0:
                         main_window.close()
-                        raise CantSendEmptyMessageError
+                        raise ValueError(f'不能发送空白消息！')
                     if len(message)<2000:
                         SystemSettings.copy_text_to_clipboard(message)
                         pyautogui.hotkey('ctrl','v',_pause=False)
@@ -1714,7 +1777,7 @@ class Files():
                     for message in messages:
                         if len(message)==0:
                             main_window.close()
-                            raise CantSendEmptyMessageError
+                            raise ValueError('不能发送空白消息！')
                         if len(message)<2000:
                             SystemSettings.copy_text_to_clipboard(message)
                             pyautogui.hotkey('ctrl','v',_pause=False)
@@ -1735,7 +1798,7 @@ class Files():
                     for message in messages:
                         if len(message)==0:
                             main_window.close()
-                            raise CantSendEmptyMessageError
+                            raise ValueError(f'不能发送空白消息！')
                         if len(message)<2000:
                             SystemSettings.copy_text_to_clipboard(message)
                             pyautogui.hotkey('ctrl','v',_pause=False)
@@ -2188,7 +2251,7 @@ class Files():
         if close_wechat is None:
             close_wechat=GlobalConfig.close_wechat
         if save_method not in {0,1}:
-            raise WrongParameterError(f'save_method的取值为0或1!')
+            raise ValueError(f'save_method的取值为0或1!')
         if folder_path and not os.path.isdir(folder_path):
             raise NotFolderError(f'所选路径不是文件夹!无法保存聊天记录,请重新选择!')
         if not folder_path:
@@ -2480,7 +2543,7 @@ class Settings():
             close_wechat=GlobalConfig.close_wechat
         choices={'open','close'}
         if state not in choices:
-            raise WrongParameterError
+            raise ValueError(f'state的取值应为open或close')
         settings,main_window=Navigator.open_settings(is_maximize=is_maximize,close_wechat=close_wechat)
         general_settings=settings.child_window(**TabItems.GeneralTabItem)
         general_settings.click_input()
@@ -2516,7 +2579,7 @@ class Settings():
             close_wechat=GlobalConfig.close_wechat
         choices={'open','close'}
         if state not in choices:
-            raise WrongParameterError
+            raise ValueError(f'state的取值应为open或close')
         settings,main_window=Navigator.open_settings(is_maximize=is_maximize,close_wechat=close_wechat)
         general_settings=settings.child_window(**TabItems.GeneralTabItem)
         general_settings.click_input()
@@ -2552,7 +2615,7 @@ class Settings():
             close_wechat=GlobalConfig.close_wechat
         choices={'open','close'}
         if state not in choices:
-            raise WrongParameterError
+            raise ValueError(f'state的取值应为open或close')
         settings,main_window=Navigator.open_settings(is_maximize=is_maximize,close_wechat=close_wechat)
         general_settings=settings.child_window(**TabItems.GeneralTabItem)
         general_settings.click_input()
@@ -2591,7 +2654,7 @@ class Settings():
             close_wechat=GlobalConfig.close_wechat
         choices={'open','close'}
         if state not in choices:
-            raise WrongParameterError
+            raise ValueError(f'state的取值应为open或close')
         settings,main_window=Navigator.open_settings(is_maximize=is_maximize,close_wechat=close_wechat)
         general_settings=settings.child_window(**TabItems.GeneralTabItem)
         general_settings.click_input()
@@ -2628,7 +2691,7 @@ class Settings():
             close_wechat=GlobalConfig.close_wechat
         choices={'open','close'}
         if state not in choices:
-            raise WrongParameterError
+            raise ValueError(f'state的取值应为open或close')
         settings,main_window=Navigator.open_settings(is_maximize=is_maximize,close_wechat=close_wechat)
         general_settings=settings.child_window(**TabItems.GeneralTabItem)
         general_settings.click_input()
@@ -2664,7 +2727,7 @@ class Settings():
             close_wechat=GlobalConfig.close_wechat
         choices={'open','close'}
         if state not in choices:
-            raise WrongParameterError
+            raise ValueError(f'state的取值应为open或close')
         settings,main_window=Navigator.open_settings(is_maximize=is_maximize,close_wechat=close_wechat)
         general_settings=settings.child_window(**TabItems.GeneralTabItem)
         general_settings.click_input()
@@ -2733,7 +2796,7 @@ class Settings():
         except ElementNotFoundError:
             if close_settings_window:
                 settings.close()
-            raise AlreadyCloseError(f'已关闭自动登录选项,无需关闭！')
+            print(f'已关闭自动登录选项,无需关闭！')
     
     @staticmethod
     def Show_web_search_history(state:Literal['close','open'],is_maximize:bool=True,close_wechat:bool=True,close_settings_window:bool=True)->None:
@@ -2747,7 +2810,7 @@ class Settings():
         '''
         choices={'open','close'}
         if state not in choices:
-            raise WrongParameterError
+            raise ValueError(f'state的取值应为open或close')
         settings,main_window=Navigator.open_settings(is_maximize=is_maximize,close_wechat=close_wechat)
         general_settings=settings.child_window(**TabItems.GeneralTabItem)
         general_settings.click_input()
@@ -2779,7 +2842,7 @@ class Settings():
         '''
         choices={'open','close'}
         if state not in choices:
-            raise WrongParameterError
+            raise ValueError(f'state的取值应为open或close')
         settings,main_window=Navigator.open_settings(is_maximize=is_maximize,close_wechat=close_wechat)
         general_settings=settings.child_window(**TabItems.NotificationsTabItem)
         general_settings.click_input()
@@ -2812,7 +2875,7 @@ class Settings():
         '''
         choices={'open','close'}
         if state not in choices:
-            raise WrongParameterError
+            raise ValueError(f'state的取值应为open或close')
         settings,main_window=Navigator.open_settings(is_maximize=is_maximize,close_wechat=close_wechat)
         general_settings=settings.child_window(**TabItems.NotificationsTabItem)
         general_settings.click_input()
@@ -2843,7 +2906,7 @@ class Settings():
         '''
         choices={'open','close'}
         if state not in choices:
-            raise WrongParameterError
+            raise ValueError(f'state的取值应为open或close')
         settings,main_window=Navigator.open_settings(is_maximize=is_maximize,close_wechat=close_wechat)
         general_settings=settings.child_window(**TabItems.NotificationsTabItem)
         general_settings.click_input()
@@ -2875,7 +2938,7 @@ class Settings():
         '''
         choices={'open','close'}
         if state not in choices:
-            raise WrongParameterError
+            raise ValueError(f'state的取值应为open或close')
         settings,main_window=Navigator.open_settings(is_maximize=is_maximize,close_wechat=close_wechat)
         general_settings=settings.child_window(**TabItems.NotificationsTabItem)
         general_settings.click_input()
@@ -2907,7 +2970,7 @@ class Settings():
         '''
         choices={'open','close'}
         if state not in choices:
-            raise WrongParameterError
+            raise ValueError(f'state的取值应为open或close')
         settings,main_window=Navigator.open_settings(is_maximize=is_maximize,close_wechat=close_wechat)
         general_settings=settings.child_window(**TabItems.NotificationsTabItem)
         general_settings.click_input()
@@ -2939,7 +3002,7 @@ class Settings():
         '''
         choices={'open','close'}
         if state not in choices:
-            raise WrongParameterError
+           raise ValueError(f'state的取值应为open或close')
         settings,main_window=Navigator.open_settings(is_maximize=is_maximize,close_wechat=close_wechat)
         general_settings=settings.child_window(**TabItems.NotificationsTabItem)
         general_settings.click_input()
@@ -2973,9 +3036,9 @@ class Settings():
             close_wechat=GlobalConfig.close_wechat
         language_map={0:'简体中文',1:'英文',2:'繁体中文'}
         if lang not in language_map.keys():
-            raise WrongParameterError(f'lang的取值应为0,1,2!')
+            raise ValueError('lang的取值应为0,1,2')
         if language_map[lang]==language:
-            raise WrongParameterError(f'当前微信语言已经为{language},无需更换为{language_map[lang]}')
+            raise ValueError(f'当前微信语言已经为{language},无需更换为{language_map[lang]}')
         settings,main_window=Navigator.open_settings(is_maximize=is_maximize,close_wechat=close_wechat)
         general=settings.child_window(**TabItems.GeneralTabItem)
         general.click_input()
@@ -3299,7 +3362,7 @@ class FriendSettings():
         search_new_friend_result=main_window.child_window(**Main_window.SearchNewFriendResult)
         search_new_friend_result.child_window(**Texts.SearchContactsResult).double_click_input()
         profile_pane=desktop.window(**Independent_window.ContactProfileWindow)
-        if profile_pane.exists():
+        if profile_pane.exists(timeout=0.1):
             profile_pane=Tools.move_window_to_center(handle=profile_pane.handle)
             add_to_contacts=profile_pane.child_window(**Buttons.AddToContactsButton)
             if add_to_contacts.exists():
@@ -3307,9 +3370,7 @@ class FriendSettings():
                 send_request()
             else:
                 profile_pane.close()
-                if close_wechat:
-                    main_window.close()
-                raise AlreadyInContactsError
+                print(f'好友已在通讯录中,无需添加！')
         else:
             raise NoSuchFriendError(f'无法根据给定的 {wechat_number} 微信号查找到好友!')
         if close_wechat:
@@ -3332,7 +3393,7 @@ class FriendSettings():
         if close_wechat is None:
             close_wechat=GlobalConfig.close_wechat
         if friend==remark:
-            raise SameNameError
+            raise ValueError('待修改的备注需与之前的备注不同！')
         menu,friend_settings_window,main_window=Navigator.open_friend_settings_menu(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         change_remark=menu.child_window(**MenuItems.EditContactMenuItem)
         change_remark.click_input()
@@ -3915,7 +3976,7 @@ class GroupSettings():
         if close_wechat is None:
             close_wechat=GlobalConfig.close_wechat
         if state not in choices:
-            raise WrongParameterError
+            raise ValueError(f'state的取值应为open或close')
         main_window,chat_window=Navigator.open_dialog_window(friend=group_name,is_maximize=is_maximize,search_pages=search_pages) 
         Tool_bar=chat_window.child_window(found_index=1,title='',control_type='ToolBar')
         Pinbutton=Tool_bar.child_window(**Buttons.PinButton)
@@ -4010,7 +4071,7 @@ class GroupSettings():
         if close_wechat is None:
             close_wechat=GlobalConfig.close_wechat
         if group_name==change_name:
-            raise SameNameError(f'待修改的群名需与先前的群名不同才可修改！')
+            raise ValueError(f'待修改的群名需与先前的群名不同才可修改！')
         group_chat_settings_window,main_window=Navigator.open_group_settings(group_name=group_name,is_maximize=is_maximize,search_pages=search_pages)
         ChangeGroupNameWarnText=group_chat_settings_window.child_window(**Texts.ChangeGroupNameWarnText)
         if ChangeGroupNameWarnText.exists():
@@ -4127,7 +4188,7 @@ class GroupSettings():
             close_wechat=GlobalConfig.close_wechat
         choices=['open','close']
         if state not in choices:
-            raise WrongParameterError
+           raise ValueError(f'state的取值应为open或close')
         group_chat_settings_window,main_window=Navigator.open_group_settings(group_name=group_name,is_maximize=is_maximize,search_pages=search_pages)
         pyautogui.press('pagedown')
         show_group_members_nickname_button=group_chat_settings_window.child_window(**CheckBoxes.OnScreenNamesCheckBox)
@@ -4162,7 +4223,7 @@ class GroupSettings():
         '''
         choices=['open','close']
         if state not in choices:
-            raise WrongParameterError
+            raise ValueError(f'state的取值应为open或close')
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if search_pages is None:
@@ -4211,7 +4272,7 @@ class GroupSettings():
             close_wechat=GlobalConfig.close_wechat
         choices=['open','close']
         if state not in choices:
-            raise WrongParameterError
+            raise ValueError(f'state的取值应为open或close')
         group_chat_settings_window,main_window=Navigator.open_group_settings(group_name=group_name,is_maximize=is_maximize,search_pages=search_pages)
         pyautogui.press('pagedown')
         sticky_on_top_checkbox=group_chat_settings_window.child_window(**CheckBoxes.StickyonTopCheckBox)
@@ -4253,7 +4314,7 @@ class GroupSettings():
             close_wechat=GlobalConfig.close_wechat
         choices=['open','close']
         if state not in choices:
-            raise WrongParameterError
+            raise ValueError(f'state的取值应为open或close')
         group_chat_settings_window,main_window=Navigator.open_group_settings(group_name=group_name,is_maximize=is_maximize,search_pages=search_pages)
         pyautogui.press('pagedown')
         save_to_contacts_checkbox=group_chat_settings_window.child_window(**CheckBoxes.SavetoContactsCheckBox)
@@ -4534,9 +4595,9 @@ class GroupSettings():
                 main_window.close()
         else:
             group_chat_settings_window.close()
-            if close_wechat:
+            print(f"好友'{friend}'已在通讯录中,无需通过该群聊添加！")
+        if close_wechat:
                 main_window.close()
-            raise AlreadyInContactsError(f"好友'{friend}'已在通讯录中,无需通过该群聊添加！")
     
     @staticmethod
     def edit_group_notice(group_name:str,content:str,search_pages:int=None,is_maximize:bool=None,close_wechat:bool=None):
@@ -4840,7 +4901,7 @@ class GroupSettings():
         temp=False
         recent_modes=['Today','Yesterday','Week','Month','Year']
         if recent not in recent_modes:
-            raise WrongParameterError('recent取值错误!')
+            raise ValueError(f'recent取值错误!')
         if capture_screen and not folder_path:
             folder_name=f'{friend}聊天记录截图'
             folder_path=os.path.join(os.getcwd(),folder_name)
@@ -5649,7 +5710,7 @@ class Contacts():
                 pyautogui.keyDown('down',_pause=False)
             if not official_account.exists():
                 main_window.close()
-                raise NoSubScribedOAError
+                raise NoSubOffAccError
         official_account.click_input()
         parent=main_window.child_window(**Texts.OfficialAccountsText).parent().parent()
         official_account_list=parent.children(control_type='Pane')[1].children(control_type='ListItem')
@@ -5691,7 +5752,7 @@ class Moments():
         moments_list=moments_window.child_window(**Lists.MomentsList)
         listitems=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.window_text()!='']
         if not listitems:
-            raise NoMomentsError
+            return []
         scrollable=Tools.is_VerticalScrollable(moments_list)
         rec=moments_list.rectangle()
         x,y=rec.right-100,rec.bottom-100
@@ -5737,9 +5798,9 @@ class Moments():
                     seen.add(serialized)
                     result.append(d)
             return result
-        recent_modes=['Today','Yesterday','Week','Month','Year']
+        recent_modes=['Today','Yesterday','Week','Month']
         if recent not in recent_modes:
-            raise WrongParameterError('只能获取当天,昨天,本周的朋友圈所有内容!')
+            raise ('只能获取当天,昨天,本周,本月的朋友圈所有内容!')
         #注意,没有1 day ago 1 day ago就是昨天
         days_ago='day(s) ago' if language=='英文' else '天前'#xx天前时间戳固定内容
         month_sep='/' if language=='英文' else '月'
@@ -5759,7 +5820,7 @@ class Moments():
         moments_list=moments_window.child_window(**Lists.MomentsList)
         listitems=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.window_text()!='']
         if not listitems:
-            raise NoMomentsError
+            return []
         scrollable=Tools.is_VerticalScrollable(moments_list)
         rec=moments_list.rectangle()
         x,y=rec.right-100,rec.bottom-100
@@ -5868,10 +5929,10 @@ class AutoReply():
         responsed_groups=set()
         unresponsed_group=set()
         unchanged_duration=duration
-        duration=match_duration(duration)
+        duration=Tools.match_duration(duration)
         if not duration:
             raise TimeNotCorrectError
-        SystemSettings.open_listening_mode(full_volume=False)
+        SystemSettings.open_listening_mode()
         SystemSettings.copy_text_to_clipboard(content)
         def record():
             #遍历当前会话列表内的所有成员，获取他们的名称，没有新消息的话返回[]
@@ -6023,7 +6084,7 @@ class AutoReply():
             #当给定的文件夹路径下的内容不是一个文件夹时
             if not os.path.isdir(folder_path):#
                 raise NotFolderError(r'给定路径不是文件夹!无法保存聊天记录截图,请重新选择文件夹！')        
-        duration=match_duration(duration)#将's','min','h'转换为秒
+        duration=Tools.match_duration(duration)#将's','min','h'转换为秒
         if not duration:#不按照指定的时间格式输入,需要提前中断退出
             raise TimeNotCorrectError
         #打开好友的对话框,返回值为编辑消息框和主界面
@@ -6064,7 +6125,7 @@ class AutoReply():
                     main_window.minimize()
         if count:
             if save_chat_history:
-                chat_history=Messages.get_chat_history(friend=friend,number=2*count,capture_screen=capture_screen,folder_path=folder_path,is_maximize=is_maximize,close_wechat=close_wechat)  
+                chat_history=Messages.dump_chat_history(friend=friend,number=2*count,capture_screen=capture_screen,folder_path=folder_path,is_maximize=is_maximize,close_wechat=close_wechat)  
                 return chat_history
         SystemSettings.close_listening_mode()
         if close_wechat:
@@ -6121,7 +6182,7 @@ class AutoReply():
             #当给定的文件夹路径下的内容不是一个文件夹时
             if not os.path.isdir(folder_path):#
                 raise NotFolderError(r'给定路径不是文件夹!无法保存聊天记录截图,请重新选择文件夹！')
-        duration=match_duration(duration)#将's','min','h'转换为秒
+        duration=Tools.match_duration(duration)#将's','min','h'转换为秒
         if not duration:#不按照指定的时间格式输入,需要提前中断退出
             raise TimeNotCorrectError
         #打开好友的对话框,返回值为编辑消息框和主界面
@@ -6169,7 +6230,7 @@ class AutoReply():
                         send_message(message_content,message_sender,reply_content)
                     initial_runtime_id=runtime_id
         if save_chat_history:
-            chat_history=Messages.get_chat_history(friend=group_name,number=2*responsed_num,capture_screen=capture_screen,folder_path=folder_path,is_maximize=is_maximize,close_wechat=close_wechat)  
+            chat_history=Messages.dump_chat_history(friend=group_name,number=2*responsed_num,capture_screen=capture_screen,folder_path=folder_path,is_maximize=is_maximize,close_wechat=close_wechat)  
             return chat_history
         SystemSettings.close_listening_mode()
         if close_wechat:
@@ -6209,7 +6270,7 @@ class Monitor:
             close_wechat=GlobalConfig.close_wechat
         friend=dialog_window.window_text()
         unchanged_duration=duration
-        duration=match_duration(duration)#将's','min','h'转换为秒
+        duration=Tools.match_duration(duration)#将's','min','h'转换为秒
         if not duration:#不按照指定的时间格式输入,需要提前中断退出
             raise TimeNotCorrectError
         if not file_folder and save_file:#filefolder没有输入默认为None且save_file为True那么就保存到本地的一个文件夹
@@ -6223,7 +6284,7 @@ class Monitor:
         if media_folder and  not os.path.isdir(media_folder):#输入了photo_folder但不是文件夹,报错
             raise NotFolderError
         if save_method not in [0,1]:
-            raise WrongParameterError(f'save_method的取值为0或1!')
+            raise ValueError(f'state的取值应为open或close')(f'save_method的取值为0或1!')
         #打开好友的对话框,返回值为编辑消息框和主界面
         # edit_area,main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         #需要判断一下是不是公众号

@@ -375,8 +375,8 @@ class Tools():
     
     @staticmethod
     def is_group_chat(main_window:WindowSpecification)->bool:
-        '''通过是否有多人通话这个按钮来判断是否是当前聊天界面是否是群聊'''
-        return main_window.child_window(**Buttons.GroupCallButton).exists(timeout=0.1)
+        '''通过是否有多人通话这个按钮来判断当前聊天界面是否是群聊'''
+        return main_window.child_window(**Texts.GroupLabelText).exists(timeout=0.1)
 
     @staticmethod
     def is_sns_at_bottom(listview:ListViewWrapper,listitem:ListItemWrapper)->bool:
@@ -1003,7 +1003,6 @@ class Navigator():
                 main_window.close()
                 raise NoSuchFriendError
         else: #searchpages为0，不在会话列表查找
-            #这部分代码先判断微信主界面是否可见,如果可见不需要重新打开,这在多个close_wechat为False需要进行来连续操作的方式使用时要用到
             main_window=Navigator.open_weixin(is_maximize=is_maximize)
             chat_button=main_window.child_window(**SideBar.Chats)
             #先看看当前聊天界面是不是好友的聊天界面

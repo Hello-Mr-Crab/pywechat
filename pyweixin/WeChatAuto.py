@@ -315,6 +315,7 @@ class Collections():
             main_window.close()
         return links
     
+    @staticmethod
     def collect_offAcc_articles(name:str,number:int,delay:float=0.3,is_maximize:bool=None,close_weixin:bool=None):
         '''
         该方法用来收藏一定数量的某个公众号的文章
@@ -2238,6 +2239,7 @@ class Moments():
         sns_timestamp_pattern=Regex_Patterns.Sns_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳
         not_contents=['mmui::TimelineCommentCell','mmui::TimelineCell','mmui::TimelineAdGridImageCell']#评论区，余下x条,广告,这三种不需要
         moments_window=Navigator.open_moments(is_maximize=is_maximize,close_weixin=close_weixin)
+        win32gui.SendMessage(moments_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MAXIMIZE,0)
         moments_list=moments_window.child_window(**Lists.MomentsList)
         moments_list.type_keys('{HOME}')
         #微信朋友圈当天发布时间是xx分钟前,xx小时前,一周内的时间在7天内,且包含当天时间,同理一月内的时间在30天内,包含本周的时间
@@ -2350,6 +2352,78 @@ class Moments():
         mouse.click(coords=fallback_coords)
         return False
 
+    def _is_gray_pixel(r: int, g: int, b: int) -> bool:
+        """微信省略号按钮灰色像素启发式判断"""
+        max_val = max(r, g, b)
+        min_val = min(r, g, b)
+        # 如果最大值和最小值的差小于 20，且亮度适中（排除纯黑和纯白），则认为是灰色
+        if (max_val-min_val) > 20:
+            return False
+        if max_val<50 or max_val>200:
+            return False
+            
+        return True
+
+    @staticmethod
+    def _find_gray_button_center(region: tuple[int, int, int, int]):
+        """在给定区域内寻找灰色按钮中心点,找不到返回None"""
+        try:
+            screenshot=pyautogui.screenshot(region=region).convert('RGB')
+        except Exception:
+            return None
+        width, height=screenshot.size
+        if width <= 0 or height <= 0:
+            return None
+
+        pixels = screenshot.load()
+        min_x, min_y = width, height
+        max_x, max_y = -1, -1
+        hit_count = 0
+
+        for y in range(0, height, 2):
+            for x in range(0, width, 2):
+                r, g, b = pixels[x, y]
+                if Moments._is_gray_pixel(r, g, b):
+                    hit_count += 1
+                    if x < min_x:
+                        min_x = x
+                    if y < min_y:
+                        min_y = y
+                    if x > max_x:
+                        max_x = x
+                    if y > max_y:
+                        max_y = y
+
+        if hit_count < 16 or max_x < 0 or max_y < 0:
+            return None
+        if (max_x - min_x) < 10 or (max_y - min_y) < 6:
+            return None
+
+        center_x = region[0] + (min_x + max_x) // 2
+        center_y = region[1] + (min_y + max_y) // 2
+        return center_x, center_y
+
+    @staticmethod
+    def _click_gray_button(anchor_rect,x_offset:int=44,y_offset:int=15)->bool:
+        """
+        优先使用灰色按钮识别点击省略号；
+        识别失败时回退原坐标点击，保证兼容旧逻辑。
+        """
+        fallback_coords = (anchor_rect.right - x_offset, anchor_rect.bottom - y_offset)
+        # 定义搜索区域，通常省略号在右下角，所以区域偏右下
+        regions = [
+            (max(fallback_coords[0] - 80, 0), max(fallback_coords[1] - 45, 0), 170, 90),
+            (max(anchor_rect.right - (x_offset + 150), 0), max(anchor_rect.bottom - (y_offset + 90), 0), 280, 170),
+        ]
+        for region in regions:
+            center = Moments._find_gray_button_center(region)
+            if center is not None:
+                mouse.click(coords=center)
+                return True
+        #找不到就点击固定坐标
+        mouse.click(coords=fallback_coords)
+        return False
+
     @staticmethod
     def like_posts(recent:Literal['Today','Yesterday','Week','Month']='Today',number:int=None,callback:Callable[[str],str]=None,is_maximize:bool=None,close_weixin:bool=None,use_green_send:bool=False)->list[dict]:
         '''
@@ -2387,8 +2461,8 @@ class Moments():
         def like(content_listitem:ListItemWrapper):
             #点赞操作
             mouse.move(coords=center_point)
-            ellipsis_area=(content_listitem.rectangle().right-44,content_listitem.rectangle().bottom-15)#省略号按钮所处位置
-            mouse.click(coords=ellipsis_area)
+            rectangle=content_listitem.rectangle()
+            Moments._click_send_button(rectangle,x_offset=44,y_offset=15)
             if like_button.exists(timeout=0.1):
                 like_button.click_input()
 
@@ -2428,6 +2502,7 @@ class Moments():
         sns_timestamp_pattern=Regex_Patterns.Sns_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳
         not_contents=['mmui::TimelineCommentCell','mmui::TimelineCell','mmui::TimelineAdGridImageCell']#评论区，余下x条,广告,这三种不需要
         moments_window=Navigator.open_moments(is_maximize=is_maximize,close_weixin=close_weixin)
+        # win32gui.SendMessage(moments_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MAXIMIZE,0)
         like_button=moments_window.child_window(control_type='Button',title='赞')
         comment_button=moments_window.child_window(control_type='Button',title='评论')
         moments_list=moments_window.child_window(**Lists.MomentsList)
@@ -2770,11 +2845,11 @@ class Messages():
                 pyautogui.hotkey('ctrl','a')#全选删除然后复制content
                 pyautogui.press('backspace')
                 pyautogui.hotkey('ctrl','v')
-            if theme is not None:
+            if isinstance(theme,str):
                 solitaire_window.child_window(control_type='Edit',found_index=0).set_text(theme)
-            if example is not None:
+            if isinstance(example,str):
                 solitaire_window.child_window(control_type='Edit',found_index=1).set_text(example)
-            if description is not None:
+            if isinstance(description,str):
                 text=solitaire_window.child_window(**Texts.AddContentText)
                 rec=text.rectangle()
                 position=rec.left+2,rec.mid_point().y

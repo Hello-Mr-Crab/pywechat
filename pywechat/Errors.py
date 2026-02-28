@@ -26,12 +26,6 @@ class ScanCodeToLogInError(Exception):
 class TimeNotCorrectError(Exception):
     def __init__(self, Error='请输入合法的时间长度！'):
         super().__init__(Error)
-class PrivacyNotCorrectError(Exception):
-    def __init__(self, Error='权限不存在！请按照 仅聊天;聊天、朋友圈、微信运动等;\n不让他（她）看;不看他（她);的四种格式输入privacy'):
-        super().__init__(Error)
-class NoWechat_number_or_Phone_numberError(Exception):
-    def __init__(self, Error='未输入微信号或手机号,请至少输入二者其中一个！'):
-        super().__init__(Error)
 class EmptyFileError(Exception):
     def __init__(self, Error='不能发送空文件！请重新选择文件路径!'):
         super().__init__(Error)
@@ -50,41 +44,20 @@ class NoSuchFriendError(Exception):
 class NoGroupsError(Exception):
     def __init__(self,Error='还未加入过任何群聊,无法获取群聊信息!'):
         super().__init__(Error)
-class SameNameError(Exception):
-    def __init__(self, Error='待修改的群名需与先前的群名不同才可修改！'):
-        super().__init__(Error)
-class AlreadyInContactsError(Exception):
-    def __init__(self, Error='好友已在通讯录中,无需添加！'):
-        super().__init__(Error)
-class EmptyNoteError(Exception):
-    def __init__(self, Error="笔记中至少要有文字和文件中的一个！"):
-        super().__init__(Error)
-class CantSendEmptyMessageError(Exception):
-    def __init__(self, Error='不能发送空白消息！'):
-        super().__init__(Error)
 class CantCreateGroupError(Exception):
     def __init__(self, Error='除自身外至少两人以上才可以创建群聊!'):
-        super().__init__(Error)
-class WrongParameterError(Exception):
-    def __init__(self, Error='state的取值应为open或close!'):
         super().__init__(Error)
 class NotInstalledError(Exception):
     def __init__(self, Error='未找到微信注册表路径,可能未安装3.9版本PC微信或手动删除了注册表!'):
         super().__init__(Error)
-class NoSubScribedOAError(Exception):
+class NoSubOffAccError(Exception):
     def __init__(self, Error='从未关注过任何公众号,无法获取已关注的公众号名称！'):
-        super().__init__(Error)
-class NoPaymentLedgerError(Exception):
-    def __init__(self, Error='还未开通微信收款助手功能,请在微信移动端关注微信收款助手并完成商家认证后再使用该功能！'):
         super().__init__(Error)
 class NoWecomFriendsError(Exception):
     def __init__(self, Error='未查找到企业微信好友,无法获取企业微信好友信息！'):
         super().__init__(Error)
 class NoChatsError(Exception):
     def __init__(self,Error='会话列表为空,无最近聊天对象!'):
-        super().__init__(Error)
-class NoMomentsError(Exception):
-    def __init__(self,Error='朋友圈列表为空,无发获取朋友圈内容!'):
         super().__init__(Error)
 class NotFriendError(Exception):
     def __init__(self, Error):
@@ -98,12 +71,6 @@ class NoPermissionError(Exception):
 class NoChatHistoryError(Exception):
     def __init__(self, Error):
         super().__init__(Error)
-class HaveBeenSetError(Exception):
-    def __init__(self, Error):
-        super().__init__(Error)
 class NoResultsError(Exception):
     def __init__(self, Error):
-        super().__init__(Error)
-class AlreadyCloseError(Exception):
-    def __init__(self,Error):
         super().__init__(Error)

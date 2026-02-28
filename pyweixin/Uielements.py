@@ -131,6 +131,7 @@ class Texts():
         self.LanguageText={'title':'语言','control_type':'Text'}#语言文本，修改微信语言时要用到
         self.GroupNameText={'title':'群聊名称','control_type':'Text'}#群聊设置界面内的群聊名称文本
         self.AddContentText={'title':'添加补充内容','control_type':'Text'}#群聊接龙界面内的添加补充内容文本
+        self.GroupLabelText={'auto_id':"content_view.top_content_view.title_h_view.left_v_view.left_content_v_view.left_ui_.big_title_line_h_view.current_chat_count_label",'control_type':'Text'}#聊天界面是群聊时顶部才会出现的文本
 
 class TabItems():
     def __init__(self):

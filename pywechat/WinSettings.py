@@ -11,11 +11,7 @@ SystemSettings.set_system_volume()
 import os
 import ctypes
 import shutil
-from io import BytesIO
-import win32com.client
 import win32clipboard
-from ctypes import cast, POINTER
-from comtypes import CLSCTX_ALL
 ES_DISPLAY_REQUIRED=0x00000002
 ES_CONTINUOUS=0x80000000
 ES_CONTINUOUS=0x80000000
@@ -36,13 +32,11 @@ class SystemSettings():
     '''
 
     @staticmethod
-    def open_listening_mode(full_volume:bool=True):
+    def open_listening_mode():
         '''用来开启监听模式,此时电脑将不会息屏且电脑音量设置为100,除非断电否则屏幕保持常亮\n
         关闭时运行close_listening_mode方法即可'''
         ES_DISPLAY_REQUIRED=0x00000002
         ES_CONTINUOUS=0x80000000
-        if full_volume:
-            SystemSettings.set_system_volume()
         ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS|ES_DISPLAY_REQUIRED)
 
     @staticmethod   

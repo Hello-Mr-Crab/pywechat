@@ -7,15 +7,11 @@ https://github.com/Hello-Mr-Crab/pywechat/blob/main/Weixin4.0.md
 ### pywechat是一个基于pywinauto实现的Windows系统下PC微信自动化(pure uiautomation)的Python项目(不涉及逆向Hook操作),实现了PC微信内置的大部分功能。
 
 ### 微信版本:3.9+,4.1+
-### 操作系统:🪟windows 10 🪟windows 11
+### 操作系统:🪟windows 7 🪟windows 10 🪟windows 11
 ### python版本🐍:3.9+(支持TypeHint)
 ### 支持语言:简体中文,English,繁体中文
-### pyweixin 项目结构：
+### pyweixin 与 pywechat 项目结构(pywechat只能用于32位x86🪟10,32位x86🪟7)：
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/pyweixin结构.png)
-<br>
-
-### pywechat 项目结构(适用于32位x86🪟10，32位x86🪟7正在测试ing...)：
-![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/pywechat结构图.png)
 <br>
 
 ## pyweixin内所有方法需要先导入模块下的类然后调用内部方法🗺️🗺️
@@ -192,6 +188,18 @@ Moments.dump_friend_moments(friend='xxx',number=2,save_detail=True,target_folder
 
 <br>
 
+#### 好友朋友圈自定义评论
+```
+from pyweixin import Moments
+def comment_func(content):
+    if 'xxx' in content:
+        return 'yyy'
+    return 'zzz'
+Moments.like_friend_posts(friend='xxx',number=20,callback=comment_func,use_green_send=True)
+```
+
+<br>
+
 #### 此外pyweixin内所有方法及函数的一些位置参数支持全局设定,be like:
 ```
 from pyweixin import Navigator,GlobalConfig
@@ -202,6 +210,18 @@ Navigator.search_channels(search_content='微信4.0')
 Navigator.search_miniprogram(name='问卷星')
 Navigator.search_official_account(name='微信')
 ```
+<br>
+
+#### 公众号文章url获取
+```
+from pyweixin import Collections
+Collections.collect_offAcc_articles(name='新华社',number=10)
+urls=Collections.cardLink_to_url(number=10)
+for url,text in urls.items():
+    print(f'{text}\n{url}')
+```
+![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/公众号文章url获取.png)
+
 <br>
 
 #### 其他类内method使用方法可见代码中详细的文档注释以及pyweixin操作手册.docx
@@ -288,14 +308,9 @@ for dict in moments:
 <br>
 ##### 注意，导出的结果为list[dict],每一条朋友圈对应一个dict,dict具体内容为:
 {'好友备注':'','发布时间':'','文本内容':'','点赞者':'','评论内容':'','图片数量':'','视频数量':'','卡片链接':'','卡片链接内容':'','视频号':'','公众号链接内容':''}
-#### 朋友圈图片导出
-```
-from pywechat import export_recent_moments_images
-export_recent_moments_images(recent='Today')
-```
 
-![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/moments_images.png)
 <br>
+
 #### 监听整个会话列表内所有好友的新消息(自动保存聊天文件)
 ```
 from pywechat import check_new_message
@@ -325,7 +340,9 @@ auto_reply_to_group(group_name='测试群',duration='20min',content='我被@了'
 ```
 
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/auto_reply_to_group.png)
+
 <br>
+
 #### 给某个好友发送多条信息：
 ```
 from pywechat.WechatAuto import Messages
@@ -336,18 +353,9 @@ Messages.send_messages_to_friend(friend="文件传输助手",messages=['你好',
 import pywechat.WechatAuto as wechat
 wechat.send_messages_to_friend(friend="文件传输助手",messages=['你好','我正在使用pywechat操控微信给你发消息','收到请回复'])
 ```
+
 <br>
 
-#### 自动接听语音视频电话:
-```
-from pywechat.WechatAuto import AutoReply
-AutoReply.auto_answer_call(broadcast_content='您好，我目前不在线我的PC微信正在由我的微信机器人控制请稍后再试',message='您好，我目前不在线我的PC微信正在由我的微信机器人控制请稍后再试',duration='1h',times=1)
-```
-##### 或者
-```
-import pywechat.WechatAuto as wechat
-wechat.auto_answer_call(broadcast_content='您好，我目前不在线我的PC微信正在由我的微信机器人控制请稍后再试',message='您好，我目前不在线我的PC微信正在由我的微信机器人控制请稍后再试',duration='1h',times=1)
-```
 ### 多任务使用示例
 #### 注意,微信不支持多线程，只支持单线程多任务轮流执行，pywechat也支持单线程多任务轮流执行，在运行多个实例时尽量请将所有函数与方法内的close_wechat参数设为False(默认为True)
 #### 这样只需要打开一次微信，多个任务便可以共享资源,更加高效，否则，每个实例在运行时都会重启一次微信，较为低效。
@@ -359,10 +367,7 @@ from pywechat.WechatAuto import Messages,Files
 Messages.send_messages_to_friend(friend='好友1',messages=['在测试','ok'],close_wechat=False)
 Files.send_files_to_friend(friend='文件传输助手',folder_path=r"E:\OneDrive\Desktop\测试专用",with_messages=True,messages_first=True,messages=['在测试文件消息一起发，你应该先看到这条消息，后看到文件'],close_wechat=True)
 ```
-#### 效果演示:
-![Alt text](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/效果演示.gif)
 
-<br>
 
 ##### 自动回复效果:
 
