@@ -171,7 +171,7 @@ class SystemSettings():
         f.write(LongText)
         path=os.path.join(os.getcwd(),"LongText.txt")
         f.close()
-        SystemSettings.copy_file_to_windowsclipboard(path)
+        SystemSettings.copy_file_to_clipboard(path)
 
 
     @staticmethod

@@ -4,7 +4,7 @@ import emoji
 import psutil
 import pyautogui
 from functools import wraps
-from pywinauto import WindowSpecification,Desktop
+from pywinauto import WindowSpecification,Desktop,mouse
 from pywinauto.controls.uia_controls import ListItemWrapper #TypeHint要用到
 from .Config import GlobalConfig
 from .WeChatTools import Navigator,Tools
@@ -36,27 +36,145 @@ class Regex_Patterns():
         self.File_pattern=re.compile(r'文件\n(.*)\n')#微信聊天窗口发送的聊天文件卡片上的内容(有两个换行符)
         self.Article_Timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日|\d{1,2}月\d{1,2}日|昨天|星期\w|今天)')#公众号文章的时间戳
 
+class ColorMatch():
+    
+    @staticmethod
+    def _is_green_pixel(r:int,g:int,b:int)->bool:
+        '''微信发送按钮绿色像素启发式判断'''
+        if g < 80:
+            return False
+        if (g-r) < 18 or (g-b) < 8:
+            return False
+        if g < int(r*1.18):
+            return False
+        if g < int(b*1.10):
+            return False
+        return True
+
+    @staticmethod
+    def _find_green_button_center(region:tuple[int,int,int,int]):
+        '''在给定区域内寻找绿色按钮中心点,找不到返回None'''
+        try:
+            screenshot=pyautogui.screenshot(region=region).convert('RGB')
+        except Exception:
+            return None
+        width,height=screenshot.size
+        if width<=0 or height<=0:
+            return None
+        pixels=screenshot.load()
+        min_x,min_y=width,height
+        max_x,max_y=-1,-1
+        hit_count=0
+        for y in range(0,height,2):
+            for x in range(0,width,2):
+                r,g,b=pixels[x,y]
+                if ColorMatch._is_green_pixel(r,g,b):
+                    hit_count+=1
+                    if x<min_x:
+                        min_x=x
+                    if y<min_y:
+                        min_y=y
+                    if x>max_x:
+                        max_x=x
+                    if y>max_y:
+                        max_y=y
+
+        if hit_count<16 or max_x<0 or max_y<0:
+            return None
+        if (max_x-min_x)<10 or (max_y-min_y)<6:
+            return None
+        center_x=region[0]+(min_x+max_x)//2
+        center_y=region[1]+(min_y+max_y)//2
+        return center_x,center_y
+
+    @staticmethod
+    def click_green_send_button(rectangle,x_offset:int=70,y_offset:int=42)->bool:
+        '''
+        通过像素颜色识别点击评论区的绿色发送按钮,识别失败时回退原坐标点击
+        '''
+        fallback_coords=(rectangle.right-x_offset,rectangle.bottom-y_offset)
+        regions=[
+            (max(fallback_coords[0]-80,0),max(fallback_coords[1]-45,0),170,90),
+            (max(rectangle.right-(x_offset+150),0),max(rectangle.bottom-(y_offset+90),0),280,170),
+        ]
+        for region in regions:
+            center=ColorMatch._find_green_button_center(region)
+            if center is not None:
+                mouse.click(coords=center)
+                return True
+        mouse.click(coords=fallback_coords)
+        return False
+
+    @staticmethod
+    def _find_gray_button_center(region: tuple[int, int, int, int]):
+        '''在指定区域内快速查找灰色省略号按钮的中心点'''
+        try:
+            screenshot=pyautogui.screenshot(region=region).convert('RGB')
+        except Exception:
+            return None
+        width,height=screenshot.size
+        pixels=screenshot.load()
+        #直接寻找最亮的浅灰色像素块
+        target_pixels=[]
+        for y in range(height):
+            for x in range(width):
+                r, g, b=pixels[x, y]
+                # 条件放宽：接近白色但不是纯白
+                if r >220 and g>220 and b>220:#很亮的灰色
+                    if abs(r-g)<15 and abs(g-b)<15: #RGB值接近
+                        target_pixels.append((x,y))
+        if len(target_pixels)<5: #像素太少说明没找到
+            return None
+        #计算中心点
+        xs=[p[0] for p in target_pixels]
+        ys=[p[1] for p in target_pixels]
+        center_x=region[0]+(min(xs)+max(xs))//2
+        center_y=region[1]+(min(ys)+max(ys))//2
+        return center_x, center_y
+
+    @staticmethod
+    def click_gray_ellipsis_button(rectangle,region_height_offset:int=33) -> bool:
+        '''
+        像素颜色识别点击灰色省略号按钮
+        rectangle:输入框区域
+        region_height_offset:省略号区域相对于输入框底部的高度偏移
+        '''
+        #45x33的搜索区域
+        region_width=45
+        region_height=33
+        region_x=rectangle.right-70
+        region_y=rectangle.bottom-region_height_offset
+        region=(region_x,region_y,region_width,region_height)
+        center=ColorMatch._find_gray_button_center(region)
+        if center is not None:
+            mouse.click(coords=center)
+            return True
+        else:
+            #直接点击固定坐标
+            fallback_x=rectangle.right-44
+            fallback_y=rectangle.bottom-15
+            mouse.click(coords=(fallback_x, fallback_y))
+            return False
+
 def auto_reply_to_friend_decorator(duration:str,friend:str,search_pages:int=5,is_maximize:bool=False,close_weixin:bool=False):
     '''
     该函数为自动回复指定好友的修饰器
     Args:
         friend:好友或群聊备注
         duration:自动回复持续时长,格式:'s','min','h',单位:s/秒,min/分,h/小时
-        search_pages:在会话列表中查询查找好友时滚动列表的次数,默认为5,一次可查询5-12人,当search_pages为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
+        search_pages:在会话列表中查询查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
         is_maximize:微信界面是否全屏,默认全屏。
         close_weixin:任务结束后是否关闭微信,默认关闭
     Examples:
-    ```
-    from pyweixin.utils import auto_reply_to_friend_decorator
-    @auto_reply_to_friend_decorator(duration='10min',friend='好友')
-    def reply_func(newMessage):
-        if '在吗' in newMessage:
-            return '你好,我不在'
-        if '在干嘛?' in newMessage:
-            return '在挂机'
-        return '不在'
-    reply_func()
-    ```
+        >>> from pyweixin.utils import auto_reply_to_friend_decorator
+        >>> @auto_reply_to_friend_decorator(duration='10min',friend='好友')
+        >>> def reply_func(newMessage):
+        >>>     if '你好' in message:
+        >>>         return '你好,有什么可以帮您的吗[呲牙]?'
+        >>>     if '在吗' in message:
+        >>>         return '在的[旺柴]'
+        >>>     return '自动回复[微信机器人]:您好,我当前不在,请您稍后再试'
+        >>> reply_func()
     '''
     def decorator(reply_func):
         @wraps(reply_func)
@@ -89,10 +207,10 @@ def auto_reply_to_friend_decorator(duration:str,friend:str,search_pages:int=5,is
                 if runtime_id!=initial_runtime_id:
                     if not Tools.is_my_bubble(main_window,newMessage,edit_area):
                         reply_content=reply_func(newMessage.window_text())
-                        edit_area.click_input()
-                        SystemSettings.copy_text_to_windowsclipboard(reply_content)#复制回复内容到剪贴板
-                        pyautogui.hotkey('ctrl','v',_pause=False)
-                        pyautogui.hotkey('alt','s',_pause=False)
+                        if reply_content is not None:
+                            edit_area.click_input()
+                            edit_area.set_text(reply_content)
+                            pyautogui.hotkey('alt','s')
                         initial_runtime_id=runtime_id
             SystemSettings.close_listening_mode()
             if close_weixin:

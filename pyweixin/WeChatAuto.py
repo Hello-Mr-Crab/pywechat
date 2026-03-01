@@ -70,7 +70,7 @@ from typing import Callable
 #内部依赖
 from .Config import GlobalConfig
 from .utils import scan_for_new_messages,get_new_message_num
-from .utils import At,At_all,Regex_Patterns
+from .utils import At,At_all,Regex_Patterns,ColorMatch
 from .Warnings import LongTextWarning,NoChatHistoryWarning
 from .WeChatTools import Tools,Navigator,mouse,Desktop
 from .WinSettings import SystemSettings
@@ -2282,150 +2282,7 @@ class Moments():
         return posts
     
     @staticmethod
-    def _is_green_pixel(r:int,g:int,b:int)->bool:
-        """微信发送按钮绿色像素启发式判断"""
-        if g < 80:
-            return False
-        if (g - r) < 18 or (g - b) < 8:
-            return False
-        if g < int(r * 1.18):
-            return False
-        if g < int(b * 1.10):
-            return False
-        return True
-
-    @staticmethod
-    def _find_green_button_center(region:tuple[int,int,int,int]):
-        """在给定区域内寻找绿色按钮中心点，找不到返回None"""
-        try:
-            screenshot=pyautogui.screenshot(region=region).convert('RGB')
-        except Exception:
-            return None
-        width,height=screenshot.size
-        if width<=0 or height<=0:
-            return None
-
-        pixels=screenshot.load()
-        min_x,min_y=width,height
-        max_x,max_y=-1,-1
-        hit_count=0
-
-        for y in range(0,height,2):
-            for x in range(0,width,2):
-                r,g,b=pixels[x,y]
-                if Moments._is_green_pixel(r,g,b):
-                    hit_count+=1
-                    if x<min_x:
-                        min_x=x
-                    if y<min_y:
-                        min_y=y
-                    if x>max_x:
-                        max_x=x
-                    if y>max_y:
-                        max_y=y
-
-        if hit_count<16 or max_x<0 or max_y<0:
-            return None
-        if (max_x-min_x)<10 or (max_y-min_y)<6:
-            return None
-
-        center_x=region[0]+(min_x+max_x)//2
-        center_y=region[1]+(min_y+max_y)//2
-        return center_x,center_y
-
-    @staticmethod
-    def _click_send_button(anchor_rect,x_offset:int=70,y_offset:int=42)->bool:
-        """
-        优先使用绿色按钮识别点击发送；
-        识别失败时回退原坐标点击，保证兼容旧逻辑。
-        """
-        fallback_coords=(anchor_rect.right-x_offset,anchor_rect.bottom-y_offset)
-        regions=[
-            (max(fallback_coords[0]-80,0),max(fallback_coords[1]-45,0),170,90),
-            (max(anchor_rect.right-(x_offset+150),0),max(anchor_rect.bottom-(y_offset+90),0),280,170),
-        ]
-        for region in regions:
-            center=Moments._find_green_button_center(region)
-            if center is not None:
-                mouse.click(coords=center)
-                return True
-        mouse.click(coords=fallback_coords)
-        return False
-
-    def _is_gray_pixel(r: int, g: int, b: int) -> bool:
-        """微信省略号按钮灰色像素启发式判断"""
-        max_val = max(r, g, b)
-        min_val = min(r, g, b)
-        # 如果最大值和最小值的差小于 20，且亮度适中（排除纯黑和纯白），则认为是灰色
-        if (max_val-min_val) > 20:
-            return False
-        if max_val<50 or max_val>200:
-            return False
-            
-        return True
-
-    @staticmethod
-    def _find_gray_button_center(region: tuple[int, int, int, int]):
-        """在给定区域内寻找灰色按钮中心点,找不到返回None"""
-        try:
-            screenshot=pyautogui.screenshot(region=region).convert('RGB')
-        except Exception:
-            return None
-        width, height=screenshot.size
-        if width <= 0 or height <= 0:
-            return None
-
-        pixels = screenshot.load()
-        min_x, min_y = width, height
-        max_x, max_y = -1, -1
-        hit_count = 0
-
-        for y in range(0, height, 2):
-            for x in range(0, width, 2):
-                r, g, b = pixels[x, y]
-                if Moments._is_gray_pixel(r, g, b):
-                    hit_count += 1
-                    if x < min_x:
-                        min_x = x
-                    if y < min_y:
-                        min_y = y
-                    if x > max_x:
-                        max_x = x
-                    if y > max_y:
-                        max_y = y
-
-        if hit_count < 16 or max_x < 0 or max_y < 0:
-            return None
-        if (max_x - min_x) < 10 or (max_y - min_y) < 6:
-            return None
-
-        center_x = region[0] + (min_x + max_x) // 2
-        center_y = region[1] + (min_y + max_y) // 2
-        return center_x, center_y
-
-    @staticmethod
-    def _click_gray_button(anchor_rect,x_offset:int=44,y_offset:int=15)->bool:
-        """
-        优先使用灰色按钮识别点击省略号；
-        识别失败时回退原坐标点击，保证兼容旧逻辑。
-        """
-        fallback_coords = (anchor_rect.right - x_offset, anchor_rect.bottom - y_offset)
-        # 定义搜索区域，通常省略号在右下角，所以区域偏右下
-        regions = [
-            (max(fallback_coords[0] - 80, 0), max(fallback_coords[1] - 45, 0), 170, 90),
-            (max(anchor_rect.right - (x_offset + 150), 0), max(anchor_rect.bottom - (y_offset + 90), 0), 280, 170),
-        ]
-        for region in regions:
-            center = Moments._find_gray_button_center(region)
-            if center is not None:
-                mouse.click(coords=center)
-                return True
-        #找不到就点击固定坐标
-        mouse.click(coords=fallback_coords)
-        return False
-
-    @staticmethod
-    def like_posts(recent:Literal['Today','Yesterday','Week','Month']='Today',number:int=None,callback:Callable[[str],str]=None,is_maximize:bool=None,close_weixin:bool=None,use_green_send:bool=False)->list[dict]:
+    def like_posts(recent:Literal['Today','Yesterday','Week','Month']='Today',number:int=None,callback:Callable[[str],str]=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
         '''
         该方法用来给朋友圈内最近发布的内容点赞和评论
         Args:
@@ -2434,7 +2291,6 @@ class Moments():
             number:数量,如果指定了一定的数量,那么点赞数量超过number时结束,如果没有则在recent指定的范围内全部点赞
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
-            use_green_send:是否启用绿色发送按钮识别，默认False（保持原坐标点击）
         Returns:
            posts:朋友圈内容,list[dict]的格式,具体为[{'内容':xx,'图片数量':xx,'视频数量':xx,'发布时间':xx}]
         '''
@@ -2462,7 +2318,7 @@ class Moments():
             #点赞操作
             mouse.move(coords=center_point)
             rectangle=content_listitem.rectangle()
-            Moments._click_send_button(rectangle,x_offset=44,y_offset=15)
+            ColorMatch.click_gray_ellipsis_button(rectangle)
             if like_button.exists(timeout=0.1):
                 like_button.click_input()
 
@@ -2479,11 +2335,8 @@ class Moments():
                 SystemSettings.copy_text_to_clipboard(text=reply)
                 pyautogui.hotkey('ctrl','v')
                 rectangle=comment_listitem.rectangle()
-                if use_green_send:
-                    Moments._click_send_button(rectangle,x_offset=70,y_offset=42)
-                else:
-                    send_button_area=(rectangle.right-70,rectangle.bottom-42)
-                    mouse.click(coords=send_button_area)
+                ColorMatch.click_green_send_button(rectangle,x_offset=70,y_offset=42)
+               
 
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
@@ -2502,7 +2355,7 @@ class Moments():
         sns_timestamp_pattern=Regex_Patterns.Sns_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳
         not_contents=['mmui::TimelineCommentCell','mmui::TimelineCell','mmui::TimelineAdGridImageCell']#评论区，余下x条,广告,这三种不需要
         moments_window=Navigator.open_moments(is_maximize=is_maximize,close_weixin=close_weixin)
-        # win32gui.SendMessage(moments_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MAXIMIZE,0)
+        time.sleep(2)#等待刷新
         like_button=moments_window.child_window(control_type='Button',title='赞')
         comment_button=moments_window.child_window(control_type='Button',title='评论')
         moments_list=moments_window.child_window(**Lists.MomentsList)
@@ -2648,7 +2501,7 @@ class Moments():
         return posts
 
     @staticmethod
-    def like_friend_posts(friend:str,number:int,callback:Callable[[str],str]=None,is_maximize:bool=None,close_weixin:bool=None,use_green_send:bool=False)->list[dict]:
+    def like_friend_posts(friend:str,number:int,callback:Callable[[str],str]=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
         '''
         该方法用来给某个好友朋友圈内发布的内容点赞和评论
         Args:
@@ -2657,7 +2510,6 @@ class Moments():
             callback:评论回复函数,入参为字符串是好友朋友圈的内容,返回值为要评论的内容
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
-            use_green_send:是否启用绿色发送按钮识别，默认False（保持原坐标点击）
         Returns:
            posts:朋友圈内容,list[dict]的格式,具体为[{'内容':xx,'图片数量':xx,'视频数量':xx,'发布时间':xx}]
         '''
@@ -2679,8 +2531,8 @@ class Moments():
             #点赞操作
             center_point=(listview.rectangle().mid_point().x,listview.rectangle().mid_point().y)
             mouse.move(coords=center_point)
-            ellipsis_area=(content_listitem.rectangle().right-44,content_listitem.rectangle().bottom-15)#省略号按钮所处位置
-            mouse.click(coords=ellipsis_area)
+            rectangle=content_listitem.rectangle()
+            ColorMatch.click_gray_ellipsis_button(rectangle)
             if like_button.exists(timeout=0.1):
                 like_button.click_input()
 
@@ -2689,8 +2541,7 @@ class Moments():
             comment_listitem=Tools.get_next_item(listview,content_listitem)
             center_point=(listview.rectangle().mid_point().x,listview.rectangle().mid_point().y)
             mouse.move(coords=center_point)
-            ellipsis_area=(content_listitem.rectangle().right-44,content_listitem.rectangle().bottom-15)#省略号按钮所处位置
-            mouse.click(coords=ellipsis_area)
+            ColorMatch.click_gray_ellipsis_button(content_listitem.rectangle())
             reply=callback(content) 
             if comment_button.exists(timeout=0.1) and reply is not None:
                 comment_button.click_input()
@@ -2698,13 +2549,8 @@ class Moments():
                 pyautogui.press('backspace')
                 SystemSettings.copy_text_to_clipboard(text=reply)
                 pyautogui.hotkey('ctrl','v')
-                rectangle=comment_listitem.rectangle()
-                if use_green_send:
-                    Moments._click_send_button(rectangle,x_offset=70,y_offset=42)
-                else:
-                    send_button_area=(rectangle.right-70,rectangle.bottom-42)
-                    mouse.click(coords=send_button_area)
-
+                ColorMatch.click_green_send_button(comment_listitem.rectangle(),x_offset=70,y_offset=42)
+              
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
@@ -2794,7 +2640,6 @@ class Messages():
                 edit_area.click_input()
                 SystemSettings.copy_text_to_clipboard(message)#不要直接set_text,直接set_text相当于默认clear了
                 pyautogui.hotkey('ctrl','v',_pause=False)
-
                 time.sleep(send_delay)
                 pyautogui.hotkey('alt','s',_pause=False)
             elif len(message)>2000:#字数超过200字发送txt文件
