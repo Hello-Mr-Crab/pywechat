@@ -161,7 +161,7 @@ print(result)#返回值 {'新消息总数':x,'文本数量':x,'文件数量':x,'
 #### 朋友圈数据获取
 ```
 from pyweixin import Moments
-posts=Moments.dump_recent_moments(recent='Today')
+posts=Moments.dump_recent_posts(recent='Today')
 for dic in posts:
     print(dic)
 ```
@@ -181,7 +181,7 @@ Moments.post_moments(texts='''发布朋友圈测试[旺柴]''',medias=[r"E:\Desk
 #### 好友朋友圈内容导出
 ```
 from pyweixin import Moments
-Moments.dump_friend_moments(friend='xxx',number=2,save_detail=True,target_folder=r"E:\Desktop\好友朋友圈内容导出")
+Moments.dump_friend_posts(friend='xxx',number=3,save_detail=True,target_folder=r"E:\Desktop\好友朋友圈内容导出")
 ```
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/好友朋友圈内容导出.png)
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/好友朋友圈内容.png)

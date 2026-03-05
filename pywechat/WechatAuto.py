@@ -5778,7 +5778,7 @@ class Moments():
         return moments
     
     @staticmethod
-    def dump_recent_moments(recent:Literal['Today','Yesterday','Week','Month','Year'],is_maximize:bool=None,close_wechat:bool=None):
+    def dump_recent_posts(recent:Literal['Today','Yesterday','Week','Month','Year'],is_maximize:bool=None,close_wechat:bool=None):
         '''
         该方法用来获取最近一段时间的朋友圈内容,主要包括今天,昨天,本周,本月,本年
         Args:

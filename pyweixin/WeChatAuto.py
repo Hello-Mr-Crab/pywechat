@@ -2193,7 +2193,7 @@ class Moments():
         post_button.click_input()
 
     @staticmethod
-    def dump_recent_moments(recent:Literal['Today','Yesterday','Week','Month']='Today',number:int=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
+    def dump_recent_posts(recent:Literal['Today','Yesterday','Week','Month']='Today',number:int=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
         '''
         该方法用来获取最近一月内微信朋友圈内好友发布过的具体内容
         Args:
@@ -2226,7 +2226,7 @@ class Moments():
                 photo_num=int(re.search(rf'\s包含(\d+)张图片\s',text).group(1))
             if re.search(rf'\s视频\s',text):
                 video_num=1
-            content=re.sub(rf'\s((包含\d+张图片\s|视频\s).*{post_time})\s','',text)
+            content=re.sub(rf'(\s包含\d+张图片\s)|(\s视频\s).*{post_time}','',text)
             return content,photo_num,video_num,post_time
         
         if is_maximize is None:
@@ -2311,7 +2311,7 @@ class Moments():
                 photo_num=int(re.search(rf'\s包含(\d+)张图片\s',text).group(1))
             if re.search(rf'\s视频\s',text):
                 video_num=1
-            content=re.sub(rf'\s((包含\d+张图片\s|视频\s).*{post_time})','',text)
+            content=re.sub(rf'(\s包含\d+张图片\s)|(\s视频\s).*{post_time}','',text)
             return content,photo_num,video_num,post_time
         
         def like(content_listitem:ListItemWrapper):
@@ -2395,7 +2395,7 @@ class Moments():
         return posts
 
     @staticmethod
-    def dump_friend_moments(friend:str,number:int,save_detail:bool=False,target_folder:str=None,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
+    def dump_friend_posts(friend:str,number:int,save_detail:bool=False,target_folder:str=None,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
         '''
         该方法用来获取某个好友的微信朋友圈的内一定数量的内容
         Args:
@@ -2409,14 +2409,34 @@ class Moments():
         Returns:
             posts:朋友圈具体内容,list[dict]的格式,具体为[{'内容':xx,'图片数量':xx,'视频数量':xx,'发布时间':xx}]
         '''
-        def save_media(sns_detail_list:ListViewWrapper,photo_num:int,detail_folder:str,content:str):
+        def save_media(sns_detail_list:ListViewWrapper,photo_num:int,video_num:int,detail_folder:str,content:str):
             content_path=os.path.join(detail_folder,'内容.txt')
             capture_path=os.path.join(detail_folder,'内容截图.png')
+            video_path=os.path.join(detail_folder,'朋友圈视频.mp4')
             #保存截图
             sns_detail_list.children(control_type='ListItem')[0].capture_as_image().save(capture_path)
             #保存内容
             with open(content_path,'w',encoding='utf-8') as f:
-                f.write(content)
+                f.write(content) if content else f.write(f'无文本内容')
+            #保存视频
+            if video_num: 
+                content_listitem=sns_detail_list.children(control_type='ListItem',title='')[0]
+                rectangle=content_listitem.rectangle()
+                center_y=rectangle.mid_point().y
+                side_x=rectangle.mid_point().x-20 
+                mouse.right_click(coords=(side_x,center_y))
+                is_download=moments_window.child_window(control_type='MenuItem',title='收藏').exists(timeout=0.1)
+                pyautogui.doubleClick(x=side_x-10,y=center_y,interval=0.1)
+                image_preview_window.right_click_input()
+                while not is_download:
+                    image_preview_window.right_click_input()
+                    copy_item=image_preview_window.child_window(**MenuItems.CopyMenuItem)
+                    if copy_item.exists(timeout=0.5):
+                        is_download=True 
+                    time.sleep(0.5)       
+                pyautogui.press('down',presses=2)
+                pyautogui.press('enter')
+                SystemSettings.save_pasted_video(video_path)
             #保存图片
             if photo_num:
                 rec=sns_detail_list.rectangle()
@@ -2433,7 +2453,7 @@ class Moments():
                     time.sleep(0.5)#0.5s缓存到剪贴板时间
                     SystemSettings.save_pasted_image(path)
                     pyautogui.press('right',interval=0.05)
-                pyautogui.press('esc')
+            pyautogui.press('esc')
 
         def parse_friend_post(listitem:ListItemWrapper):
             '''获取朋友圈文本中的时间戳,图片数量,以及剩余内容'''
@@ -2446,7 +2466,7 @@ class Moments():
                 photo_num=int(re.search(r'\s包含(\d+)张图片\s',text).group(1))
             if re.search(rf'\s视频\s{post_time}',text):
                 video_num=1
-            content=re.sub(rf'\s((包含\d+张图片\s|视频\s).*{post_time})\s','',text)
+            content=re.sub(rf'(\s包含\d+张图片\s)|(\s视频\s).*{post_time}','',text)
             return content,photo_num,video_num,post_time
 
         if is_maximize is None:
@@ -2456,7 +2476,7 @@ class Moments():
         if search_pages is None:
             search_pages=GlobalConfig.search_pages
         if save_detail  and target_folder is None:
-            target_folder=os.path.join(os.getcwd(),f'dump_friend_moments朋友圈图片保存')
+            target_folder=os.path.join(os.getcwd(),'dump_friend_posts朋友圈内容保存')
             print(f'未传入文件夹图片和内容将保存到{target_folder}内的 {friend} 文件夹下')
             os.makedirs(target_folder,exist_ok=True)
         if save_detail and (not os.path.exists(target_folder) or not os.path.isdir(target_folder)):
@@ -2468,6 +2488,7 @@ class Moments():
         recorded_num=0
         sns_detail_pattern=Regex_Patterns.Snsdetail_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳pattern
         not_contents=['mmui::AlbumBaseCell','mmui::AlbumTopCell']#置顶内容不需要
+        image_preview_window=desktop.window(**Windows.ImagePreviewWindow)
         moments_window=Navigator.open_friend_moments(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin,search_pages=search_pages)
         backbutton=moments_window.child_window(**Buttons.BackButton)
         #直接maximize不行,需要使用win32gui
@@ -2489,7 +2510,7 @@ class Moments():
                     if save_detail:
                         detail_folder=os.path.join(friend_folder,f'{recorded_num}')
                         os.makedirs(detail_folder,exist_ok=True)
-                        save_media(sns_detail_list,photo_num,detail_folder,content)
+                        save_media(sns_detail_list,photo_num,video_num,detail_folder,content)
                     recorded_num+=1
                     if sns_detail_list.exists(timeout=0.1):
                         backbutton.click_input()
@@ -2524,7 +2545,7 @@ class Moments():
                 photo_num=int(re.search(r'\s包含(\d+)张图片\s',text).group(1))
             if re.search(rf'\s视频\s{post_time}',text):
                 video_num=1
-            content=re.sub(rf'\s((包含\d+张图片\s|视频\s).*{post_time})\s','',text)
+            content=re.sub(rf'(\s包含\d+张图片\s)|(\s视频\s).*{post_time}','',text)
             return content,photo_num,video_num,post_time
 
         def like(listview:ListViewWrapper,content_listitem:ListItemWrapper):

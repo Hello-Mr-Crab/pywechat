@@ -91,6 +91,10 @@ class ColorMatch():
     def click_green_send_button(rectangle,x_offset:int=70,y_offset:int=42)->bool:
         '''
         通过像素颜色识别点击评论区的绿色发送按钮,识别失败时回退原坐标点击
+        Args:
+            rectangel:评论区列表项目所属的矩形
+            x_offset:相较于该列表项目右侧靠左的距离
+            y_offset:相较于该列表项目底部靠上的距离
         '''
         fallback_coords=(rectangle.right-x_offset,rectangle.bottom-y_offset)
         regions=[
@@ -133,17 +137,19 @@ class ColorMatch():
         return center_x, center_y
 
     @staticmethod
-    def click_gray_ellipsis_button(rectangle,region_height_offset:int=33) -> bool:
+    def click_gray_ellipsis_button(rectangle,x_offset:int=70,y_offset:int=33) -> bool:
         '''
-        像素颜色识别点击灰色省略号按钮
-        rectangle:输入框区域
-        region_height_offset:省略号区域相对于输入框底部的高度偏移
+        通过像素颜色识别点击灰色省略号按钮
+        Args:
+            rectangel:评论区列表项目所属的矩形
+            x_offset:相较于该列表项目右侧靠左的距离
+            y_offset:相较于该列表项目底部靠上的距离
         '''
         #45x33的搜索区域
         region_width=45
         region_height=33
-        region_x=rectangle.right-70
-        region_y=rectangle.bottom-region_height_offset
+        region_x=rectangle.right-x_offset
+        region_y=rectangle.bottom-y_offset
         region=(region_x,region_y,region_width,region_height)
         center=ColorMatch._find_gray_button_center(region)
         if center is not None:
@@ -362,10 +368,10 @@ def scan_for_new_messages(main_window:WindowSpecification=None,delay:float=0.3,i
         new_message_num=int(new_message_num.group(0))
         session_list=main_window.child_window(**Main_window.ConversationList)
         session_list.type_keys('{END}')
-        time.sleep(0.2)
+        time.sleep(1)
         last_item=session_list.children(control_type='ListItem')[-1].window_text()
         session_list.type_keys('{HOME}')
-        time.sleep(0.2)
+        time.sleep(1)
         while sum(newMessages_dict.values())<new_message_num:#当最终的新消息总数之和大于等于实际新消息总数时退出循环
             #遍历获取带有新消息的ListItem
             listItems=session_list.children(control_type='ListItem')

@@ -709,18 +709,17 @@ class Navigator():
             search_pages=GlobalConfig.search_pages
         main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton)
-        friend_chatinfo_pane=main_window.child_window(auto_id="single_chat_info_view",control_type='Group',class_name='mmui::XView')
-        group_chatinfo_pane=main_window.child_window(class_name="mmui::ChatRoomMemberInfoView",control_type='Group')
         if not chatinfo_button.exists(timeout=0.1):
             main_window.close()
             raise NotFriendError(f'非正常好友或群聊！无法打开该好友或群聊的聊天信息界面')
         else: 
-            if not friend_chatinfo_pane.exists(timeout=0.1) and not group_chatinfo_pane.exists(timeout=0.1): 
-                chatinfo_button.click_input()
-            if friend_chatinfo_pane.exists(timeout=0.1) and not group_chatinfo_pane.exists(timeout=0.1):
-                return friend_chatinfo_pane,main_window
-            if group_chatinfo_pane.exists(timeout=0.1) and not friend_chatinfo_pane.exists(timeout=0.1):
-                return group_chatinfo_pane,main_window
+            chatinfo_button.click_input()
+            if not Tools.is_group_chat(main_window):
+                chatinfo_pane=main_window.child_window(auto_id='single_chat_info_view',control_type='Group')     
+            else:
+                chatinfo_pane=main_window.child_window(class_name='mmui::ChatRoomMemberInfoView',control_type='Group')
+            return chatinfo_pane,main_window
+            
 
     @staticmethod 
     def open_friend_profile(friend:str,is_maximize:bool=None,search_pages:int=None)->tuple[WindowSpecification,WindowSpecification]:
@@ -974,6 +973,10 @@ class Navigator():
             is_maximize=GlobalConfig.is_maximize
         if search_pages is None:
             search_pages=GlobalConfig.search_pages
+        if not isinstance(friend,str):
+            raise ValueError(f'好友备注必须是字符串!')
+        if not friend:
+            raise ValueError(f'好友备注不能为空!')
         #如果search_pages不为0,即需要在会话列表中滚动查找时，使用find_friend_in_SessionList方法找到好友,并点击打开对话框
         if search_pages:
             is_find,main_window=Navigator.find_friend_in_SessionList(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
@@ -1051,7 +1054,7 @@ class Navigator():
             is_contact=True
             texts=[listitem.window_text() for listitem in search_result.children(control_type="ListItem")]
             listitems=search_result.children(control_type='ListItem')
-            if ('联系人' in texts) or ('群聊' in texts) or ('最近使用' in texts):
+            if ('联系人' in texts) or ('群聊' in texts) or ('最近使用' in texts) or ('最常使用' in texts):
                 listitems=[listitem for listitem in listitems if listitem.class_name()=="mmui::SearchContentCellView"]
                 listitems=[listitem for listitem in listitems if listitem.window_text()==friend]
                 if listitems:

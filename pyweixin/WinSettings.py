@@ -201,7 +201,10 @@ class SystemSettings():
         '''
         os.makedirs(target_folder, exist_ok=True)
         if not os.path.exists(os.path.join(target_folder,os.path.basename(file_path))):
-            shutil.copy2(file_path, target_folder)
+            try:
+                shutil.copy2(file_path, target_folder)
+            except Exception:
+                pass
     
     @staticmethod
     def save_pasted_image(img_path:str):
@@ -216,3 +219,28 @@ class SystemSettings():
             image=Image.open(io.BytesIO(data))
             image.save(img_path)
         win32clipboard.CloseClipboard()
+    
+    @staticmethod
+    def save_pasted_video(video_path:str)->bool:
+        '''
+        从剪贴板保存微信视频文件
+        Args:
+            output_path:输出的mp4文件路径,xxx.mp4
+            
+        Returns:
+            is_saved:是否保存到了指定路径
+        '''
+        is_saved=False
+        file_path=''
+        win32clipboard.OpenClipboard()
+        if win32clipboard.IsClipboardFormatAvailable(win32clipboard.CF_HDROP):
+            hdrop=win32clipboard.GetClipboardData(win32clipboard.CF_HDROP)
+            file_path=hdrop[0]
+        win32clipboard.CloseClipboard()
+        if file_path.endswith('.mp4'):
+            try:
+                shutil.copy2(file_path,video_path)
+                is_saved=True
+            except Exception:
+                pass
+        return is_saved
