@@ -132,7 +132,7 @@ class Texts():
         self.GroupNameText={'title':'群聊名称','control_type':'Text'}#群聊设置界面内的群聊名称文本
         self.AddContentText={'title':'添加补充内容','control_type':'Text'}#群聊接龙界面内的添加补充内容文本
         self.GroupLabelText={'auto_id':"content_view.top_content_view.title_h_view.left_v_view.left_content_v_view.left_ui_.big_title_line_h_view.current_chat_count_label",'control_type':'Text'}#聊天界面是群聊时顶部才会出现的文本
-
+        
 class TabItems():
     def __init__(self):
         self.ShortCutTabItem={'title':'快捷键','control_type':'TabItem'}#微信设置界面里左侧的快捷键Tabitem
@@ -272,7 +272,7 @@ class Main_window():
         self.AddTalkMemberWindow={'title':'微信选择成员','control_type':'Window','class_name':"mmui::SessionPickerWindow",'framework_id':'Qt'}#添加新朋友时弹出的窗口
         self.MainWindow={'title':'微信','class_name':'mmui::MainWindow'}#微信主界面
         self.Toolbar={'title':'导航','control_type':'ToolBar'}#主界面左侧的侧边栏
-        self.ConversationList={'title':'会话','control_type':'List','framework_id':'Qt'}#主界面左侧会话列表
+        self.SessionList={'title':'会话','control_type':'List','framework_id':'Qt'}#主界面左侧会话列表
         self.Search={'title':'搜索','control_type':'Edit','class_name':"mmui::XValidatorTextEdit"}#主界面顶部的搜索栏
         self.SearchResult={'title':"",'control_type':'List','auto_id':'search_list'}#主界面顶部搜索栏搜索内容的结果列表
         self.ChatToolBar={'title':'','found_index':0,'control_type':'ToolBar'}#主界面右侧聊天窗口内的工具栏(语音视频按钮在其中)

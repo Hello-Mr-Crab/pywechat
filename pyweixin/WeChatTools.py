@@ -432,7 +432,7 @@ class Tools():
         '''用来截取聊天记录中的聊天对象昵称,左上角灰白色文本'''
         rectangle=listitem.rectangle()
         width=rectangle.right-rectangle.left
-        x=rectangle.left+80
+        x=rectangle.left+85
         y=rectangle.top+5
         image=pyautogui.screenshot(region=(x,y,width-270,38))
         return image
@@ -652,13 +652,15 @@ class Navigator():
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
         #先看看当前微信右侧界面是不是聊天界面可能存在不是聊天界面的情况比如是纯白色的微信的icon
         chats_button=main_window.child_window(**SideBar.Chats)
-        session_list=main_window.child_window(**Main_window.ConversationList)
+        session_list=main_window.child_window(**Main_window.SessionList)
         if not session_list.exists():
             chats_button.click_input()
         if not session_list.is_visible():
             chats_button.click_input()
-        current_chat=main_window.child_window(**Texts.CurrentChatText)
-        if current_chat.exists(timeout=0.1) and current_chat.window_text()==friend:
+        current_chat_label=Texts.CurrentChatText
+        current_chat_label['title']=friend
+        current_chat=main_window.child_window(**current_chat_label)
+        if current_chat.exists(timeout=0.1):
         #如果当前主界面聊天界面顶部的名称为好友名称，is_find为True,直接返回此时主界面
             is_find=True
             return is_find,main_window
@@ -713,11 +715,14 @@ class Navigator():
             main_window.close()
             raise NotFriendError(f'非正常好友或群聊！无法打开该好友或群聊的聊天信息界面')
         else: 
-            chatinfo_button.click_input()
             if not Tools.is_group_chat(main_window):
                 chatinfo_pane=main_window.child_window(auto_id='single_chat_info_view',control_type='Group')     
+                if not chatinfo_pane.exists(timeout=0.1):
+                    chatinfo_button.click_input()
             else:
                 chatinfo_pane=main_window.child_window(class_name='mmui::ChatRoomMemberInfoView',control_type='Group')
+                if not chatinfo_pane.exists(timeout=0.1):
+                    chatinfo_button.click_input()
             return chatinfo_pane,main_window
             
 
@@ -1081,7 +1086,7 @@ class Navigator():
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
         chat_button=main_window.child_window(**SideBar.Chats)
         chat_button.click_input()
-        session_list=main_window.child_window(**Main_window.ConversationList)
+        session_list=main_window.child_window(**Main_window.SessionList)
         search=main_window.descendants(**Main_window.Search)[0]
         search.click_input()
         search.set_text(friend)

@@ -24,7 +24,7 @@ desktop=Desktop(backend='uia')
 class Regex_Patterns():
     '''常用正则pattern'''
     def __init__(self):
-        #|表示或的逻辑关系,关于Python正则表达式的任何问题和入门级教程可以差看这篇博客:https://blog.csdn.net/weixin_73953650/article/details/151123336?spm=1001.2014.3001.5501
+        #|表示或的逻辑关系,关于Python正则表达式的任何问题和入门级教程可以看这篇博客:https://blog.csdn.net/weixin_73953650/article/details/151123336?spm=1001.2014.3001.5501
         self.Sns_Timestamp_pattern=re.compile(r'\d+分钟前|\d+小时前|昨天|\d+天前')#朋友圈好友发布内容左下角的时间戳
         self.Chafile_Timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日|\d{1,2}月\d{1,2}日|昨天|星期\w|\d{1,2}:\d{2})')#微信聊天文件时间戳
         self.Snsdetail_Timestamp_pattern=re.compile(r'(?<=\s)\d{4}年\d{1,2}月\d{1,2}日\s\d{1,2}:\d{2}|\d{1,2}月\d{1,2}日\s\d{1,2}:\d{2}|昨天\s\d{1,2}:\d{2}|星期\w\s\d{1,2}:\d{2}|\d{1,2}:\d{2}\s$')#微信好友朋友圈主页内的时间戳
@@ -88,28 +88,6 @@ class ColorMatch():
         return center_x,center_y
 
     @staticmethod
-    def click_green_send_button(rectangle,x_offset:int=70,y_offset:int=42)->bool:
-        '''
-        通过像素颜色识别点击评论区的绿色发送按钮,识别失败时回退原坐标点击
-        Args:
-            rectangel:评论区列表项目所属的矩形
-            x_offset:相较于该列表项目右侧靠左的距离
-            y_offset:相较于该列表项目底部靠上的距离
-        '''
-        fallback_coords=(rectangle.right-x_offset,rectangle.bottom-y_offset)
-        regions=[
-            (max(fallback_coords[0]-80,0),max(fallback_coords[1]-45,0),170,90),
-            (max(rectangle.right-(x_offset+150),0),max(rectangle.bottom-(y_offset+90),0),280,170),
-        ]
-        for region in regions:
-            center=ColorMatch._find_green_button_center(region)
-            if center is not None:
-                mouse.click(coords=center)
-                return True
-        mouse.click(coords=fallback_coords)
-        return False
-
-    @staticmethod
     def _find_gray_button_center(region: tuple[int, int, int, int]):
         '''在指定区域内快速查找灰色省略号按钮的中心点'''
         try:
@@ -135,6 +113,28 @@ class ColorMatch():
         center_x=region[0]+(min(xs)+max(xs))//2
         center_y=region[1]+(min(ys)+max(ys))//2
         return center_x, center_y
+
+    @staticmethod
+    def click_green_send_button(rectangle,x_offset:int=70,y_offset:int=42)->bool:
+        '''
+        通过像素颜色识别点击评论区的绿色发送按钮,识别失败时回退原坐标点击
+        Args:
+            rectangel:评论区列表项目所属的矩形
+            x_offset:相较于该列表项目右侧靠左的距离
+            y_offset:相较于该列表项目底部靠上的距离
+        '''
+        fallback_coords=(rectangle.right-x_offset,rectangle.bottom-y_offset)
+        regions=[
+            (max(fallback_coords[0]-80,0),max(fallback_coords[1]-45,0),170,90),
+            (max(rectangle.right-(x_offset+150),0),max(rectangle.bottom-(y_offset+90),0),280,170),
+        ]
+        for region in regions:
+            center=ColorMatch._find_green_button_center(region)
+            if center is not None:
+                mouse.click(coords=center)
+                return True
+        mouse.click(coords=fallback_coords)
+        return False
 
     @staticmethod
     def click_gray_ellipsis_button(rectangle,x_offset:int=70,y_offset:int=33) -> bool:
@@ -223,7 +223,6 @@ def auto_reply_to_friend_decorator(duration:str,friend:str,search_pages:int=5,is
                 main_window.close()
         return wrapper
     return decorator 
-
 
 def get_new_message_num(main_window:WindowSpecification=None,is_maximize:bool=None,close_weixin:bool=None):
     '''

@@ -1653,7 +1653,7 @@ class Files():
         edit_area=main_window.child_window(**Edits.CurrentChatEdit)
         chat_button=main_window.child_window(**SideBar.Chats)
         chat_button.click_input()
-        if with_messages and messages_list:#文件消息一起发且message_list不空
+        if with_messages and messages_list:#文件消息一起发且messages_list不空
             for friend in Files:
                 Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize,search_pages=0)
                 ret=open_dialog_window_by_search(friend)
@@ -2467,6 +2467,7 @@ class Moments():
             if re.search(rf'\s视频\s{post_time}',text):
                 video_num=1
             content=re.sub(rf'(\s包含\d+张图片\s)|(\s视频\s).*{post_time}','',text)
+            content=re.sub(r'^\s+','',content)
             return content,photo_num,video_num,post_time
 
         if is_maximize is None:
@@ -2895,95 +2896,84 @@ class Messages():
         '''
         #去除列表重复元素
         def remove_duplicates(list):
+            #把名字发送时间最后一条消息内容拼接在一起作为unique_id
+            #这三者完全一样的概率很小
             seen=set()
             result=[]
             for item in list:
-                if item[0] not in seen:
-                    seen.add(item[0])
+                unique_id=item[0]+item[1]+item[2]
+                if unique_id not in seen:
+                    seen.add(unique_id)
                     result.append(item)
             return result
         
-        #通过automation_id获取到名字,然后使用正则提取时间,最后把名字与时间去掉便是最后发送消息内容
-        def get_name(listitem):
+        def extract_info(listitem):
+            timestamp=''
+            pure_text=listitem.window_text().replace('已置顶\n','').replace('消息免打扰\n','')
             name=listitem.automation_id().replace('session_item_','')
-            return name
-        
+            timestamp=timestamp_pattern.search(pure_text)
+            if timestamp:timestamp=timestamp.group(0)    
+            msg=pure_text.replace(f'{name}\n','').replace(f'\n{timestamp}\n','')
+            return name,timestamp,msg
+
         #正则匹配获取时间
         def get_sending_time(listitem):
-            timestamp=timestamp_pattern.search(listitem.window_text().replace('消息免打扰 ',''))
-            if timestamp:
-                return timestamp.group(0)
-            else:
-                return ''
-
-        #获取最后一条消息内容
-        def get_latest_message(listitem):
-            name=listitem.automation_id().replace('session_item_','')
-            res=listitem.window_text().replace(name,'')
-            msg=timestamp_pattern.sub(repl='',string=res).replace('已置顶 ','').replace('消息免打扰','')
-            return msg
+            pure_text=listitem.window_text().replace('已置顶\n','').replace('消息免打扰\n','')
+            timestamp=timestamp_pattern.search(pure_text)
+            if timestamp:return timestamp.group(0)
+            return ''
         
         #根据recent筛选和过滤会话
         def filter_sessions(ListItems):
             ListItems=[ListItem for ListItem in ListItems if get_sending_time(ListItem)]
             if recent=='Year' or recent=='Month':
-                ListItems=[ListItem for ListItem in ListItems if lastyear not in get_sending_time(ListItem)]
+                ListItems=[ListItem for ListItem in ListItems if not year_pattern.search(get_sending_time(ListItem))]
             if recent=='Week':
                 ListItems=[ListItem for ListItem in ListItems if '/' not in get_sending_time(ListItem)]
             if recent=='Today' or recent=='Yesterday':
                 ListItems=[ListItem for ListItem in ListItems if ':' in get_sending_time(ListItem)]
             if chat_only:
-                ListItems=[ListItem for ListItem in ListItems if get_latest_message(ListItem)!='']
+                ListItems=[ListItem for ListItem in ListItems if extract_info(ListItem)[2]!='']
             return ListItems
         
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
-
-        #匹配位于句子结尾处,开头是空格,格式是2024/05/06或05/06或11:29的日期
+        
         sessions=[]#会话对象 ListItem
-        names=[]#会话名称
-        last_sending_times=[]#最后聊天时间,最右侧的时间戳
-        lastest_message=[]
-        lastyear=str(int(time.strftime('%y'))-1)+'/'#去年
+        #符合year_pattern的肯定不是今年的
+        year_pattern=re.compile(r'\d{4}/\d{2}/\d{2}')#
         thismonth=str(int(time.strftime('%m')))+'/'#去年
         yesterday='昨天'
         #最右侧时间戳正则表达式:五种,2024/05/01,10/25,昨天,星期一,10:59,
         timestamp_pattern=Regex_Patterns.Session_Timestamp_pattern
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
         chats_button=main_window.child_window(**SideBar.Chats)
-        message_list_pane=main_window.child_window(**Main_window.ConversationList)
-        if not message_list_pane.exists():
+        session_list=main_window.child_window(**Main_window.SessionList)
+        if not session_list.exists(timeout=0.1):
             chats_button.click_input()
-        if not message_list_pane.is_visible():
+        if not session_list.is_visible():
             chats_button.click_input()
-        scrollable=Tools.is_scrollable(message_list_pane,back='end')
+        scrollable=Tools.is_scrollable(session_list,back='end')
         if not scrollable:
-            listItems=message_list_pane.children(control_type='ListItem')
+            listItems=session_list.children(control_type='ListItem')
             listItems=filter_sessions(listItems)
-            names.extend([get_name(listitem) for listitem in listItems])
-            last_sending_times.extend([get_sending_time(listitem) for listitem in listItems])
-            lastest_message.extend([get_latest_message(listitem)for listitem in listItems])
+            sessions.extend([extract_info(listitem) for listitem in listItems])
         if scrollable:
-            last=message_list_pane.children(control_type='ListItem')[-1].window_text()
-            message_list_pane.type_keys('{HOME}')
+            last=session_list.children(control_type='ListItem')[-1].window_text()
+            session_list.type_keys('{HOME}')
             time.sleep(1)
             while True:
-                listItems=message_list_pane.children(**ListItems.SessionListItem)
-                listItems=filter_sessions(listItems)
-                if not listItems:
+                listItems=session_list.children(**ListItems.SessionListItem)
+                filtered_listItems=filter_sessions(listItems)
+                if not filtered_listItems:
                     break
                 if listItems[-1].window_text()==last:
                     break
-                names.extend([get_name(listitem) for listitem in listItems])
-                last_sending_times.extend([get_sending_time(listitem) for listitem in listItems])
-                lastest_message.extend([get_latest_message(listitem)for listitem in listItems])
-                message_list_pane.type_keys('{PGDN}') 
-            message_list_pane.type_keys('{HOME}')
-        #list zip为[(发送人,发送时间,最后一条消息)]
-        sessions=list(zip(names,last_sending_times,lastest_message))
-        #去重
+                sessions.extend([extract_info(listitem) for listitem in  filtered_listItems])
+                session_list.type_keys('{PGDN}') 
+            session_list.type_keys('{HOME}')
         sessions=remove_duplicates(sessions)
         if close_weixin:
             main_window.close()
@@ -3012,84 +3002,73 @@ class Messages():
         def filter_sessions(listItems):
             listItems=[listItem for listItem in listItems if get_sending_time(listItem)]
             if chat_only:
-                listItems=[listItem for listItem in listItems if get_latest_message(listItem)!='']
+                listItems=[listItem for listItem in listItems if extract_info(listItem)[2]!='']
             return listItems
+
+        def get_sending_time(listitem):
+            pure_text=listitem.window_text().replace('已置顶\n','').replace('消息免打扰\n','')
+            timestamp=timestamp_pattern.search(pure_text)
+            if timestamp:return timestamp.group(0)
+            return ''
+        
+        def extract_info(listitem):
+            timestamp=''
+            pure_text=listitem.window_text().replace('已置顶\n','').replace('消息免打扰\n','')
+            name=listitem.automation_id().replace('session_item_','')
+            timestamp=timestamp_pattern.search(pure_text)
+            if timestamp:timestamp=timestamp.group(0)    
+            msg=pure_text.replace(f'{name}\n','').replace(f'\n{timestamp}\n','')
+            return name,timestamp,msg
         
         def remove_duplicates(list):
-            """去除列表重复元素"""
+            '''对sessions,这个list[tuple]对象去重'''
+            #把名字，发送时间，还有最后一条消息内容拼接在一起作为unique_id
+            #这三者完全一样的概率很小
             seen=set()
             result=[]
             for item in list:
-                if item[0] not in seen:
-                    seen.add(item[0])
+                unique_id=item[0]+item[1]+item[2]
+                if unique_id not in seen:
+                    seen.add(unique_id)
                     result.append(item)
             return result
-        
-        #通过automation_id获取到名字,然后使用正则提取时间,最后把名字与时间去掉便是最后发送消息内容
-        def get_name(listitem):
-            name=listitem.automation_id().replace('session_item_','')
-            return name
-        
-        #正则匹配获取时间
-        def get_sending_time(listitem):
-            timestamp=timestamp_pattern.search(listitem.window_text().replace('消息免打扰 ',''))
-            if timestamp:
-                return timestamp.group(0)
-            else:
-                return ''
-
-        #获取最后一条消息内容
-        def get_latest_message(listitem):
-            name=listitem.automation_id().replace('session_item_','')
-            res=listitem.window_text().replace(name,'')
-            res=timestamp_pattern.sub(repl='',string=res).replace('已置顶 ','').replace('消息免打扰','')
-            return res
         
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
-    
-        names=[]
-        last_sending_times=[]
-        lastest_message=[]
+
+        sessions=[]
         #最右侧时间戳正则表达式:五种,2024/05/01,10/25,昨天,星期一,10:59,
         timestamp_pattern=Regex_Patterns.Session_Timestamp_pattern
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
         chats_button=main_window.child_window(**SideBar.Chats)
-        session_list=main_window.child_window(**Main_window.ConversationList)
-        if not session_list.exists():
+        session_list=main_window.child_window(**Main_window.SessionList)
+        if not session_list.exists(timeout=0.1):
             chats_button.click_input()
         if not session_list.is_visible():
             chats_button.click_input()
         scrollable=Tools.is_scrollable(session_list,back='end')
         if not scrollable:
-            names=[get_name(listitem) for listitem in session_list.children(control_type='ListItem')]
-            last_sending_times=[get_sending_time(listitem) for listitem in session_list.children(control_type='ListItem')]
-            lastest_message=[get_latest_message(listitem) for listitem in session_list.children(control_type='ListItem')]
+           listItems=session_list.children(**ListItems.SessionListItem)
+           filtered_listItems=filter_sessions(listItems)
+           sessions.extend([extract_info(listitem) for listitem in filtered_listItems])
         if scrollable:
-            time.sleep(0.5)
-            last=session_list.children(control_type='ListItem')[-1].window_text()
+            time.sleep(1)
+            listItems=session_list.children(**ListItems.SessionListItem)
+            last=listItems[-1].window_text()
             session_list.type_keys('{HOME}')
-            time.sleep(0.5)
+            time.sleep(1)
             while True:
                 listItems=session_list.children(**ListItems.SessionListItem)
-                listItems=filter_sessions(listItems)
-                names.extend([get_name(listitem) for listitem in listItems])
-                last_sending_times.extend([get_sending_time(listitem) for listitem in listItems])
-                lastest_message.extend([get_latest_message(listitem) for listitem in listItems])
+                filtered_listItems=filter_sessions(listItems)
+                sessions.extend([extract_info(listitem) for listitem in filtered_listItems])
                 session_list.type_keys('{PGDN}')
                 if listItems[-1].window_text()==last:
                     break
-            names.extend([get_name(listitem) for listitem in session_list.children(control_type='ListItem')])
-            last_sending_times.extend([get_sending_time(listitem) for listitem in session_list.children(control_type='ListItem')])
-            lastest_message.extend([get_latest_message(listitem) for listitem in session_list.children(control_type='ListItem')])
-            session_list.type_keys('{HOME}')
+        session_list.type_keys('{HOME}')
         if close_weixin:
             main_window.close()
-        #list zip为[(发送人,发送时间,最后一条消息)]
-        sessions=list(zip(names,last_sending_times,lastest_message))
-        #去重
         sessions=remove_duplicates(sessions)
         return sessions
 
