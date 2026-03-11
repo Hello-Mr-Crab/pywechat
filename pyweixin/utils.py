@@ -355,8 +355,8 @@ def scan_for_new_messages(main_window:WindowSpecification=None,delay:float=0.3,i
     #左上角微信按钮的红色消息提示(\d+条新消息)在FullDescription属性中,
     #只能通过id来获取,id是30159，之前是30007,可能是qt组件映射关系不一样
     full_desc=chats_button.element_info.element.GetCurrentPropertyValue(30159)
-    message_list_pane=main_window.child_window(**Main_window.ConversationList)
-    message_list_pane.type_keys('{HOME}')
+    session_list=main_window.child_window(**Main_window.SessionList)
+    session_list.type_keys('{HOME}')
     new_message_num=re.search(r'\d+',full_desc)#正则提取数量
     #微信会话列表内ListItem标准格式:备注\s(已置顶)\s(\d+)条未读\s最后一条消息内容\s时间
     new_message_pattern=re.compile(r'\n\[(\d+)条\]')#只给数量分组.group(1)获取
@@ -365,7 +365,7 @@ def scan_for_new_messages(main_window:WindowSpecification=None,delay:float=0.3,i
         return {}
     if new_message_num:
         new_message_num=int(new_message_num.group(0))
-        session_list=main_window.child_window(**Main_window.ConversationList)
+        session_list=main_window.child_window(**Main_window.SessionList)
         session_list.type_keys('{END}')
         time.sleep(1)
         last_item=session_list.children(control_type='ListItem')[-1].window_text()

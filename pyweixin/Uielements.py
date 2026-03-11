@@ -88,6 +88,7 @@ class Buttons():
         self.HomePageButton={'title':'公众号主页','control_type':'Button'}#公众号主页内右上角的公众号主页按钮
         self.NotificationButton={'title':'通知','control_type':'Button'}#微信设置里的通知按钮
         self.AddButton={'title':'添加','control_type':'Button'}#通讯录管理点击新建标签后右侧的添加按钮
+        self.SendMessageButton={'title':'发消息','control_type':'Button'}#添加好友窗口里的发消息按钮
         
 class Edits():
     '''微信主界面内所有类型为Edit(不包含独立窗口)的UI控件'''
@@ -117,6 +118,7 @@ class ListItems():
         self.SnsContentListItem={'control_type':'ListItem','class_name':'mmui::TimeLineContentCell'}#朋友圈内容ListItem
         self.LinkListItem={'control_type':'ListItem','title':'链接'}#微信收藏界面组边链接分组
         self.CreateLabelListItem={'control_type':'ListItem','title':'新建标签','class_name':'mmui::ContactsManagerControlCreateLabelCell'}#通讯录管理界面中的新建标签
+        self.MobileSearchListItem={'title':'网络查找手机/QQ号：','control_type':'ListItem'}#在顶部搜索的是数字组合时出现的查找手机号qq好
 
 class Texts():
     '''微信主界面以及设置界面内所有类型为Text的UI控件'''
@@ -242,7 +244,7 @@ class Windows():
         self.PopOverWindow={'control_type':'Window','class_name':'mmui::XPopover'}#当微信窗口足够小的时候,会收起一部分侧边栏按钮到这个窗口内,此时需要点击...后在这个界面内点击
         self.SolitaireWindow={'control_type':'Window','class_name':'mmui::SolitaireWindow'}#群接龙窗口
         self.ImagePreviewWindow={'control_type':'Window','class_name':'mmui::PreviewWindow'}#微信点击图片或视频后桌面弹出的图片与视频窗口
-
+        self.AddfriendWindow={'control_type':'Window','class_name':'mmui::AddFriendWindow'}
 
 class Login_window():
     '''登录界面要用到的唯二的两个Ui:登录界面与进入微信按钮'''
@@ -274,7 +276,7 @@ class Main_window():
         self.Toolbar={'title':'导航','control_type':'ToolBar'}#主界面左侧的侧边栏
         self.SessionList={'title':'会话','control_type':'List','framework_id':'Qt'}#主界面左侧会话列表
         self.Search={'title':'搜索','control_type':'Edit','class_name':"mmui::XValidatorTextEdit"}#主界面顶部的搜索栏
-        self.SearchResult={'title':"",'control_type':'List','auto_id':'search_list'}#主界面顶部搜索栏搜索内容的结果列表
+        self.SearchResult={'title':'','control_type':'List','auto_id':'search_list'}#主界面顶部搜索栏搜索内容的结果列表
         self.ChatToolBar={'title':'','found_index':0,'control_type':'ToolBar'}#主界面右侧聊天窗口内的工具栏(语音视频按钮在其中)
         self.CurrentChatWindow={'control_type':'Edit','title':'Edit'}#主界面右侧的聊天窗口
         self.ProfileWindow={'class_name':"ContactProfileWnd",'control_type':'Pane','framework_id':'Win32'}#从聊天区域打开的好友信息面板

@@ -412,15 +412,17 @@ class Tools():
     @staticmethod
     def get_search_result(friend:str,search_result:ListViewWrapper)->(ListItemWrapper|None):
         '''查看顶部搜索列表里有没有名为friend的listitem,只能用来查找联系人,群聊,服务号,公众号'''
+        searh_content_label={'最近使用','联系人','群聊','服务号','公众号','最常使用'}
+        xtable_label={'功能','最近使用','最常使用'}
         texts=[listitem.window_text() for listitem in search_result.children(control_type="ListItem")]
         listitems=search_result.children(control_type='ListItem')
         #正常好友群聊服务号公众号的class_name是mmui::SearchContentCellView
-        if '最近使用' in texts or '联系人' in texts or '群聊' in texts or '服务号' in texts or '公众号' in texts:
+        if searh_content_label.intersection(texts):#交集
             listitems=[listitem for listitem in listitems if listitem.class_name()=="mmui::SearchContentCellView"]
             listitems=[listitem for listitem in listitems if listitem.window_text()==friend]
             if listitems:
                 return listitems[0]
-        if '功能' in texts or '最近使用' in texts:#功能比如文件传输助手,微信支付的class_name是mmui::XTableCell
+        if xtable_label.intersection(texts):#功能比如文件传输助手,微信支付的class_name是mmui::XTableCell
             listitems=search_result.children(control_type='ListItem',class_name="mmui::XTableCell")
             listitems=[listitem for listitem in listitems if listitem.window_text()==friend]
             if listitems:
@@ -961,6 +963,63 @@ class Navigator():
         if close_weixin:
             main_window.close() 
         return chatfiles_window
+    
+    @staticmethod
+    def search_friend(friend:str,is_maximize:bool=None)->WindowSpecification:
+        '''
+        该方法用来直接在微信顶部搜索并切换至好友的对话框
+        Args:
+            friend:好友或群聊备注
+            is_maximize:微信界面是否全屏,默认不全屏
+        Returns:
+            main_window:切换为好友聊天窗口后的main_window:微信主界面
+        '''
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        main_window=Navigator.open_weixin(is_maximize=is_maximize)
+        chat_button=main_window.child_window(**SideBar.Chats)
+        chat_button.click_input() 
+        #先看看当前聊天界面是不是好友的聊天界面
+        current_chat_label=Texts.CurrentChatText#右上角顶部的好友名称Text
+        current_chat_label['title']=friend
+        current_chat=main_window.child_window(**current_chat_label)
+        #如果当前主界面聊天界面顶部的名称为好友名称，直接返回结果
+        if current_chat.exists(timeout=0.2):
+            edit_area=main_window.child_window(**Edits.CurrentChatEdit)
+            if edit_area.exists(timeout=0.2) and edit_area.is_visible():
+                edit_area.click_input()
+            return main_window
+        else:#否则直接从顶部搜索栏出搜索结果
+            search=main_window.descendants(**Main_window.Search)[0]
+            search.click_input()
+            search.set_text(friend)
+            time.sleep(0.8)
+            search_results=main_window.child_window(**Main_window.SearchResult)#搜索结果列表
+            search_result=Tools.get_search_result(friend=friend,search_result=search_results)
+            search_mobile=search_results.children(**ListItems.MobileSearchListItem)#绿色的网络查找手机/QQ号选项
+            if search_result and not search_mobile:
+                search_result.click_input()
+                edit_area=main_window.child_window(**Edits.CurrentChatEdit)
+                if edit_area.exists(timeout=0.2) and edit_area.is_visible():
+                    edit_area.click_input()
+                return main_window
+            if not search_result and search_mobile:
+                search_mobile[0].click_input()
+                add_friend_window=desktop.window(**Windows.AddfriendWindow)
+                send_msg_button=add_friend_window.child_window(**Buttons.SendMessageButton)
+                if send_msg_button.exists(timeout=0.2):
+                    send_msg_button.click_input()
+                    add_friend_window.close()
+                else:
+                    add_friend_window.close()
+                    chat_button.click_input()
+                    main_window.close()
+                    raise NoSuchFriendError
+                return main_window
+            if not search_result and not search_mobile:#搜索结果栏中没有friend好友昵称或备注的搜索结过也没有绿色网络查找qq/手机号选项，关闭主界面,引发NosuchFriend异常
+                chat_button.click_input()
+                main_window.close()
+                raise NoSuchFriendError
 
     @staticmethod                    
     def open_dialog_window(friend:str,is_maximize:bool=None,search_pages:int=None)->WindowSpecification: 
@@ -968,12 +1027,11 @@ class Navigator():
         该方法用于打开某个好友(非公众号)的聊天窗口
         Args:
             friend:好友或群聊备注名称,需提供完整名称
-            is_maximize:微信界面是否全屏,默认不全屏。
+            is_maximize:微信界面是否全屏,默认不全屏
             search_pages:在会话列表中查询查找好友时滚动列表的次数,默认为5,一次可查询5-12人,当search_pages为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
         Returns:
             main_window:切换为好友聊天窗口后的main_window:微信主界面
         '''
-       
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if search_pages is None:
@@ -985,61 +1043,19 @@ class Navigator():
         #如果search_pages不为0,即需要在会话列表中滚动查找时，使用find_friend_in_SessionList方法找到好友,并点击打开对话框
         if search_pages:
             is_find,main_window=Navigator.find_friend_in_SessionList(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
-            if is_find:#is_find不为False,即说明find_friend_in_SessionList找到了聊天窗口,直接返回结果
+            #is_find为True,即说明find_friend_in_SessionList找到了聊天窗口,直接返回结果
+            if is_find:
                 edit_area=main_window.child_window(**Edits.CurrentChatEdit)
-                if edit_area.exists(timeout=0.1):
+                if edit_area.exists(timeout=0.2) and edit_area.is_visible():
                     edit_area.click_input()
                 return main_window
-            #is_find为False没有在会话列表中找到好友,直接在顶部搜索栏中搜索好友
-            #先点击侧边栏的聊天按钮切回到聊天主界面
-            #顶部搜索按钮搜索好友
-            search=main_window.descendants(**Main_window.Search)[0]
-            search.click_input()
-            search.set_text(friend)
-            time.sleep(0.8)
-            search_results=main_window.child_window(**Main_window.SearchResult).wait(wait_for='ready',timeout=2)
-            search_result=Tools.get_search_result(friend=friend,search_result=search_results)
-            chat_button=main_window.child_window(**SideBar.Chats)
-            if search_result:
-                search_result.click_input()
-                edit_area=main_window.child_window(**Edits.CurrentChatEdit)
-                if edit_area.exists(timeout=0.1):
-                    edit_area.click_input()
-                return main_window #同时返回搜索到的该好友的聊天窗口与主界面！若只需要其中一个需要使用元祖索引获取。
-            else:#搜索结果栏中没有关于传入参数friend好友昵称或备注的搜索结果，关闭主界面,引发NosuchFriend异常
-                chat_button.click_input()
-                main_window.close()
-                raise NoSuchFriendError
-        else: #searchpages为0，不在会话列表查找
-            main_window=Navigator.open_weixin(is_maximize=is_maximize)
-            chat_button=main_window.child_window(**SideBar.Chats)
-            #先看看当前聊天界面是不是好友的聊天界面
-            current_chat=main_window.child_window(**Edits.CurrentChatEdit)
-            if current_chat.exists(timeout=0.2) and current_chat.window_text()==friend:
-                edit_area=main_window.child_window(**Edits.CurrentChatEdit)
-                if edit_area.exists(timeout=0.1) and edit_area.is_visible():
-                    edit_area.click_input()
-            #如果当前主界面聊天界面顶部的名称为好友名称，直接返回结果
-                return main_window
-            else:#否则直接从顶部搜索栏出搜索结果
-                #如果会话列表不存在或者不可见的话才点击一下聊天按钮
-                chat_button.click_input()      
-                search=main_window.descendants(**Main_window.Search)[0]
-                search.click_input()
-                search.set_text(friend)
-                time.sleep(0.8)
-                search_results=main_window.child_window(title='',control_type='List')
-                search_result=Tools.get_search_result(friend=friend,search_result=search_results)
-                if search_result:
-                    search_result.click_input()
-                    edit_area=main_window.child_window(**Edits.CurrentChatEdit)
-                    if edit_area.exists(timeout=0.1):
-                        edit_area.click_input()
-                    return main_window
-                else:#搜索结果栏中没有关于传入参数friend好友昵称或备注的搜索结果，关闭主界面,引发NosuchFriend异常
-                    chat_button.click_input()
-                    main_window.close()
-                    raise NoSuchFriendError
+            #is_find为False没有在会话列表中找到好友,在顶部搜索栏中搜索好友
+            main_window=Navigator.search_friend(friend=friend,is_maximize=is_maximize)
+            return main_window
+        else: #searchpages为0，在顶部搜索栏中搜索好友
+            main_window=Navigator.search_friend(friend=friend,is_maximize=is_maximize)
+            return main_window
+    
     @staticmethod
     def open_seperate_dialog_window(friend:str,is_maximize:bool=None,window_minimize:bool=False,close_weixin:bool=None)->WindowSpecification:
         '''
@@ -1059,7 +1075,8 @@ class Navigator():
             is_contact=True
             texts=[listitem.window_text() for listitem in search_result.children(control_type="ListItem")]
             listitems=search_result.children(control_type='ListItem')
-            if ('联系人' in texts) or ('群聊' in texts) or ('最近使用' in texts) or ('最常使用' in texts):
+            contact_label={'最近使用','联系人','群聊','最常使用'}
+            if contact_label.intersection(texts):
                 listitems=[listitem for listitem in listitems if listitem.class_name()=="mmui::SearchContentCellView"]
                 listitems=[listitem for listitem in listitems if listitem.window_text()==friend]
                 if listitems:
