@@ -54,7 +54,7 @@ class globalConfig:
     
     @property
     def is_maximize(self):
-        '''微信主界面全屏'''
+        '''微信主界面是否全屏'''
         return self._is_maximize
     
     @is_maximize.setter
@@ -65,12 +65,11 @@ class globalConfig:
     
     @property
     def window_size(self):
-        """微信主界面全屏"""
+        '''微信主界面大小设定(宽,高)'''
         return self._window_size
     
     @window_size.setter
     def window_size(self,value):
-        '''微信主界面大小设定(宽,高)'''
         if not isinstance(value,tuple):
             raise TypeError(f"window_size必须是tuple类型,但传入了{type(value)}:{value}")
         self._window_size=value
@@ -82,7 +81,6 @@ class globalConfig:
     
     @close_weixin.setter
     def close_weixin(self, value):
-        '''是否关闭微信'''
         if not isinstance(value,bool):
             raise TypeError(f"close_weixin必须是bool类型,但传入了{type(value)}:{value}")
         self._close_weixin=value
@@ -100,7 +98,7 @@ class globalConfig:
     
     @property
     def search_pages(self):
-        '''会话列表搜索页数'''
+        '''会话列表查找好友时的搜索页数'''
         return self._search_pages
     
     @search_pages.setter
@@ -111,7 +109,7 @@ class globalConfig:
     
     @property
     def window_maximize(self):
-        '''独立窗口全屏'''
+        '''独立窗口是否全屏'''
         return self._window_maximize
     
     @window_maximize.setter

@@ -26,6 +26,9 @@ class NotInstalledError(Exception):
 class NotFolderError(Exception):
     def __init__(self,Error='该路径非文件夹,无法保存文件！'):
         super().__init__(Error)
+class NotFoundError(Exception):
+    def __init__(self,Error='无法识别定位到微信主界面,请在微信登录前运行无障碍服务(讲述人)后再尝试!'):
+        super().__init__(Error)
 class NoChatHistoryError(Exception):
     def __init__(self, Error):
         super().__init__(Error)

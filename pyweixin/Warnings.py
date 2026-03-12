@@ -1,5 +1,5 @@
 '''
-微信UI自动化过程中可能引发几个的Warning
+微信UI自动化过程中可能引发的Warning
 '''
 class LongTextWarning(Warning):
     '''微信消息字数超长警告'''

@@ -32,7 +32,6 @@ import os
 import io
 import shutil
 import ctypes
-import win32com.client
 import win32clipboard
 import ctypes
 from ctypes import cast, POINTER

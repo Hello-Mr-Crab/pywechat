@@ -102,7 +102,7 @@ friends=['Hello,Mr Crab','Pywechat测试群',]
 durations=['1min']*len(friends)
 #不添加其他参数Monitor.listen_on_chat,比如save_photos,该操作涉及键鼠,无法多线程，只是监听消息，获取文本内容,移动保存文件还是可以的
 for friend in friends:
-    dialog_window=Navigator.open_seperate_dialog_window(friend=friend,window_minimize=True,close_weixin=True)#window_minimize独立窗口最小化
+dialog_window=Navigator.open_seperate_dialog_window(friend=friend,window_minimize=True,close_weixin=True)#window_minimize独立窗口最小化
     dialog_windows.append(dialog_window)
 with ThreadPoolExecutor(max_workers=len(friends)) as pool:
     results=pool.map(lambda args: Monitor.listen_on_chat(*args),list(zip(dialog_windows,durations)))
@@ -120,15 +120,15 @@ for friend,result in zip(friends,results):
 from pyweixin import Navigator
 from concurrent.futures import ThreadPoolExecutor
 from pyweixin import Navigator,AutoReply
-#针对不同好友的回复函数,传入参数是字符串类型,返回值也必须为字符串类型
-def reply_func1(message):
-    if '你好' in message:
+#自动回复函数传入参数是字符串和字符串列表(消息列表内所有可见的文本,可作为上下文),返回值须为字符串类型
+def reply_func1(newMessage:str,contexts:list[str]):
+    if '你好' in newMessage:
         return '你好,有什么可以帮您的吗[呲牙]?'
     if '在吗' in message:
         return '在的[旺柴]'
     return '自动回复[微信机器人]:您好,我当前不在,请您稍后再试'
 
-def reply_func2(message):
+def reply_func2(newMessage:str,contexts:list[str]):
     return '自动回复[微信机器人]:您好,我当前不在,请您稍后再试'
 
 #先打开所有好友的独立窗口

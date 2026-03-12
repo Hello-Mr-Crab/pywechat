@@ -105,9 +105,9 @@ from .Config import GlobalConfig
 from .Errors import NetWorkError
 from .Errors import NoSuchFriendError
 from .Errors import NotFriendError,NotStartError,NotLoginError
-from .Errors import NoResultsError,NotInstalledError
+from .Errors import NoResultsError,NotInstalledError,NotFoundError
 from pyweixin.Uielements import (Login_window,Main_window,SideBar,Independent_window,ListItems,
-Buttons,Texts,Menus,TabItems,Lists,Edits,Windows,Panes)
+Buttons,Texts,Menus,TabItems,Lists,Edits,Windows,Panes,MenuItems)
 from pyweixin.WinSettings import SystemSettings 
 ##########################################################################################
 
@@ -125,11 +125,12 @@ Edits=Edits()#所有Edits类型UI
 Windows=Windows()#所有Window类型UI
 Panes=Panes()#所有Pane类型UI
 ListItems=ListItems()#所有ListItem类型UI
+MenuItems=MenuItems()#所有MenuItem类型UI
 desktop=Desktop(backend='uia')#Window桌面
 pyautogui.FAILSAFE=False#防止鼠标在屏幕边缘处造成的误触
 
 class WxWindowManage():
-    '''win32gui与pywinauto结合用来查找活跃度微信窗口'''
+    '''用来查找活跃的微信窗口,实例化后使用find_wx_window方法'''
     def __init__(self):
         self.hwnd=0
         self.possible_windows=[]
@@ -181,6 +182,8 @@ class Tools():
         '''该方法用来查找微信的路径,无论微信是否运行都可以查找到(如果没安装那就找不到)
         Args:
             copy_to_clipboard:是否将微信路径复制到剪贴板
+        Returns:
+            weixin_path:微信exe路径
         '''
         #执行顺序 正在运行->查询注册表
         if Tools.is_weixin_running():
@@ -297,7 +300,10 @@ class Tools():
 
     @staticmethod
     def get_current_wxid()->str:
-        '''该方法用来获取当前登录账号的wxid,只有登录后才可以获取到'''
+        '''该方法用来获取当前登录账号的wxid,只有登录后才可以获取到
+        Returns:
+            wxid:当期登录微信号的wxid
+        '''
         wxid_folder=Tools.where_wxid_folder(open_folder=False)
         wxid_pattern=re.compile(r'wxid_\w+\d+')
         wxid=wxid_pattern.search(wxid_folder)
@@ -319,8 +325,9 @@ class Tools():
         Args:
             Window:pywinauto定位元素kwargs参数字典
             Window_handle:窗口句柄
+        Returns:
+            window:pywinauto窗口实例对象(WindowSpecification)
         '''
-        desktop=Desktop(**Independent_window.Desktop)
         if Window_handle==0:
             handle=desktop.window(**Window).handle
         else:
@@ -366,7 +373,7 @@ class Tools():
         '''右键左侧消息区域检测最新的一条消息(bubble)是否是由本人发送'''
         rect=listitem.rectangle()
         mouse.right_click(coords=(rect.left+100,rect.mid_point().y))
-        copy_menu_item=main_window.child_window(title="复制",auto_id="XMenuItem",control_type="MenuItem")        
+        copy_menu_item=main_window.child_window(**MenuItems.CopyMenuItem)        
         if copy_menu_item.exists(timeout=0.1):
             edit_rect=edit_area.rectangle()
             mouse.click(coords=(edit_rect.left+5,edit_rect.mid_point().y))
@@ -375,12 +382,19 @@ class Tools():
     
     @staticmethod
     def is_group_chat(main_window:WindowSpecification)->bool:
-        '''通过是否有多人通话这个按钮来判断当前聊天界面是否是群聊'''
+        '''判断当前聊天界面是否是群聊
+        Args:
+            main_window:微信主界面
+        '''
         return main_window.child_window(**Texts.GroupLabelText).exists(timeout=0.1)
 
     @staticmethod
     def is_sns_at_bottom(listview:ListViewWrapper,listitem:ListItemWrapper)->bool:
-        '''判断一个好友的朋友圈详情页面是否到达底部'''
+        '''判断一个好友的朋友圈详情页面是否到达底部
+        Args:
+            listview:好友朋友圈详情列表,即Uielements内的Lists.SnsDetailList
+            listitem:在列表中要判断是否为底部的listitem
+        '''
         next_item=Tools.get_next_item(listview,listitem)
         if next_item.class_name()=='mmui::AlbumBaseCell' and next_item.window_text()=='':#到达最底部
             return True
@@ -388,21 +402,31 @@ class Tools():
 
     @staticmethod
     def activate_chatList(chatList:ListViewWrapper):
-        '''主界面或聊天窗口右侧的消息列表激活至于底部'''
+        '''主界面或聊天窗口右侧的消息列表滑块激活并至于底部
+        Args:
+            chatList:主界面或聊天窗口右侧的消息列表,即Uielements内的Lists.FriendChatList
+        '''
         activate_position=(chatList.rectangle().right-12,chatList.rectangle().mid_point().y)
         mouse.click(coords=activate_position)
         chatList.type_keys('{END}')
     
     @staticmethod
     def activate_chatHistoryList(chat_history_list):
-        '''点击激活聊天记录列表,这样后续可以按键选中'''
+        '''点击激活聊天记录列表,这样后续可以按键选中
+        Args:
+            chat_history_list:聊天记录列表,即Uielements内的Lists.ChatHistoryList
+        '''
         first_item=chat_history_list.children(control_type='ListItem')[0]
         rectangle=first_item.rectangle()
         mouse.click(coords=(rectangle.right-15,rectangle.mid_point().y))
     
     @staticmethod
     def get_next_item(listview:ListViewWrapper,listitem:ListItemWrapper)->(ListItemWrapper|None):
-        '''获取当前listview中给定的listitem的下一个,如果该listitem是最后一个或不在该listview则返回None'''
+        '''获取当前listview中给定的listitem的下一个,如果该listitem是最后一个或不在该listview则返回None
+        Args:
+            listview:pywinauto中control_type为List的ListViewWrapper
+            listitem:在该listview中的子元素
+        '''
         items=listview.children(control_type='ListItem')
         for i in range(len(items)):
             if items[i]==listitem and i<len(items)-1:
@@ -411,7 +435,11 @@ class Tools():
 
     @staticmethod
     def get_search_result(friend:str,search_result:ListViewWrapper)->(ListItemWrapper|None):
-        '''查看顶部搜索列表里有没有名为friend的listitem,只能用来查找联系人,群聊,服务号,公众号'''
+        '''查看顶部搜索列表里有没有名为friend的listitem,只能用来查找联系人,群聊,服务号,公众号
+        Args:
+            friend:搜索的内容,好友或群聊的备注,公众号服务号名称等
+            search_result:微信主界面搜索内容后的结果列表,即Uielements内的Lists.SearchResult
+        '''
         searh_content_label={'最近使用','联系人','群聊','服务号','公众号','最常使用'}
         xtable_label={'功能','最近使用','最常使用'}
         texts=[listitem.window_text() for listitem in search_result.children(control_type="ListItem")]
@@ -431,7 +459,10 @@ class Tools():
     
     @staticmethod
     def capture_alias(listitem:ListItemWrapper):
-        '''用来截取聊天记录中的聊天对象昵称,左上角灰白色文本'''
+        '''用来截取聊天记录中的聊天对象昵称,左上角灰白色文本
+        Args:
+            listitem:聊天记录列表中每个listitem
+        '''
         rectangle=listitem.rectangle()
         width=rectangle.right-rectangle.left
         x=rectangle.left+85
@@ -441,17 +472,10 @@ class Tools():
 
     @staticmethod
     def collapse_contact_manage(contacts_manage:WindowSpecification):
-        '''用来收起通讯录管理界面中每个分区:包括"朋友权限","标签","最近群聊"
-        一般而言通讯录管理界面由这几个部分组成:
-            朋友权限
-            标签
-            最近群聊
-        若任意一个被打开,那么下方的另一个就可能会被挤到最下边,直接遍历查找费时费力
-        这里给出一个解决方法--逐级向上收起,这几个listitem中我们只需要关心其存在的时候
-        假如这个项目被展开,那么他的下一个是listitem与该分区名称所对应的listitem的classname必定不同,
-        (要注意的是这个listitem是否被点击无法通过selected或keyboard_focused等属性判断)
-        那么我们就点击一下即可收起同理,对每一个listitem进行同样的步骤即可逐级收起
-        注意顺序千万不可以打乱，必须按照上边固定的顺序。
+        '''
+        用来逐级收起通讯录管理界面中每个分区:包括"朋友权限","标签","最近群聊"
+        Args:
+            contacts_manage:通讯录管理界面,即Uielements内的Independ_Window.ContactManagerWindow
         '''
         def get_next_item(listitem):
             '''获取当前listitem的下一个listitem,如果不是最后一个的话'''
@@ -480,20 +504,9 @@ class Tools():
     @staticmethod
     def collapse_contacts(main_window,contact_list):
         '''用来收起通讯录中每个分区:包括"新的朋友","群聊","企业微信联系人","联系人"等
-        一般而言微信通讯录由这几个部分组成:
-            新的朋友
-            群聊
-            公众号
-            服务号
-            企业微信联系人
-            我的企业
-            联系人
-        若任意一个被打开,那么下方的另一个就可能会被挤到最下边,直接遍历查找费时费力
-        这里给出一个解决方法--逐级向上收起,这几个listitem中我们只需要关心其存在的时候
-        假如这个项目被展开,那么他的下一个是listitem与该分区名称所对应的listitem的classname必定不同,
-        (要注意的是这个listitem是否被点击无法通过selected或keyboard_focused等属性判断)
-        那么我们就点击一下即可收起同理,对每一个listitem进行同样的步骤即可逐级收起
-        注意顺序千万不可以打乱，必须按照上边固定的顺序。
+        Args:
+            main_window:切换到通讯录后的微信主界面
+            contact_list:通讯录列表,即Uielements内的Lists.ContactsList
         '''
         #Contacts内每个方法都依赖于此，自上而下通过下一个的位置关系逐级收起
         def get_next_item(listitem):
@@ -606,6 +619,8 @@ class Navigator():
         if not is_running:#微信不在运行,主界面看不到窗口，需要先启动
             raise NotStartError
         handle=wx.find_wx_window()
+        if handle==0:
+            raise NotFoundError
         wx_window=desktop.window(handle=handle)
         #只有在窗口激活的时候
         if wx.window_type==0:#微信在运行,但是是登录界面
@@ -994,29 +1009,32 @@ class Navigator():
             search.click_input()
             search.set_text(friend)
             time.sleep(0.8)
-            search_results=main_window.child_window(**Main_window.SearchResult)#搜索结果列表
+            search_results=main_window.child_window(**Lists.SearchResult)#搜索结果列表
             search_result=Tools.get_search_result(friend=friend,search_result=search_results)
             search_mobile=search_results.children(**ListItems.MobileSearchListItem)#绿色的网络查找手机/QQ号选项
-            if search_result and not search_mobile:
+            if search_result and not search_mobile:#有搜索结果没有网络查找qq号手机号选项
                 search_result.click_input()
                 edit_area=main_window.child_window(**Edits.CurrentChatEdit)
                 if edit_area.exists(timeout=0.2) and edit_area.is_visible():
                     edit_area.click_input()
                 return main_window
-            if not search_result and search_mobile:
+            if not search_result and search_mobile:#没有搜索结果，有网络查找qq号手机号选项
                 search_mobile[0].click_input()
                 add_friend_window=desktop.window(**Windows.AddfriendWindow)
                 send_msg_button=add_friend_window.child_window(**Buttons.SendMessageButton)
-                if send_msg_button.exists(timeout=0.2):
+                if send_msg_button.exists(timeout=2):#k有发送消息按钮说明不是新朋友不需要添加
                     send_msg_button.click_input()
                     add_friend_window.close()
+                    edit_area=main_window.child_window(**Edits.CurrentChatEdit)
+                    if edit_area.exists() and edit_area.is_visible():
+                        edit_area.click_input()
                 else:
                     add_friend_window.close()
                     chat_button.click_input()
                     main_window.close()
                     raise NoSuchFriendError
                 return main_window
-            if not search_result and not search_mobile:#搜索结果栏中没有friend好友昵称或备注的搜索结过也没有绿色网络查找qq/手机号选项，关闭主界面,引发NosuchFriend异常
+            if not search_result and not search_mobile:#没有f搜索结过也没有绿色网络查找qq/手机号选项
                 chat_button.click_input()
                 main_window.close()
                 raise NoSuchFriendError
@@ -1046,7 +1064,7 @@ class Navigator():
             #is_find为True,即说明find_friend_in_SessionList找到了聊天窗口,直接返回结果
             if is_find:
                 edit_area=main_window.child_window(**Edits.CurrentChatEdit)
-                if edit_area.exists(timeout=0.2) and edit_area.is_visible():
+                if edit_area.exists() and edit_area.is_visible():
                     edit_area.click_input()
                 return main_window
             #is_find为False没有在会话列表中找到好友,在顶部搜索栏中搜索好友
@@ -1146,13 +1164,13 @@ class Navigator():
             search_pages=GlobalConfig.search_pages
         main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         chat_history_button=main_window.child_window(**Buttons.ChatHistoryButton)
-        if not chat_history_button.exists(timeout=0.1):
+        if not chat_history_button.exists():
             main_window.close()
             raise NotFriendError(f'非正常好友或群聊！无法打开该好友或群聊的聊天记录界面')
         chat_history_button.click_input()
         chat_history_window=Tools.move_window_to_center(Independent_window.ChatHistoryWindow)
         tab_button=chat_history_window.child_window(control_type='Button',class_name="mmui::XMouseEventView")
-        if tab_button.exists(timeout=0.1):
+        if tab_button.exists():
             tab_button.click_input()
         if TabItem:
             tabItems={'文件':TabItems.FileTabItem,'图片与视频':TabItems.PhotoAndVideoTabItem,'链接':TabItems.LinkTabItem,
@@ -1190,7 +1208,6 @@ class Navigator():
     def open_traywnd()->WindowSpecification:
         '''点击右下角的显示隐藏图标按钮打开系统托盘'''
         #打开系统托盘
-        desktop=Desktop(backend='uia')
         #微信的新消息通知托盘的句柄
         #任务栏
         tool_bar_handle=win32gui.FindWindow("Shell_TrayWnd",None)
@@ -1202,9 +1219,9 @@ class Navigator():
         return tray_wnd
 
     @staticmethod
-    def open_wechat_traywnd()->WindowSpecification:
+    def open_weixin_traywnd()->WindowSpecification:
+        '''在右下角系统托盘中打开微信托盘'''
         tray_notify=None
-        desktop=Desktop(backend='uia')
         #微信的新消息通知托盘的句柄
         #任务栏
         tray_wnd=Navigator.open_traywnd()
@@ -1260,7 +1277,7 @@ class Navigator():
             official_acount_window=Tools.move_window_to_center(Window=Panes.OfficialAccountPane)
             search_window.close()
             subscribe_button=official_acount_window.child_window(**Buttons.SubScribeButton)
-            if subscribe_button.exists(timeout=1) and subscribe:
+            if subscribe_button.exists(timeout=2) and subscribe:
                 subscribe_button.click_input()
             return official_acount_window
         else:
@@ -1319,7 +1336,6 @@ class Navigator():
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
         up=5
-        desktop=Desktop(**Independent_window.Desktop)
         program_window=Navigator.open_miniprogram_pane(is_maximize=is_maximize,close_weixin=close_weixin)
         miniprogram_tab=program_window.child_window(title='小程序',control_type='TabItem',found_index=0)
         miniprogram_tab.click_input()

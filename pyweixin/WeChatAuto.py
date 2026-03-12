@@ -105,19 +105,19 @@ Regex_Patterns=Regex_Patterns()#所有的正则pattern
 class AutoReply():
     
     @staticmethod
-    def auto_reply_to_friend(dialog_window:WindowSpecification,duration:str,callback:Callable[[str],str],save_file:bool=False,target_folder:str=None,close_dialog_window:bool=True)->dict:
+    def auto_reply_to_friend(dialog_window:WindowSpecification,duration:str,callback:Callable[[str,list],str],save_file:bool=False,target_folder:str=None,close_dialog_window:bool=True)->dict:
         '''
         该方法用来在指定时间内自动回复会话窗口内的新消息并监听内容
         Args:
             dialog_window:好友单独的聊天窗口或主界面内的聊天窗口,可使用Navigator内的open_seperate_dialoig_window打开
             duraiton:监听持续时长,监听消息持续时长,格式:'s','min','h'单位:s/秒,min/分,h/小时
-            callback:新消息处理函数
+            callback:新消息处理函数,入参是当前消息和上下文消息(可见的消息列表内的所有文本构成的列表)
             save_file:是否保存文件,需开启自动下载文件并设置为1024MB,默认为False
             target_folder:文件或图片的保存文件夹
             close_dialog_window:是否关闭dialog_window,默认关闭
         Examples:
             >>> from pyweixin import AutoReply,Navigator
-            >>> def reply_func2(message):
+            >>> def reply_func2(newMessage:str,contexts:list[str]):
             >>>     return '自动回复[微信机器人]:您好,我当前不在,请您稍后再试'
             >>> main_window=Navigator.open_dialog_window(friend='abcdefghijklmnopqrstuvwxyz123456')
             >>> AutoReply.auto_reply_to_friend(dialog_window=main_window,duration='20s',callback=reply_func2)
@@ -125,13 +125,13 @@ class AutoReply():
             >>> from pyweixin import Navigator
             >>> from concurrent.futures import ThreadPoolExecutor
             >>> from pyweixin import Navigator,AutoReply
-            >>> def reply_func1(message):
-            >>>     if '你好' in message:
+            >>> def reply_func1(newMessage:str,contexts:list[str]):
+            >>>     if '你好' in newMessage:
             >>>        return '你好,有什么可以帮您的吗[呲牙]?'
-            >>>     if '在吗' in message:
+            >>>     if '在吗' in newMessage:
             >>>        return '在的[旺柴]'
             >>>     return '自动回复[微信机器人]:您好,我当前不在,请您稍后再试'
-            >>> def reply_func2(message):
+            >>> def reply_func2(newMessage:str,contexts:list[str]):
             >>>     return '自动回复[微信机器人]:您好,我当前不在,请您稍后再试'
             >>> dialog_windows=[]
             >>> friends=['好友1','好友2']
@@ -182,12 +182,13 @@ class AutoReply():
                 runtime_id=newMessage.element_info.runtime_id
                 if runtime_id!=initial_runtime_id: 
                     total+=1
+                    contexts=[listitem.window_text() for listitem in chatList.children(control_type='ListItem')]
                     if newMessage.class_name()=='mmui::ChatTextItemView':
                         texts.append(newMessage.window_text())
                         dialog_window.restore()
                         is_my_bubble=Tools.is_my_bubble(dialog_window,newMessage,input_edit)
                         if not is_my_bubble:
-                            reply_content=callback(newMessage.window_text())
+                            reply_content=callback(newMessage.window_text(),contexts)
                             if reply_content is not None:
                                 input_edit.set_text(reply_content)
                                 pyautogui.hotkey('alt','s')
@@ -2951,10 +2952,7 @@ class Messages():
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
         chats_button=main_window.child_window(**SideBar.Chats)
         session_list=main_window.child_window(**Main_window.SessionList)
-        if not session_list.exists(timeout=0.1):
-            chats_button.click_input()
-        if not session_list.is_visible():
-            chats_button.click_input()
+        chats_button.click_input()
         scrollable=Tools.is_scrollable(session_list,back='end')
         if not scrollable:
             listItems=session_list.children(control_type='ListItem')
@@ -3044,10 +3042,7 @@ class Messages():
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
         chats_button=main_window.child_window(**SideBar.Chats)
         session_list=main_window.child_window(**Main_window.SessionList)
-        if not session_list.exists(timeout=0.1):
-            chats_button.click_input()
-        if not session_list.is_visible():
-            chats_button.click_input()
+        chats_button.click_input()
         scrollable=Tools.is_scrollable(session_list,back='end')
         if not scrollable:
            listItems=session_list.children(**ListItems.SessionListItem)
@@ -3170,7 +3165,7 @@ class Messages():
             if selected:
                 messages.append(selected[0].window_text())
                 if capture_alia:
-                    time.sleep(0.1)#必须等待0.2s以上才能截出指定数量的图，不然过快来不及截图
+                    time.sleep(0.1)#必须等待0.1s以上才能截出指定数量的图，不然过快来不及截图
                     path=os.path.join(alias_folder,f'与{friend}聊天记录_{len(messages)}.png')
                     alia_image=Tools.capture_alias(selected[0])
                     alia_image.save(path)

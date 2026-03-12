@@ -169,6 +169,7 @@ class Lists():
         self.SnsDetailList={'control_type':'List','auto_id':'sns_detail_list'}#好友的朋友圈内点开一个项目后内部的列表
         self.SolitaireList={'control_type':'List','auto_id':'solitaire_list'}#群聊接龙界面内的接龙列表
         self.CommonGroupList={'control_type':'List','auto_id':'same_chat_room_contact_list'}#共同群聊列表
+        self.SearchResult={'title':'','control_type':'List','auto_id':'search_list'}#主界面顶部搜索栏搜索内容的结果列表
 
 class Panes():
     def __init__(self):

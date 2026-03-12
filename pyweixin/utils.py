@@ -37,7 +37,7 @@ class Regex_Patterns():
         self.Article_Timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日|\d{1,2}月\d{1,2}日|昨天|星期\w|今天)')#公众号文章的时间戳
 
 class ColorMatch():
-    
+    '''朋友圈点赞评论时需要用颜色识别点击按钮'''
     @staticmethod
     def _is_green_pixel(r:int,g:int,b:int)->bool:
         '''微信发送按钮绿色像素启发式判断'''
