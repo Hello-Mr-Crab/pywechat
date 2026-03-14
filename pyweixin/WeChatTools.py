@@ -416,9 +416,8 @@ class Tools():
         Args:
             chat_history_list:聊天记录列表,即Uielements内的Lists.ChatHistoryList
         '''
-        first_item=chat_history_list.children(control_type='ListItem')[0]
-        rectangle=first_item.rectangle()
-        mouse.click(coords=(rectangle.right-15,rectangle.mid_point().y))
+        rectangle=chat_history_list.rectangle()
+        mouse.click(coords=(rectangle.right-15,rectangle.top+5))
     
     @staticmethod
     def get_next_item(listview:ListViewWrapper,listitem:ListItemWrapper)->(ListItemWrapper|None):

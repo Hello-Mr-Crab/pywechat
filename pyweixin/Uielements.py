@@ -209,7 +209,7 @@ class MenuItems():
         self.EnlargeMeunItem={'title':'放大阅读','control_type':'MenuItem'}#右键消息后的放大选项
         self.FindInChatMenuItem={'title':'定位到聊天位置','control_type':'MenuItem'}#聊天记录页面内右键消息后的Find in chat选项
         self.CopyLinkMenuItem={'title':'复制链接','auto_id':'XMenuItem','control_type':'MenuItem'}#在收藏界面右键菜单里的复制链接选项目
-        self.CopyMenuItem={'title':'复制','auto_id':'XMenuItem','control_type':'MenuItem'}#主界面右键菜单里的复制选项
+        self.CopyMenuItem={'title':'复制','control_type':'MenuItem'}#主界面右键菜单里的复制选项
 
 class CheckBoxes():
     def __init__(self):

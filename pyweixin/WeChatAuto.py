@@ -335,7 +335,6 @@ class Collections():
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
-        
         clicked=[]
         collected_num=0
         seperate_window=Navigator.open_seperate_dialog_window(friend=name,is_maximize=is_maximize,close_weixin=close_weixin)
@@ -343,6 +342,7 @@ class Collections():
         homepage_button.click_input()
         offAcc_window=Tools.move_window_to_center(Window=Panes.OfficialAccountPane)
         seperate_window.close()
+        offAcc_window.maximize()
         rectangle=offAcc_window.rectangle()
         side_x,center_y=rectangle.right-45,rectangle.mid_point().y
         articles_link=offAcc_window.child_window(title='文章',control_type='Hyperlink')
@@ -350,18 +350,18 @@ class Collections():
         container=offAcc_window.child_window(control_type='Group')
         timestamp_pattern=Regex_Patterns.Article_Timestamp_pattern
         while collected_num<number:
-            visible_texts=[child for child in container.children(control_type='Text') if child.is_visible() and timestamp_pattern.search(child.window_text()) and child.element_info.runtime_id[3] not in clicked]
+            visible_texts=[child for child in container.children(control_type='Text') if child.is_visible() and timestamp_pattern.search(child.window_text()) and child.element_info.runtime_id not in clicked]
             if visible_texts:
                 for child in visible_texts:
                     collected_num+=1
                     time.sleep(delay)
                     child.right_click_input()
-                    clicked.append(child.element_info.runtime_id[3])
+                    clicked.append(child.element_info.runtime_id)
                     offAcc_window.child_window(title='收藏',control_type='Text').click_input()
                     if collected_num>=number:
                         break
                 mouse.click(coords=(side_x,center_y))
-                pyautogui.press('pagedown')
+                pyautogui.press('pagedown',_pause=False)
             else:
                 break
         offAcc_window.close()
@@ -2820,67 +2820,62 @@ class Messages():
         return newMessages_dict
     
     # #session_pick_window中使用ui自动化选择2个以上好友时微信会莫名奇妙白屏卡死，所以先暂时不实现这个方法了
-    @staticmethod
-    def forward_message(friends:list[str],message:str,clear:bool=None,
-        send_delay:float=None,is_maximize:bool=None,close_weixin:bool=None)->None:
+    # @staticmethod
+    # def forward_message(friends:list[str],message:str,clear:bool=None,
+    #     send_delay:float=None,is_maximize:bool=None,close_weixin:bool=None)->None:
      
-        if is_maximize is None:
-            is_maximize=GlobalConfig.is_maximize
-        if send_delay is None:
-            send_delay=GlobalConfig.send_delay
-        if close_weixin is None:
-            close_weixin=GlobalConfig.close_weixin
-        if clear is None:
-            clear=GlobalConfig.clear
-        if len(friends)<2:
-            raise ValueError(f'friends数量不足2,无法转发消息!')
-        def session_picker():
-            session_pick_window=main_window.child_window(**Windows.SessionPickerWindow)
-            send_button=session_pick_window.child_window(control_type='Button',title='发送')
-            checkbox=session_pick_window.child_window(control_type='CheckBox',found_index=0)
-            rec=send_button.rectangle()
-            x,y=rec.mid_point().x,rec.mid_point().y
-            search_field=session_pick_window.child_window(control_type='Edit',found_index=0)
-            search_field.click_input()
-            for friend in friends[1:]:
-                search_field.type_keys(friend,pause=0.1,with_spaces=True)
-                # # time.sleep(3)
-                checkbox.wait(wait_for='ready',timeout=5).click_input()
-                search_field.click_input()
-                pyautogui.hotkey('ctrl','a')
-                pyautogui.press('backspace')
-            send_button.wait(wait_for='ready',timeout=5)
-            # pyautogui.click(x=x,y=y)
-        main_window=Navigator.open_dialog_window(friend=friends[0],is_maximize=is_maximize)
-        edit_area=main_window.child_window(**Edits.CurrentChatEdit)
-        chat_list=main_window.child_window(**Lists.FriendChatList)
-        if not edit_area.exists(timeout=0.1):
-            raise NotFriendError(f'非正常好友,无法发送消息')
-        if clear:
-            edit_area.set_text('')
-        if len(message)==0:
-            main_window.close()
-            raise ValueError
-        if 0<len(message)<2000:
-            edit_area.set_text(message)
-            time.sleep(send_delay)
-            pyautogui.hotkey('alt','s',_pause=False)
-        elif len(message)>2000:#字数超过200字发送txt文件
-            SystemSettings.convert_long_text_to_txt(message)
-            pyautogui.hotkey('ctrl','v',_pause=False)
-            time.sleep(send_delay)
-            pyautogui.hotkey('alt','s',_pause=False)
-            warn(message=f"微信消息字数上限为2000,超过2000字部分将被省略,该条长文本消息已为你转换为txt发送",category=LongTextWarning)
-        if len(friends)>1:
-            listItems=chat_list.children(control_type='ListItem')
-            message_sent=listItems[-1]
-            rect=message_sent.rectangle()
-            mouse.right_click(coords=(rect.right-100,rect.mid_point().y))
-            forward_item=main_window.child_window(**MenuItems.ForwardMenuItem)
-            forward_item.click_input()
-            session_picker()
-        if close_weixin:
-            main_window.close()
+    #     if is_maximize is None:
+    #         is_maximize=GlobalConfig.is_maximize
+    #     if send_delay is None:
+    #         send_delay=GlobalConfig.send_delay
+    #     if close_weixin is None:
+    #         close_weixin=GlobalConfig.close_weixin
+    #     if clear is None:
+    #         clear=GlobalConfig.clear
+    #     if len(friends)<2:
+    #         raise ValueError(f'friends数量不足2,无法转发消息!')
+    #     def session_picker():
+    #         session_pick_window=main_window.child_window(**Windows.SessionPickerWindow)
+    #         send_button=session_pick_window.child_window(control_type='Button',title='发送')
+    #         checkbox=session_pick_window.child_window(control_type='CheckBox',found_index=0)
+    #         rec=send_button.rectangle()
+    #         x,y=rec.mid_point().x,rec.mid_point().y
+    #         search_field=session_pick_window.child_window(control_type='Edit',found_index=0)
+    #         search_field.click_input()
+    #         for friend in friends[1:]:
+    #             search_field.set_text(friend)
+    #             checkbox.click_input()
+    #         send_button.click_input()
+    #     main_window=Navigator.open_dialog_window(friend=friends[0],is_maximize=is_maximize)
+    #     edit_area=main_window.child_window(**Edits.CurrentChatEdit)
+    #     chat_list=main_window.child_window(**Lists.FriendChatList)
+    #     if not edit_area.exists(timeout=0.1):
+    #         raise NotFriendError(f'非正常好友,无法发送消息')
+    #     if clear:
+    #         edit_area.set_text('')
+    #     if len(message)==0:
+    #         main_window.close()
+    #         raise ValueError
+    #     if 0<len(message)<2000:
+    #         edit_area.set_text(message)
+    #         time.sleep(send_delay)
+    #         pyautogui.hotkey('alt','s',_pause=False)
+    #     elif len(message)>2000:#字数超过200字发送txt文件
+    #         SystemSettings.convert_long_text_to_txt(message)
+    #         pyautogui.hotkey('ctrl','v',_pause=False)
+    #         time.sleep(send_delay)
+    #         pyautogui.hotkey('alt','s',_pause=False)
+    #         warn(message=f"微信消息字数上限为2000,超过2000字部分将被省略,该条长文本消息已为你转换为txt发送",category=LongTextWarning)
+    #     if len(friends)>1:
+    #         listItems=chat_list.children(control_type='ListItem')
+    #         message_sent=listItems[-1]
+    #         rect=message_sent.rectangle()
+    #         mouse.right_click(coords=(rect.right-100,rect.mid_point().y))
+    #         forward_item=main_window.child_window(**MenuItems.ForwardMenuItem)
+    #         forward_item.click_input()
+    #         session_picker()
+    #     if close_weixin:
+    #         main_window.close()
 
     @staticmethod
     def dump_recent_sessions(recent:Literal['Today','Yesterday','Week','Month','Year']='Today',
@@ -3114,6 +3109,7 @@ class Messages():
 
     @staticmethod
     def dump_chat_history(friend:str,number:int,capture_alia:bool=False,alias_folder:str=None,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->tuple[list,list]:
+    
         '''该函数用来获取一定数量的聊天记录
         Args:  
             friend:好友名称
@@ -3126,14 +3122,6 @@ class Messages():
         Returns:
             (messages,timestamps):发送的消息(时间顺序从晚到早),每条消息对应的发送时间
         '''
-        def is_at_bottom(chat_history_list,listitem):
-            at_bottom=False
-            pyautogui.press('down',presses=2,_pause=False)
-            if Tools.get_next_item(chat_history_list,listitem) is None:
-                at_bottom=True
-            pyautogui.press('up',presses=2,_pause=False)
-            return at_bottom
-        
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
@@ -3145,16 +3133,18 @@ class Messages():
             print(f'未传入文件夹路径,好友昵称截图将分别保存到{alias_folder}内')
             os.makedirs(alias_folder,exist_ok=True)
         messages=[]
+        runtime_ids=[]
         timestamp_pattern=Regex_Patterns.Chathistory_Timestamp_pattern
         chat_history_window=Navigator.open_chat_history(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin,search_pages=search_pages)
         chat_history_list=chat_history_window.child_window(**Lists.ChatHistoryList)
         if not chat_history_list.exists(timeout=0.1):
             warn(message=f"你与{friend}的聊天记录为空,无法获取聊天记录",category=NoChatHistoryWarning)
             chat_history_window.close()
-            return messages
-        first_item=chat_history_list.children(control_type='ListItem')[0]
+            return [],[]
         Tools.activate_chatHistoryList(chat_history_list)
+        first_item=chat_history_list.children(control_type='ListItem')[0]
         messages.append(first_item.window_text())
+        runtime_ids.append(first_item.element_info.runtime_id)
         if capture_alia:
             path=os.path.join(alias_folder,f'与{friend}聊天记录_1.png')
             alia_image=Tools.capture_alias(first_item)
@@ -3163,14 +3153,16 @@ class Messages():
             pyautogui.press('down',presses=2,_pause=False)
             selected=[listitem for listitem in chat_history_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
             if selected:
+                runtime_ids.append(selected[0].element_info.runtime_id)
+                #同一个runtime_id挨着重复出现就说明到底部了无法继续下滑
+                if runtime_ids[-1]==runtime_ids[-2]:
+                    break
                 messages.append(selected[0].window_text())
                 if capture_alia:
                     time.sleep(0.1)#必须等待0.1s以上才能截出指定数量的图，不然过快来不及截图
                     path=os.path.join(alias_folder,f'与{friend}聊天记录_{len(messages)}.png')
                     alia_image=Tools.capture_alias(selected[0])
                     alia_image.save(path)
-                if is_at_bottom(chat_history_list,selected[0]):
-                    break
         chat_history_list.type_keys('{HOME}')
         chat_history_window.close()
         messages=messages[:number]
@@ -3240,11 +3232,12 @@ class Monitor():
                         side_x=rectangle.left+120
                         center_y=rectangle.mid_point().y
                         mouse.right_click(coords=(side_x,center_y))#不要直接right_click_input(),x方向应该是chatList左边界靠右一些,y方向是中心
-                        copy_item.click_input()
+                        pyautogui.press('down',interval=0.5)
+                        pyautogui.press('enter',interval=0.5)
                         SystemSettings.save_pasted_image(path)
                         saved_image_count+=1
                         image_ids.pop()#最后的元素即刚刚保存的图片的runtime_id从image_ids从尾部pop出去
-                chatList.type_keys('{UP}',pause=0.15)
+                chatList.type_keys('{UP}',pause=0.25)
             win32gui.SendMessage(dialog_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MINIMIZE,0)
 
         duration=Tools.match_duration(duration)#将's','min','h'转换为秒
@@ -3273,7 +3266,6 @@ class Monitor():
         timestamp=time.strftime('%Y-%m')
         chatfile_folder=Tools.where_chatfile_folder()
         chatList=dialog_window.child_window(**Lists.FriendChatList)#聊天界面内存储所有信息的容器
-        copy_item=dialog_window.child_window(**MenuItems.CopyMenuItem)
         Tools.activate_chatList(chatList)
         if chatList.children(control_type='ListItem'):
             initial_message=chatList.children(control_type='ListItem')[-1]#刚打开聊天界面时的最后一条消息的listitem
