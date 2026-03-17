@@ -408,7 +408,7 @@ class Tools():
         '''
         activate_position=(chatList.rectangle().right-12,chatList.rectangle().mid_point().y)
         mouse.click(coords=activate_position)
-        chatList.type_keys('{END}')
+        chatList.type_keys('{END}')          
     
     @staticmethod
     def activate_chatHistoryList(chat_history_list):
@@ -417,11 +417,14 @@ class Tools():
             chat_history_list:聊天记录列表,即Uielements内的Lists.ChatHistoryList
         '''
         rectangle=chat_history_list.rectangle()
-        mouse.click(coords=(rectangle.right-15,rectangle.top+5))
+        mouse.move(coords=(rectangle.mid_point().x,rectangle.mid_point().y))
+        chat_history_list.type_keys('{PGUP}')
+        
+        
     
     @staticmethod
     def get_next_item(listview:ListViewWrapper,listitem:ListItemWrapper)->(ListItemWrapper|None):
-        '''获取当前listview中给定的listitem的下一个,如果该listitem是最后一个或不在该listview则返回None
+        '''获取当前listview中给定的listitem的下一个                             ,如果该listitem是最后一个或不在该listview则返回None
         Args:
             listview:pywinauto中control_type为List的ListViewWrapper
             listitem:在该listview中的子元素
@@ -727,18 +730,17 @@ class Navigator():
             search_pages=GlobalConfig.search_pages
         main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton)
+        #三种情况,非好友,好友.群聊
         if not chatinfo_button.exists(timeout=0.1):
             main_window.close()
             raise NotFriendError(f'非正常好友或群聊！无法打开该好友或群聊的聊天信息界面')
         else: 
             if not Tools.is_group_chat(main_window):
                 chatinfo_pane=main_window.child_window(auto_id='single_chat_info_view',control_type='Group')     
-                if not chatinfo_pane.exists(timeout=0.1):
-                    chatinfo_button.click_input()
             else:
                 chatinfo_pane=main_window.child_window(class_name='mmui::ChatRoomMemberInfoView',control_type='Group')
-                if not chatinfo_pane.exists(timeout=0.1):
-                    chatinfo_button.click_input()
+            if not chatinfo_pane.exists(timeout=0.1):
+                chatinfo_button.click_input()
             return chatinfo_pane,main_window
             
 
@@ -747,22 +749,20 @@ class Navigator():
         '''
         该函数用来打开好友的个人简介界面
         Args:
-            friend:好友名称。
+            friend:好友名称
             search_pages:在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
             is_maximize:微信界面是否全屏,默认不全屏。
         '''
-        
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if search_pages is None:
             search_pages=GlobalConfig.search_pages
         chatinfo_pane,main_window=Navigator.open_chatinfo(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         friend_button=chatinfo_pane.child_window(title=friend,control_type='Button')
-        if friend_button.exists(timeout=0.1):
-            time.sleep(1)
+        if friend_button.exists(timeout=1):
             profile_button=friend_button.children(title='',control_type='Button')[0]
             profile_button.click_input()
-            profile_pane=desktop.window(**Windows.PopUpProfileWindow)
+            profile_pane=main_window.window(**Windows.PopUpProfileWindow)
             return profile_pane,main_window
         else:
             chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton)
@@ -1004,7 +1004,7 @@ class Navigator():
                 edit_area.click_input()
             return main_window
         else:#否则直接从顶部搜索栏出搜索结果
-            search=main_window.descendants(**Main_window.Search)[0]
+            search=main_window.descendants(**Edits.SearchEdit)[0]
             search.click_input()
             search.set_text(friend)
             time.sleep(0.8)
@@ -1021,7 +1021,7 @@ class Navigator():
                 search_mobile[0].click_input()
                 add_friend_window=desktop.window(**Windows.AddfriendWindow)
                 send_msg_button=add_friend_window.child_window(**Buttons.SendMessageButton)
-                if send_msg_button.exists(timeout=2):#k有发送消息按钮说明不是新朋友不需要添加
+                if send_msg_button.exists(timeout=2):#有发送消息按钮说明不是新朋友不需要添加
                     send_msg_button.click_input()
                     add_friend_window.close()
                     edit_area=main_window.child_window(**Edits.CurrentChatEdit)
@@ -1033,7 +1033,7 @@ class Navigator():
                     main_window.close()
                     raise NoSuchFriendError
                 return main_window
-            if not search_result and not search_mobile:#没有f搜索结过也没有绿色网络查找qq/手机号选项
+            if not search_result and not search_mobile:#没有搜索结果也没有绿色网络查找qq/手机号选项
                 chat_button.click_input()
                 main_window.close()
                 raise NoSuchFriendError

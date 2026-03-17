@@ -84,7 +84,7 @@ class ColorMatch():
         if (max_x-min_x)<10 or (max_y-min_y)<6:
             return None
         center_x=region[0]+(min_x+max_x)//2
-        center_y=region[1]+(min_y+max_y)//2
+        center_y=region[1]+(min_y+max_y)//2+2
         return center_x,center_y
 
     @staticmethod
@@ -228,6 +228,7 @@ def get_new_message_num(main_window:WindowSpecification=None,is_maximize:bool=No
     '''
     该函数用来获取侧边栏左侧微信按钮上的红色新消息总数
     Args:
+        main_window:微信主界面,可以不传入,不传入时自动打开微信
         is_maximize:微信界面是否全屏，默认不全屏
         close_weixin:任务结束后是否关闭微信，默认关闭
     Returns:
@@ -239,7 +240,7 @@ def get_new_message_num(main_window:WindowSpecification=None,is_maximize:bool=No
         close_weixin=GlobalConfig.close_weixin
     if main_window is None:
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
-    weixin_button=main_window.child_window(auto_id="main_tabbar", control_type="ToolBar").children()[0]
+    weixin_button=main_window.child_window(auto_id="MainView.main_tabbar", control_type="ToolBar").children()[0]
     #左上角微信按钮的红色消息提示(\d+条新消息)在FullDescription属性中,
     #只能通过id来获取,id是30159，之前是30007,可能是qt组件映射关系不一样
     full_desc=weixin_button.element_info.element.GetCurrentPropertyValue(30159)

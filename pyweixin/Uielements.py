@@ -93,7 +93,7 @@ class Buttons():
 class Edits():
     '''微信主界面内所有类型为Edit(不包含独立窗口)的UI控件'''
     def __init__(self):
-        self.SearchEdit={'title':'搜索','control_type':'Edit','class_name':"mmui::XValidatorTextEdit"}#主界面顶部的搜索栏
+        self.SearchEdit={'title':'搜索','control_type':'Edit','class_name':'mmui::XValidatorTextEdit'}#主界面顶部的搜索栏
         self.CurrentChatEdit={'control_type':'Edit','auto_id':'chat_input_field'}#微信主界面下当前的聊天窗口
         self.AddNewFriendSearchEdit={'title':'搜索','control_type':'Edit'}#添加新朋友界面里的搜索
         self.SearchNewFriendEdit={'title':'微信号/手机号','control_type':'Edit'}#添加新朋友界面里的搜

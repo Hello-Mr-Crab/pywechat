@@ -3141,7 +3141,8 @@ class Messages():
             warn(message=f"你与{friend}的聊天记录为空,无法获取聊天记录",category=NoChatHistoryWarning)
             chat_history_window.close()
             return [],[]
-        Tools.activate_chatHistoryList(chat_history_list)
+        Tools.activate_chatHistoryList(chat_history_list)#点击边角处激活滑块
+        #因为要先按down向下遍历,第一个被selected的实际是第二条，所以第一项内容直接记录
         first_item=chat_history_list.children(control_type='ListItem')[0]
         messages.append(first_item.window_text())
         runtime_ids.append(first_item.element_info.runtime_id)
@@ -3171,7 +3172,7 @@ class Messages():
         return messages,timestamps
 
 class Monitor():
-    '''监听消息的一些方法'''
+    '''监听消息的一些方法'''          
 
     @staticmethod
     def listen_on_chat(dialog_window:WindowSpecification,duration:str,save_file:bool=False,save_photo:bool=False,target_folder:str=None,close_dialog_window:bool=True)->dict:
@@ -3253,7 +3254,6 @@ class Monitor():
         if save_photo:
             image_folder=os.path.join(target_folder,'Images')
             os.makedirs(image_folder,exist_ok=True)
-       
         total=0
         link_count=0
         video_count=0
