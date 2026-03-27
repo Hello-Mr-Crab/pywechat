@@ -369,14 +369,15 @@ class Tools():
         return scrollable
     
     @staticmethod
-    def is_my_bubble(main_window:WindowSpecification,listitem:ListItemWrapper,edit_area:EditWrapper)->bool:
+    def is_my_bubble(main_window:WindowSpecification,listitem:ListItemWrapper,)->bool:
+        #edit_area:EditWrapper
         '''右键左侧消息区域检测最新的一条消息(bubble)是否是由本人发送'''
         rect=listitem.rectangle()
         mouse.right_click(coords=(rect.left+100,rect.mid_point().y))
         copy_menu_item=main_window.child_window(**MenuItems.CopyMenuItem)        
         if copy_menu_item.exists(timeout=0.1):
-            edit_rect=edit_area.rectangle()
-            mouse.click(coords=(edit_rect.left+5,edit_rect.mid_point().y))
+            # edit_rect=edit_area.rectangle()
+            # mouse.click(coords=(edit_rect.left+5,edit_rect.mid_point().y))
             return False
         return True
     
@@ -593,6 +594,7 @@ class Navigator():
         打开微信(微信需要提前登录)
         Args:
             is_maximize:微信界面是否全屏,默认不全屏
+            window_size:微信主界面大小,默认(1000,100),可GlobalConfig.window_size=(width,height)全局控制
         '''
         def move_window_to_center(window:WindowSpecification,is_maximize:bool):
             #将微信主界面移动到窗口正中间,并调整全屏
@@ -623,11 +625,11 @@ class Navigator():
         handle=wx.find_wx_window()
         if handle==0:
             raise NotFoundError
-        wx_window=desktop.window(handle=handle)
         #只有在窗口激活的时候
         if wx.window_type==0:#微信在运行,但是是登录界面
             raise NotLoginError
         if wx.window_type==1:#微信在运行，主界面存在(可能被关闭或者可见)
+            wx_window=desktop.window(handle=handle)
             main_window=move_window_to_center(wx_window,is_maximize=is_maximize)
             Tools.cancel_pin(main_window)
         offline_button=main_window.child_window(**Buttons.OffLineButton)
@@ -670,7 +672,7 @@ class Navigator():
         is_find=False
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
         #先看看当前微信右侧界面是不是聊天界面可能存在不是聊天界面的情况比如是纯白色的微信的icon
-        chats_button=main_window.child_window(**SideBar.Chats)
+        chats_button=main_window.child_window(**SideBar.Weixin)
         session_list=main_window.child_window(**Main_window.SessionList)
         if not session_list.exists():
             chats_button.click_input()
@@ -911,23 +913,22 @@ class Navigator():
         return settings_window
     
     @staticmethod
-    def open_contacts(is_maximize:bool=None)->WindowSpecification:
+    def open_contacts(is_maximize:bool=None)->tuple[ListViewWrapper,WindowSpecification]:
         '''
         该方法用于打开微信通信录界面
         Args:
             is_maximize:微信界面是否全屏,默认不全屏
+        Returns:
+            (contact_list,main_window):通讯录列表与微信主界面
         '''
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
-        contacts=main_window.child_window(**SideBar.Contacts)
-        contacts.click_input()
-        #类型是自定义的控件,必须先定位到该控件才可以继续定位通讯录列表
-        #直接main_window.child_window()定位不到
-        custom=main_window.descendants(control_type='Custom')
-        contact_list=custom[-1].children()[1].descendants(control_type='List')[0]
-        contact_list.type_keys("{HOME}")
-        return contact_list,main_window
+        contacts_button=main_window.child_window(**SideBar.Contacts)
+        contacts_button.click_input()
+        contacts_list=main_window.child_window(**Lists.ContactsList)
+        contacts_list.type_keys('{HOME}')
+        return contacts_list,main_window
 
     @staticmethod
     def open_contacts_manage(is_maximize:bool=None,window_maximize:bool=None,close_weixin:bool=None)->WindowSpecification:
@@ -991,7 +992,7 @@ class Navigator():
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
-        chat_button=main_window.child_window(**SideBar.Chats)
+        chat_button=main_window.child_window(**SideBar.Weixin)
         chat_button.click_input() 
         #先看看当前聊天界面是不是好友的聊天界面
         current_chat_label=Texts.CurrentChatText#右上角顶部的好友名称Text
@@ -1118,7 +1119,7 @@ class Navigator():
             close_weixin=GlobalConfig.close_weixin
 
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
-        chat_button=main_window.child_window(**SideBar.Chats)
+        chat_button=main_window.child_window(**SideBar.Weixin)
         chat_button.click_input()
         session_list=main_window.child_window(**Main_window.SessionList)
         search=main_window.descendants(**Main_window.Search)[0]
@@ -1143,6 +1144,47 @@ class Navigator():
             chat_button.click_input()
             main_window.close()
             raise NoSuchFriendError
+    @staticmethod
+    def open_chat_search_window(keyword:str,window_maximize:bool=None,is_maximize:bool=None,close_weixin:bool=None)->tuple[WindowSpecification,WindowSpecification]:
+        '''
+        该方法用来在微信顶部搜索关键字然后打开聊天记录搜索窗口
+        Args:
+            keyword:聊天记录关键字
+            is_maximize:微信界面是否全屏，默认不全屏
+            close_weixin:任务结束后是否关闭微信，默认关闭
+        Returns:
+            (chat_history_window,main_window):聊天记录搜索窗口,微信主界面
+        '''
+        if window_maximize is None:
+            window_maximize=GlobalConfig.window_maximize
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+        chat_history_window=None
+        main_window=Navigator.open_weixin(is_maximize=is_maximize)
+        chat_button=main_window.child_window(**SideBar.Weixin)
+        chat_button.click_input()
+        search_bar=main_window.descendants(**Main_window.Search)[0]
+        search_bar.click_input()
+        search_bar.set_text(keyword)
+        time.sleep(0.8)#必须停顿1s等待加载出结果来
+        search_results=main_window.child_window(title='',control_type='List')
+        chat_history_label=search_results.child_window(control_type='ListItem',title='聊天记录',class_name="mmui::XTableCell")
+        #微信搜索相关好友后会显示共同群聊，如果搜索结果中有群聊这个灰色标签的ListItem，说明有共同群聊
+        if not chat_history_label.exists(timeout=0.5):
+            print(f'无 {keyword} 相关的聊天记录!')
+        else:
+            if not chat_history_label.is_visible():
+                rectangle=search_results.rectangle()
+                mouse.scroll(coords=(rectangle.mid_point().x,rectangle.mid_point().y),wheel_dist=-100)
+            #只有当共同群聊数量大于4时候微信才会将其收起，此时有一个名为查看全部(\d+)的按钮
+            next_item=Tools.get_next_item(search_results,chat_history_label)
+            next_item.click_input()
+            chat_history_window=Tools.move_window_to_center(Windows.SearchChatHistoryWindow)
+            if window_maximize:
+                win32gui.SendMessage(chat_history_window.handle, win32con.WM_SYSCOMMAND, win32con.SC_MAXIMIZE,0)
+        return chat_history_window,main_window
 
     @staticmethod
     def open_chat_history(friend:str,TabItem:str=None,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->WindowSpecification:
@@ -1193,7 +1235,7 @@ class Navigator():
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         main_window=Navigator.open_weixin()
-        chat_button=main_window.child_window(**SideBar.Chats)
+        chat_button=main_window.child_window(**SideBar.Weixin)
         quick_actions_button=main_window.child_window(**Buttons.QuickActionsButton)
         quick_actions_list=main_window.child_window(**Lists.QuickActionsList)
         chat_button.click_input()

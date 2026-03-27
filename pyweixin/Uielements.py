@@ -153,7 +153,7 @@ class Lists():
     def __init__(self):
         self.QuickActionsList={'title':'快捷操作','control_type':'List'}#主界面点击+号后弹出的快捷操作列表
         self.ChatHistoryList={'title':'聊天记录','control_type':'List'}#聊天记录窗口中的存放聊天消息的列表
-        self.ContactsList={'title':'通讯录','control_type':'List'}#通讯录中的通讯录列表
+        self.ContactsList={'auto_id':'primary_table_.contact_list','control_type':'List'}#通讯录中的通讯录列表
         self.ConversationList={'title':'会话','control_type':'List'}#主界面左侧的好友聊天会话列表
         self.FriendChatList={'title':'消息','control_type':'List'}#聊天界面内的消息列表
         self.FileList={'title':'文件','control_type':'List'}#聊天记录窗口中选择文件后的文件列表
@@ -228,7 +228,8 @@ class CheckBoxes():
 
 class Customs():
     def __init__(self):
-        self.ContactCustom={'control_type':'Custom','auto_id':'main_window_sub_splitter_view','class_name':'mmui::XSplitterView'}#微信切换到通讯录界面后的右侧好友信息面板的上一级自定义
+        self.ContactCustom={'control_type':'Custom','auto_id':'MainView.main_window_main_splitter_view','class_name':'mmui::XSplitterView'}#微信切换到通讯录后通讯录整个界面
+        self.ContactDetailCustom={'control_type':'Custom','auto_id':'main_window_sub_splitter_view','class_name':'mmui::XSplitterView'}#微信切换到通讯录界面后的右侧好友信息面板的上一级自定义
 
 class Windows():
     def __init__(self):
@@ -245,8 +246,10 @@ class Windows():
         self.PopOverWindow={'control_type':'Window','class_name':'mmui::XPopover'}#当微信窗口足够小的时候,会收起一部分侧边栏按钮到这个窗口内,此时需要点击...后在这个界面内点击
         self.SolitaireWindow={'control_type':'Window','class_name':'mmui::SolitaireWindow'}#群接龙窗口
         self.ImagePreviewWindow={'control_type':'Window','class_name':'mmui::PreviewWindow'}#微信点击图片或视频后桌面弹出的图片与视频窗口
-        self.AddfriendWindow={'control_type':'Window','class_name':'mmui::AddFriendWindow'}
-
+        self.AddfriendWindow={'control_type':'Window','class_name':'mmui::AddFriendWindow'}#添加好友窗口
+        self.SearchChatHistoryWindow={'control_type':'Window','auto_id':'GlobalSearchMsgWindow'}#聊天记录搜索窗口
+        self.VerifyFriendWindow2={'title':'通过朋友验证','control_type':'Window','class_name':'mmui::VerifyFriendWindow'}#通讯录新的朋友中右侧前往验证按钮点击后弹出的通过朋友验证窗口
+        
 class Login_window():
     '''登录界面要用到的唯二的两个Ui:登录界面与进入微信按钮'''
     def __init__(self):
@@ -257,7 +260,7 @@ class Login_window():
 class SideBar():
     '''主界面侧导航栏下的所有Ui'''
     def __init__(self):
-        self.Chats={'title':'微信','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的聊天按钮
+        self.Weixin={'title':'微信','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的微信按钮
         self.Contacts={'title':'通讯录','control_type':'Button'}#主界面左侧的通讯录按钮
         self.Collections={'title':'收藏','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的收藏按钮
         self.Moments={'title':'朋友圈','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的朋友圈按钮

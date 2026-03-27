@@ -5,7 +5,7 @@ import psutil
 import pyautogui
 from functools import wraps
 from pywinauto import WindowSpecification,Desktop,mouse
-from pywinauto.controls.uia_controls import ListItemWrapper #TypeHint要用到
+from pywinauto.controls.uia_controls import ListItemWrapper#TypeHint要用到
 from .Config import GlobalConfig
 from .WeChatTools import Navigator,Tools
 from .WinSettings import SystemSettings
@@ -35,6 +35,7 @@ class Regex_Patterns():
         self.Filename_pattern=re.compile(r'.*\.\w+\s')#用来匹配.docx,.ppt等文件名，只适合在微信聊天文件界面中使用
         self.File_pattern=re.compile(r'文件\n(.*)\n')#微信聊天窗口发送的聊天文件卡片上的内容(有两个换行符)
         self.Article_Timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日|\d{1,2}月\d{1,2}日|昨天|星期\w|今天)')#公众号文章的时间戳
+        self.Message_Timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日\s星期\w\s\d{2}:\d{2}|\d{1,2}月\d{1,2}日\s星期\w\s\d{2}:\d{2}|\d{1,2}月\d{1,2}日\s\d{2}:\d{2}|昨天\s\d{2}:\d{2}|星期\w\s\d{2}:\d{2}|\d{2}:\d{2})')#公众号文章的时间戳
 
 class ColorMatch():
     '''朋友圈点赞评论时需要用颜色识别点击按钮'''
@@ -119,7 +120,7 @@ class ColorMatch():
         '''
         通过像素颜色识别点击评论区的绿色发送按钮,识别失败时回退原坐标点击
         Args:
-            rectangel:评论区列表项目所属的矩形
+            rectangle:评论区列表项目所属的矩形
             x_offset:相较于该列表项目右侧靠左的距离
             y_offset:相较于该列表项目底部靠上的距离
         '''
@@ -141,7 +142,7 @@ class ColorMatch():
         '''
         通过像素颜色识别点击灰色省略号按钮
         Args:
-            rectangel:评论区列表项目所属的矩形
+            rectangle:评论区列表项目所属的矩形
             x_offset:相较于该列表项目右侧靠左的距离
             y_offset:相较于该列表项目底部靠上的距离
         '''
@@ -351,7 +352,7 @@ def scan_for_new_messages(main_window:WindowSpecification=None,delay:float=0.3,i
     newMessageSenders=[]
     newMessageNums=[]
     newMessages_dict=dict(zip(newMessageSenders,newMessageNums))
-    chats_button=main_window.child_window(**SideBar.Chats)
+    chats_button=main_window.child_window(**SideBar.Weixin)
     chats_button.click_input()
     #左上角微信按钮的红色消息提示(\d+条新消息)在FullDescription属性中,
     #只能通过id来获取,id是30159，之前是30007,可能是qt组件映射关系不一样

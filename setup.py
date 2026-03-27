@@ -1,7 +1,7 @@
 import sys
 from setuptools import setup
 setup(name='pywechat127',
-version='1.9.9',
+version='1.9.8',
 author='Hello-Mr-Crab',
 author_email='3083256475@qq.com',
 classifiers=[

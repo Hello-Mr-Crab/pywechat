@@ -194,7 +194,7 @@ class AutoReply():
                                 pyautogui.hotkey('alt','s')
                                 win32gui.SendMessage(dialog_window.handle, win32con.WM_SYSCOMMAND, win32con.SC_MINIMIZE,0)
                     if newMessage.class_name()=='mmui::ChatBubbleItemView' and newMessage.window_text()[:2]=='[链接]':#
-                        link_count+=1
+                        link_count+=1 
                     if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and newMessage.window_text()=='图片':
                         image_count+=1
                         #只是依靠class_name,window_text还有数量筛选，假如结束时又新发了几张图片，内容会对不上         
@@ -281,7 +281,6 @@ class Collections():
                 delete_button.click_input()
             time.sleep(delay)#0.3是极限,等待复制到剪贴板标签消失
             return url
-
         links=dict()
         offset=120#固定的offset,右键都在右边点
         timestamp_pattern=Regex_Patterns.Article_Timestamp_pattern
@@ -415,7 +414,6 @@ class Contacts():
         Returns:
             friends_detail:所有好友的信息
         '''
-        
         #切换到联系人分区内的第一个好友
         def switch_to_first_friend():
             contact_list.type_keys('{HOME}')
@@ -480,7 +478,7 @@ class Contacts():
         #通讯录列表
         contact_list,main_window=Navigator.open_contacts(is_maximize=is_maximize)
         #右侧的自定义面板
-        contact_custom=main_window.child_window(**Customs.ContactCustom)
+        contact_custom=main_window.child_window(**Customs.ContactDetailCustom)
         #右侧自定义面板下的好友信息所在面板
         contact_profile=contact_custom.child_window(**Groups.ContactProfileGroup)
         area=(contact_custom.rectangle().mid_point().x,contact_custom.rectangle().mid_point().y)
@@ -588,7 +586,7 @@ class Contacts():
         #通讯录列表
         contact_list,main_window=Navigator.open_contacts(is_maximize=is_maximize)
         #右侧的自定义面板
-        contact_custom=main_window.child_window(**Customs.ContactCustom)
+        contact_custom=main_window.child_window(**Customs.ContactDetailCustom)
         #右侧自定义面板下的好友信息所在面板
         contact_profile=contact_custom.child_window(**Groups.ContactProfileGroup)
         area=(contact_custom.rectangle().mid_point().x,contact_custom.rectangle().mid_point().y)
@@ -673,7 +671,7 @@ class Contacts():
         #通讯录列表
         contact_list,main_window=Navigator.open_contacts(is_maximize=is_maximize)
         #右侧的自定义面板
-        contact_custom=main_window.child_window(**Customs.ContactCustom)
+        contact_custom=main_window.child_window(**Customs.ContactDetailCustom)
         area=(contact_custom.rectangle().mid_point().x,contact_custom.rectangle().mid_point().y)
         #右侧自定义面板下的好友信息所在面板
         contact_profile=contact_custom.child_window(**Groups.ContactProfileGroup)
@@ -759,7 +757,7 @@ class Contacts():
         #通讯录列表
         contact_list,main_window=Navigator.open_contacts(is_maximize=is_maximize)
         #右侧的自定义面板
-        contact_custom=main_window.child_window(**Customs.ContactCustom)
+        contact_custom=main_window.child_window(**Customs.ContactDetailCustom)
         area=(contact_custom.rectangle().mid_point().x,contact_custom.rectangle().mid_point().y)
         #右侧自定义面板下的好友信息所在面板
         contact_profile=contact_custom.child_window(**Groups.ContactProfileGroup)
@@ -813,7 +811,7 @@ class Contacts():
         groups=[]
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
         myname=Contacts.check_my_info(close_weixin=False,is_maximize=is_maximize).get('昵称')
-        chat_button=main_window.child_window(**SideBar.Chats)
+        chat_button=main_window.child_window(**SideBar.Weixin)
         chat_button.click_input()
         search=main_window.descendants(**Main_window.Search)[0]
         search.click_input()
@@ -869,12 +867,11 @@ class Contacts():
             close_weixin=GlobalConfig.close_weixin
         groups=[]
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
-        chat_button=main_window.child_window(**SideBar.Chats)
+        chat_button=main_window.child_window(**SideBar.Weixin)
         chat_button.click_input()
-        search=main_window.descendants(**Main_window.Search)[0]
-        search.click_input()
-        SystemSettings.copy_text_to_clipboard(friend)
-        pyautogui.hotkey('ctrl','v')
+        search_bar=main_window.descendants(**Main_window.Search)[0]
+        search_bar.click_input()
+        search_bar.set_text(friend)
         time.sleep(1)#必须停顿1s等待加载出结果来
         search_results=main_window.child_window(title='',control_type='List')
         group_label=search_results.child_window(control_type='ListItem',title='群聊',class_name="mmui::XTableCell")
@@ -1040,6 +1037,82 @@ class Contacts():
             recent_groups=list(zip(group_names,member_nums))#不使用dict(zip)是考虑到可能有相同群聊的,dict key不能有重复
             contacts_manage.close()
             return recent_groups
+    
+    @staticmethod
+    def check_new_friends(verify:bool=False,limit:int=8,clear:bool=False,is_maximize:bool=None,close_weixin:bool=None)->list[str]:
+        '''
+        该方法用来检查一遍通讯录中新的朋友的信息,可以通过验证被动添加好友
+        Args:
+            verify:是否通过好友验证同意添加好友
+            limit:通过验证的上限数:单次≤8人,每日≤4次,间隔≥2小时,无论新老号超过这个频率大概率封号
+            clear:是否删除单条验证消息,遍历结束后会全部删除
+            is_maximize:微信界面是否全屏，默认不全屏
+            close_weixin:任务结束后是否关闭微信，默认关闭
+        Returns:
+            newfriends_detail:所有新朋友的信息
+        '''
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+        
+        def clear_item(current_item):
+            current_item.right_click_input()
+            pyautogui.press('down')
+            pyautogui.press('enter')
+        
+        def friend_verification(current_item):
+            time.sleep(1)
+            if verify and verify_button.exists(timeout=0.1):
+                verify_button.click_input()
+                confirm_button=verifyFriend_window.child_window(**Buttons.ConfirmButton)
+                confirm_button.click_input()
+                current_item.click_input()
+                return True
+            return False
+
+        verified_num=0
+        newfriends_detail=[]
+        #通讯录列表
+        contact_list,main_window=Navigator.open_contacts(is_maximize=is_maximize)
+        #右侧的自定义面板
+        chat_button=main_window.child_window(**SideBar.Weixin)
+        contact_custom=main_window.child_window(**Customs.ContactDetailCustom)
+        verify_button=contact_custom.child_window(control_type='Button',title='前往验证')
+        Tools.collapse_contacts(main_window,contact_list)
+        #验证好友窗口
+        verifyFriend_window=desktop.window(**Windows.VerifyFriendWindow2)
+        #新的朋友联系人分区
+        newfriend_item=main_window.child_window(control_type='ListItem',title=r'新的朋友',class_name="mmui::ContactsCellGroupView")
+        if not newfriend_item.exists(timeout=0.1):
+            print(f'你没有新的朋友,无法获取新的朋友信息!')
+        if newfriend_item.exists(timeout=0.1):
+            newfriend_item.click_input()
+            contact_list.type_keys('{END}')
+            newfriends=[listitem for listitem in contact_list.children() if listitem.class_name()=='mmui::XTableCell']
+            if newfriends:
+                last=newfriends[-1].window_text()
+                contact_list.type_keys('{HOME}')
+                contact_list.type_keys('{DOWN}'*2)
+                selected=[listitem for listitem in contact_list.children(control_type='ListItem') if listitem.is_selected()]
+                while selected[0].window_text()!=last:
+                    newfriends_detail.append(selected[0].window_text())
+                    if verified_num<limit:
+                        is_verified=friend_verification(selected[0])
+                        if is_verified:verified_num+=1
+                    if clear:
+                        clear_item(selected[0])
+                        contact_list.children(control_type='ListItem')[2].click_input()
+                    else:
+                        pyautogui.keyDown('down',_pause=False)
+                    selected=[listitem for listitem in contact_list.children(control_type='ListItem') if listitem.is_selected()]
+            if clear:clear_item(selected[0])
+            contact_list.type_keys('{HOME}')
+            Tools.collapse_contacts(main_window,contact_list)
+        chat_button.click_input()
+        if close_weixin:
+            main_window.close()
+        return newfriends_detail
 
 class FriendSettings():
     '''关于好友设置的一些方法'''
@@ -1402,7 +1475,7 @@ class FriendSettings():
         if common_group_button.exists(timeout=3):
             total_num=int(common_group_button.window_text().replace('个',''))
             common_group_button.click_input()
-            popup_window=desktop.window(**Windows.PopUpProfileWindow)
+            popup_window=main_window.window(**Windows.PopUpProfileWindow)
             common_group_list=popup_window.child_window(**Lists.CommonGroupList)
             common_group_list.type_keys('{END}')
             last_item=common_group_list.children()[-1].window_text()
@@ -1652,7 +1725,7 @@ class Files():
         Chats=dict(zip(friends,messages_list))
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
         edit_area=main_window.child_window(**Edits.CurrentChatEdit)
-        chat_button=main_window.child_window(**SideBar.Chats)
+        chat_button=main_window.child_window(**SideBar.Weixin)
         chat_button.click_input()
         if with_messages and messages_list:#文件消息一起发且messages_list不空
             for friend in Files:
@@ -2108,7 +2181,7 @@ class Settings():
     def notification_alert(alert_map:dict={'newMessage':True,'Call':True,'Moments':True,'Game':True,'Interaction_only':True},
         is_maximize:bool=None,close_weixin:bool=None):
         '''
-        该方法用于修改微信设置中的通知标记或声音
+        该方法用于修改微信设置中的通知或声音标记
         Args:
             alert_map:微信通知标记字典,格式:{'newMessage':True,'Call':True,'Moments':True,'Game':True,'Interaction_only':True}
             is_maximize:微信界面是否全屏，默认不全屏
@@ -2945,7 +3018,7 @@ class Messages():
         #最右侧时间戳正则表达式:五种,2024/05/01,10/25,昨天,星期一,10:59,
         timestamp_pattern=Regex_Patterns.Session_Timestamp_pattern
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
-        chats_button=main_window.child_window(**SideBar.Chats)
+        chats_button=main_window.child_window(**SideBar.Weixin)
         session_list=main_window.child_window(**Main_window.SessionList)
         chats_button.click_input()
         scrollable=Tools.is_scrollable(session_list,back='end')
@@ -3035,7 +3108,7 @@ class Messages():
         #最右侧时间戳正则表达式:五种,2024/05/01,10/25,昨天,星期一,10:59,
         timestamp_pattern=Regex_Patterns.Session_Timestamp_pattern
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
-        chats_button=main_window.child_window(**SideBar.Chats)
+        chats_button=main_window.child_window(**SideBar.Weixin)
         session_list=main_window.child_window(**Main_window.SessionList)
         chats_button.click_input()
         scrollable=Tools.is_scrollable(session_list,back='end')
@@ -3069,7 +3142,7 @@ class Messages():
         Args:
             friend:好友名称
             number:获取的消息数量
-            search_pages:打开好友聊天窗口时在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界
+            search_pages:打开好友聊天窗口时在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
@@ -3082,6 +3155,7 @@ class Messages():
         if search_pages is None:
             search_pages=GlobalConfig.search_pages
         messages=[]
+        audio_pattern=re.compile(r'(?<=语音)\d+"秒(.*)$')
         main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         chat_list=main_window.child_window(**Lists.FriendChatList)
         if not chat_list.exists(timeout=0.1):
@@ -3098,7 +3172,11 @@ class Messages():
                 chat_list.type_keys('{UP}')
                 selected=[listitem for listitem in chat_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
                 if selected and selected[0].class_name()!='mmui::ChatItemView':
-                    messages.append(selected[0].window_text())
+                    if selected[0].class_name()=='mmui::ChatVoiceItemView':
+                        content=audio_pattern.search(selected[0].window_text()).group(1)
+                        messages.append(f'语音转文字:{content}')
+                    else:
+                        messages.append(selected[0].window_text())
                 if not selected:
                     break
             chat_list.type_keys('{END}')
@@ -3108,15 +3186,17 @@ class Messages():
         return messages
 
     @staticmethod
-    def dump_chat_history(friend:str,number:int,capture_alia:bool=False,alias_folder:str=None,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->tuple[list,list]:
-    
-        '''该函数用来获取一定数量的聊天记录
+    def dump_chat_history(friend:str,number:int,search_content:str=None,capture_alia:bool=False,alias_folder:str=None,
+        search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->tuple[list,list]:
+        '''
+        该函数用来获取一定数量的聊天记录
         Args:  
             friend:好友名称
             number:获取的消息数量
+            search_content:搜索关键字,传入后会先在顶部搜索关键字然后向下遍历
             capture_alia:是否截取聊天记录中聊天对象的昵称
             alias_folder:保存聊天对象昵称截图的文件夹
-            search_pages:打开好友聊天窗口时在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界
+            search_pages:打开好友聊天窗口时在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
@@ -3137,11 +3217,14 @@ class Messages():
         timestamp_pattern=Regex_Patterns.Chathistory_Timestamp_pattern
         chat_history_window=Navigator.open_chat_history(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin,search_pages=search_pages)
         chat_history_list=chat_history_window.child_window(**Lists.ChatHistoryList)
+        if isinstance(search_content,str):
+            search_bar=chat_history_window.descendants(**Edits.SearchEdit)[0]
+            search_bar.set_text(search_content)
         if not chat_history_list.exists(timeout=0.1):
             warn(message=f"你与{friend}的聊天记录为空,无法获取聊天记录",category=NoChatHistoryWarning)
             chat_history_window.close()
             return [],[]
-        Tools.activate_chatHistoryList(chat_history_list)#点击边角处激活滑块
+        Tools.activate_chatHistoryList(chat_history_list)#激活滑块
         #因为要先按down向下遍历,第一个被selected的实际是第二条，所以第一项内容直接记录
         first_item=chat_history_list.children(control_type='ListItem')[0]
         messages.append(first_item.window_text())
@@ -3170,6 +3253,74 @@ class Messages():
         timestamps=[timestamp_pattern.search(message).group(0) if timestamp_pattern.search(message) else '微信红包或转账(时间戳为图片非文本无法获取)' for message in messages]
         messages=[timestamp_pattern.sub('',message) for message in messages]
         return messages,timestamps
+
+    @staticmethod
+    def search_chat_history(keyword:str,is_maximize:bool=None,close_weixin:bool=None)->dict[str,list[str]]:
+        '''
+        该方法用来在微信顶部搜索关键字然后遍历查找聊天记录
+        Args:
+            keyword:聊天记录关键字
+            is_maximize:微信界面是否全屏，默认不全屏
+            close_weixin:任务结束后是否关闭微信，默认关闭
+        Returns:
+            chat_history_detail:聊天记录明细
+        '''
+        def traverse_message_list(message_list:ListViewWrapper)->list[str]:
+            messages=[]
+            runtime_ids=[]
+            total_num=int(re.search(r'\d+',total_label.window_text()).group(0))
+            scrollable=Tools.is_scrollable(message_list,back='top')
+            if not scrollable:
+                messages=[listitem.window_text() for listitem in message_list.children(control_type='ListItem')]
+            if scrollable:
+                first_item=message_list.children(control_type='ListItem')[0]
+                messages.append(first_item.window_text())
+                runtime_ids.append(first_item.element_info.runtime_id)
+                while len(messages)<total_num:
+                    pyautogui.press('down',presses=2,_pause=False)
+                    selected=[listitem for listitem in message_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
+                    if selected:
+                        runtime_ids.append(selected[0].element_info.runtime_id)
+                        #同一个runtime_id挨着重复出现就说明到底部了无法继续下滑
+                        if runtime_ids[-1]==runtime_ids[-2]:
+                            break
+                        messages.append(selected[0].window_text())
+            return messages
+
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+        chat_history_detail={}
+        chat_history_window,main_window=Navigator.open_chat_search_window(keyword=keyword,window_maximize=True)
+        if chat_history_window is not None:
+            search_list=chat_history_window.child_window(**Lists.SearchResult)
+            message_list=chat_history_window.child_window(auto_id='message_list')
+            rectangle=search_list.rectangle()
+            scroll_position=(rectangle.mid_point().x,rectangle.mid_point().y)
+            total_label=chat_history_window.child_window(control_type='Text',found_index=3)
+            current_item=search_list.children(control_type='ListItem')[0]
+            current_item.click_input()
+            while True:
+                Tools.activate_chatHistoryList(message_list)#激活滑块
+                chat_history_detail[current_item.window_text()]=traverse_message_list(message_list)
+                next_item=Tools.get_next_item(search_list,current_item)
+                if next_item is None:
+                    mouse.scroll(coords=scroll_position,wheel_dist=-12)
+                    next_item=Tools.get_next_item(search_list,current_item)
+                if next_item is None:
+                    break
+                rectangle=next_item.rectangle()
+                click_position=rectangle.mid_point().x,rectangle.top+5
+                mouse.click(coords=click_position)
+                current_item=next_item
+        chat_history_window.close()
+        if close_weixin:
+            main_window.close()
+        return chat_history_detail
+    
+  
+    
 
 class Monitor():
     '''监听消息的一些方法'''          
@@ -3260,12 +3411,14 @@ class Monitor():
         image_count=0
         files=[]
         texts=[]
+        memberEvents=[]
         image_ids=[]
         friend=dialog_window.window_text()
         file_pattern=Regex_Patterns.File_pattern
         timestamp=time.strftime('%Y-%m')
         chatfile_folder=Tools.where_chatfile_folder()
         chatList=dialog_window.child_window(**Lists.FriendChatList)#聊天界面内存储所有信息的容器
+        timestamp_pattern=Regex_Patterns.Message_Timestamp_pattern#系统消息的时间戳
         Tools.activate_chatList(chatList)
         if chatList.children(control_type='ListItem'):
             initial_message=chatList.children(control_type='ListItem')[-1]#刚打开聊天界面时的最后一条消息的listitem
@@ -3282,6 +3435,8 @@ class Monitor():
                     total+=1
                     if newMessage.class_name()=='mmui::ChatTextItemView':
                         texts.append(newMessage.window_text())
+                    if newMessage.class_name()=='mmui::ChatItemView' and not timestamp_pattern.search(newMessage.window_text()):
+                        memberEvents.append(newMessage.window_text())
                     if newMessage.class_name()=='mmui::ChatBubbleItemView' and newMessage.window_text()[:2]=='[链接]':#
                         link_count+=1
                     if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and newMessage.window_text()=='图片':
@@ -3302,7 +3457,60 @@ class Monitor():
         if save_file and files:SystemSettings.copy_files(files,file_folder)#文件复制粘贴到target_folder/Files内
         if save_photo and image_count:save_photos(chatList)#保存图片到target_folder/Images内
         if close_dialog_window:dialog_window.close()
-        details={'新消息总数':total,'文本数量':len(texts),'文件数量':len(files),'图片数量':image_count,'视频数量':video_count,'链接数量':link_count,'文本内容':texts}
+        details={'新消息总数':total,'文本数量':len(texts),'文件数量':len(files),'图片数量':image_count,'视频数量':video_count,'链接数量':link_count,'文本内容':texts,'出入群通知':memberEvents}
+        return details
+
+    @staticmethod
+    def listen_on_newMemberJoin(dialog_window:WindowSpecification,duration:str,close_dialog_window:bool=True)->list[str]:
+        '''
+        该方法用来在指定时间内监听群聊内的出入群消息
+        Args:
+            dialog_window:群聊单独的聊天窗口或主界面内的聊天窗口,可使用Navigator内的方法打开
+            duraiton:监听持续时长,监听消息持续时长,格式:'s','min','h'单位:s/秒,min/分,h/小时
+            close_dialog_window:是否关闭dialog_window,默认关
+        Examples:
+            多线程使用示例:
+            >>> from concurrent.futures import ThreadPoolExecutor
+            >>> from pyweixin import Navigator,Monitor
+            >>> #先打开所有好友的独立窗口
+            >>> dialog_windows=[]
+            >>> friends=['家族群','Pywechat测试群']
+            >>> durations=['1min']*len(friends)
+            >>> for friend in friends:
+            >>>    dialog_window=Navigator.open_seperate_dialog_window(friend=friend,window_minimize=True,close_weixin=True)
+            >>>    dialog_windows.append(dialog_window)
+            >>> with ThreadPoolExecutor() as pool:
+            >>>    results=pool.map(lambda args: Monitor.listen_on_newMemberJoin(*args),list(zip(dialog_windows,durations)))
+            >>> for friend,result in zip(friends,results):
+            >>>    print(friend,result)
+        Returns:
+            details:出入群消息列表
+        '''
+        details=[]
+        duration=Tools.match_duration(duration)#将's','min','h'转换为秒
+        if duration is None:#不按照指定的时间格式输入,需要提前中断退出
+            raise TimeNotCorrectError
+        is_group=Tools.is_group_chat(dialog_window)
+        chatList=dialog_window.child_window(**Lists.FriendChatList)#聊天界面内存储所有信息的容器
+        Tools.activate_chatList(chatList)
+        if chatList.children(control_type='ListItem'):
+            initial_message=chatList.children(control_type='ListItem')[-1]#刚打开聊天界面时的最后一条消息的listitem
+            initial_runtime_id=initial_message.element_info.runtime_id
+        if not chatList.children(control_type='ListItem'):
+            initial_runtime_id=0
+        timestamp_pattern=Regex_Patterns.Message_Timestamp_pattern#系统消息的时间戳
+        end_timestamp=time.time()+duration#根据秒数计算截止时间
+        SystemSettings.open_listening_mode(volume=False)
+        while time.time()<end_timestamp:
+            if chatList.children(control_type='ListItem') and is_group:
+                newMessage=chatList.children(control_type='ListItem')[-1]
+                runtime_id=newMessage.element_info.runtime_id
+                if runtime_id!=initial_runtime_id: 
+                    if newMessage.class_name()=='mmui::ChatItemView' and not timestamp_pattern.search(newMessage.window_text()):
+                        details.append(newMessage.window_text())
+                    initial_runtime_id=runtime_id
+        SystemSettings.close_listening_mode()
+        if close_dialog_window:dialog_window.close()
         return details
     
     @staticmethod
