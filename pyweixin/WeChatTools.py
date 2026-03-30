@@ -618,7 +618,7 @@ class Navigator():
             is_maximize=GlobalConfig.is_maximize
         if window_size is None:
             window_size=GlobalConfig.window_size
-        wx=WxWindowManage()
+        
         is_running=Tools.is_weixin_running()
         if not is_running:#微信不在运行,主界面看不到窗口，需要先启动
             raise NotStartError

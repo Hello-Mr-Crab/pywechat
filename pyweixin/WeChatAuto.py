@@ -105,7 +105,7 @@ Regex_Patterns=Regex_Patterns()#所有的正则pattern
 class AutoReply():
     
     @staticmethod
-    def auto_reply_to_friend(dialog_window:WindowSpecification,duration:str,callback:Callable[[str,list],str],save_file:bool=False,target_folder:str=None,close_dialog_window:bool=True)->dict:
+    def auto_reply_to_friend(dialog_window:WindowSpecification,duration:str,callback:Callable[[str,list],str],save_file:bool=False,save_media:bool=False,target_folder:str=None,close_dialog_window:bool=True)->dict:
         '''
         该方法用来在指定时间内自动回复会话窗口内的新消息并监听内容
         Args:
@@ -113,6 +113,7 @@ class AutoReply():
             duraiton:监听持续时长,监听消息持续时长,格式:'s','min','h'单位:s/秒,min/分,h/小时
             callback:新消息处理函数,入参是当前消息和上下文消息(可见的消息列表内的所有文本构成的列表)
             save_file:是否保存文件,需开启自动下载文件并设置为1024MB,默认为False
+            save_media:是否保存图片或视频
             target_folder:文件或图片的保存文件夹
             close_dialog_window:是否关闭dialog_window,默认关闭
         Examples:
@@ -158,6 +159,9 @@ class AutoReply():
         if save_file:
             file_folder=os.path.join(target_folder,'Files')
             os.makedirs(file_folder,exist_ok=True)
+        if save_media:
+            media_folder=os.path.join(target_folder,'Media')
+            os.makedirs(media_folder,exist_ok=True)
         total=0
         link_count=0
         video_count=0
@@ -167,6 +171,7 @@ class AutoReply():
         initial_runtime_id=0
         file_pattern=Regex_Patterns.File_pattern
         timestamp=time.strftime('%Y-%m')
+        friend=dialog_window.window_text()
         chatfile_folder=Tools.where_chatfile_folder()
         chatList=dialog_window.child_window(**Lists.FriendChatList)#聊天界面内存储所有信息的容器
         input_edit=dialog_window.child_window(**Edits.InputEdit)
@@ -196,19 +201,20 @@ class AutoReply():
                     if newMessage.class_name()=='mmui::ChatBubbleItemView' and newMessage.window_text()[:2]=='[链接]':#
                         link_count+=1 
                     if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and newMessage.window_text()=='图片':
-                        image_count+=1
-                        #只是依靠class_name,window_text还有数量筛选，假如结束时又新发了几张图片，内容会对不上         
+                        image_count+=1      
                     if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and '视频' in newMessage.window_text():
-                        video_count+=1#视频需要下载直接右键复制不行,需要先点击,如果时间长,要等半天，不太方便
+                        video_count+=1
                     if newMessage.class_name()=='mmui::ChatBubbleItemView' and '文件' in newMessage.window_text():
                         filename=file_pattern.search(newMessage.window_text()).group(1)
                         filepath=os.path.join(chatfile_folder,timestamp,filename)
                         files.append(filepath)
                     initial_runtime_id=runtime_id
+        media_count=image_count+video_count
         SystemSettings.close_listening_mode()
+        if close_dialog_window:dialog_window.close()
         #最后结束时再批量复制到target_folder,不在循环里逐个复制是考虑到若文件过大(几百mb)没有自动下载完成移动不了
         if save_file and files:SystemSettings.copy_files(files,file_folder)#文件复制粘贴到target_folder/Files内
-        if close_dialog_window:dialog_window.close()
+        if save_media and media_count:Messages.save_media(friend=friend,number=media_count,target_folder=target_folder)#保存图片到target_folder/Images内
         details={'新消息总数':total,'文本数量':len(texts),'文件数量':len(files),'图片数量':image_count,'视频数量':video_count,'链接数量':link_count,'文本内容':texts}
         return details
     
@@ -229,8 +235,7 @@ class Call():
         main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize)  
         voice_call_button=main_window.child_window(**Buttons.VoiceCallButton)
         voice_call_button.click_input()
-        if close_weixin:
-            main_window.close()
+        if close_weixin:main_window.close()
 
     @staticmethod
     def video_call(friend:str,is_maximize:bool=None,close_weixin:bool=None)->None:
@@ -247,8 +252,7 @@ class Call():
         main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize)  
         video_call_button=main_window.child_window(**Buttons.VideoCallButton)
         video_call_button.click_input()
-        if close_weixin:
-            main_window.close()
+        if close_weixin:main_window.close()
 
 class Collections():
     
@@ -311,8 +315,7 @@ class Collections():
             selected_item=[listitem for listitem in link_list.children(control_type='ListItem') if listitem.has_keyboard_focus() and listitem.window_text()!=''][0]
             if len(links)>=number:
                 break
-        if close_weixin:
-            main_window.close()
+        if close_weixin:main_window.close()
         return links
     
     @staticmethod
@@ -616,8 +619,7 @@ class Contacts():
             Tools.collapse_contacts(main_window,contact_list)
             if is_json:
                 friends_detail=json.dumps(obj=friends_detail,ensure_ascii=False,indent=2)
-        if close_weixin:
-            main_window.close()
+        if close_weixin:main_window.close()
         return friends_detail 
     
     @staticmethod
@@ -702,8 +704,7 @@ class Contacts():
             friends_detail=remove_duplicates(friends_detail)
             if is_json:
                 friends_detail=json.dumps(obj=friends_detail,ensure_ascii=False,indent=2)
-        if close_weixin:
-            main_window.close()
+        if close_weixin:main_window.close()
         return friends_detail 
 
     @staticmethod
@@ -788,8 +789,7 @@ class Contacts():
             friends_detail=remove_duplicates(friends_detail)
             if is_json:
                 friends_detail=json.dumps(obj=friends_detail,ensure_ascii=False,indent=2)
-        if close_weixin:
-            main_window.close()
+        if close_weixin:main_window.close()
         return friends_detail 
         
     @staticmethod
@@ -846,8 +846,7 @@ class Contacts():
                     groups.append(listitem.window_text())#
             #从前往后逆序倒过来total个
         groups=groups[-total:]
-        if close_weixin:
-            main_window.close()
+        if close_weixin:main_window.close()
         return groups
 
     @staticmethod
@@ -909,8 +908,7 @@ class Contacts():
             #从前往后逆序倒过来total个
             groups=groups[-total:]
         chat_button.click_input()
-        if close_weixin:
-            main_window.close()
+        if close_weixin:main_window.close()
         return groups
     
     @staticmethod
@@ -976,8 +974,7 @@ class Contacts():
         '标签':tag,'描述':descrption,'朋友权限':permission,'共同群聊':f'{common_group_num}','个性签名':signature,'来源':source}
         friend_text=main_window.child_window(title=friend,control_type='Text',found_index=1)
         friend_text.click_input()
-        if close_weixin:
-            main_window.close()
+        if close_weixin:main_window.close()
         return profile
     
     @staticmethod
@@ -1110,8 +1107,7 @@ class Contacts():
             contact_list.type_keys('{HOME}')
             Tools.collapse_contacts(main_window,contact_list)
         chat_button.click_input()
-        if close_weixin:
-            main_window.close()
+        if close_weixin:main_window.close()
         return newfriends_detail
 
 class FriendSettings():
@@ -1494,7 +1490,7 @@ class FriendSettings():
         return common_groups
 
     # @staticmethod
-    # SessionPicker window无法ui自动化,微信直接白屏卡死成旭崩溃
+    # # SessionPicker window无法ui自动化,微信直接白屏卡死程序崩溃！不信,可以尝试一下
     # def add_tag(friends:list[str],tag:str,is_maximize:bool=None,window_maximize:bool=None,close_weixin:bool=None):
     #     '''
     #     该方法用来批量给好友设置标签
@@ -3136,7 +3132,7 @@ class Messages():
         return sessions
 
     @staticmethod
-    def pull_messages(friend:str,number:int,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->list[str]:
+    def pull_messages(friend:str,number:int,chat_only:bool=True,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->list[str]:
         '''
         该函数用来从聊天界面获取聊天消息,也可当做获取聊天记录
         Args:
@@ -3155,7 +3151,7 @@ class Messages():
         if search_pages is None:
             search_pages=GlobalConfig.search_pages
         messages=[]
-        audio_pattern=re.compile(r'(?<=语音)\d+"秒(.*)$')
+        audio_pattern=Regex_Patterns.Audio_pattern
         main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         chat_list=main_window.child_window(**Lists.FriendChatList)
         if not chat_list.exists(timeout=0.1):
@@ -3165,20 +3161,20 @@ class Messages():
             if not chat_list.children(control_type='ListItem'):
                 warn(message=f'你与{friend}的聊天记录为空,无法获取聊天信息',category=NoChatHistoryWarning)
                 return messages
-            last_item=chat_list.children(control_type='ListItem')[-1]
-            messages.append(last_item.window_text())
             Tools.activate_chatList(chat_list)
             while len(messages)<number:
-                chat_list.type_keys('{UP}')
                 selected=[listitem for listitem in chat_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
-                if selected and selected[0].class_name()!='mmui::ChatItemView':
+                if selected:
+                    if selected[0].class_name()=='mmui::ChatItemView' and not chat_only:
+                        messages.append(selected[0].window_text())
                     if selected[0].class_name()=='mmui::ChatVoiceItemView':
                         content=audio_pattern.search(selected[0].window_text()).group(1)
                         messages.append(f'语音转文字:{content}')
-                    else:
+                    if selected[0].class_name()!='mmui::ChatItemView':
                         messages.append(selected[0].window_text())
                 if not selected:
                     break
+                chat_list.type_keys('{UP}') 
             chat_list.type_keys('{END}')
             messages=messages[-number:]
             if close_weixin:
@@ -3319,6 +3315,87 @@ class Messages():
             main_window.close()
         return chat_history_detail
     
+    @staticmethod
+    def save_media(friend:str,number:int,target_folder:str=None,is_maximize:bool=None,close_weixin:bool=None,search_pages:int=None)->None:
+        '''
+        该函数用来保存与某个好友或群聊的图片和视频到指定文件夹中
+        Args:
+            friend:好友或群聊备注
+            number:需要保存的图片数量
+            target_folder:保存图片的文件夹路径,如果不传入则默认保存在当前运行代码所在的文件夹下
+            search_pages:在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,当search_pages为0时,直接从顶部搜索栏法搜索好友信息打开聊天界面
+            is_maximize:微信界面是否全屏,默认全屏。
+            close_wechat:任务结束后是否关闭微信,默认关闭
+        Examples:
+            ```
+            from pywechat import Messages
+            target_folder=r'E:\新建文件夹'
+            save_media(friend='测试群',number=20,ftarget_folder=target_folder)
+            ```
+        '''
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+        if search_pages is None:
+            search_pages=GlobalConfig.search_pages
+        if target_folder and not os.path.isdir(target_folder):
+            raise NotFolderError(f'所选路径不是文件夹!无法保存聊天记录,请重新选择!')
+        if not target_folder:
+            target_folder=os.path.join(os.getcwd(),r'save_media聊天图片保存',friend)
+            os.makedirs(name=target_folder,exist_ok=True)
+            print(f'未传入文件夹路径,聊天图片或视频将保存至 {target_folder}')
+        saved_num=0
+        chat_history_window=Navigator.open_chat_history(friend=friend,TabItem='图片与视频',search_pages=search_pages,is_maximize=is_maximize,close_weixin=close_weixin)
+        image_container=chat_history_window.child_window(control_type='Group',class_name="QFWidget")
+        if not image_container.exists():#看一下是否存在聊天记录列表，如果不存在说明没有聊天记录    
+            chat_history_window.close()
+            raise ValueError(f'你还未与{friend}聊天,无法保存聊天图片!') 
+        image_container.children()[1].click_input()
+        #先右键最后一个图片激活菜单
+        image_preview_window=Tools.move_window_to_center(Windows.ImagePreviewWindow)
+        image_expired=image_preview_window.child_window(**Texts.ImageExpiredText)
+        earliest_image=image_preview_window.child_window(**Texts.EarliestOneText)
+        rotate_button=image_preview_window.child_window(**Buttons.RotateButton)
+        image_area=image_preview_window.child_window(class_name='mmui::XViewPager',control_type='Custom')
+        chat_history_window.close()
+        while saved_num<number:
+            if image_expired.exists(timeout=0.1):  
+                #如果图片过期直接跳过
+                pyautogui.press('left',_pause=False)
+            if not rotate_button.exists(timeout=0.1):
+                #没有旋转按钮是视频
+                is_download=False
+                saved_num+=1
+                image_area.right_click_input()
+                video_path=os.path.join(target_folder,f'与{friend}的聊天视频{saved_num}.mp4')
+                image_preview_window.click_input()
+                while not is_download:
+                    image_preview_window.right_click_input()
+                    copy_item=image_preview_window.child_window(**MenuItems.CopyMenuItem)
+                    if copy_item.exists(timeout=0.5):
+                        is_download=True 
+                    time.sleep(0.5)       
+                pyautogui.press('down',presses=2)
+                pyautogui.press('enter')
+                time.sleep(1.5)
+                SystemSettings.save_pasted_video(video_path=video_path)
+                pyautogui.press('left',_pause=False)
+            if rotate_button.exists(timeout=0.1):
+                #有旋转按钮是图片
+                saved_num+=1
+                pic_path=os.path.join(target_folder,f'与{friend}的聊天图片{saved_num}.png')
+                image=image_area.capture_as_image()
+                image.save(pic_path)
+                pyautogui.press('left',_pause=False)
+            if earliest_image.exists(timeout=0.1):
+                #按下左键后可能会出现这是第一张图片的提示,那么直接退出循环
+                break
+        image_preview_window.close()
+        if saved_num==0:
+            print(f"你与{friend}无聊天图片,未能保存任何图片!")
+        if saved_num<number and saved_num!=0:
+            print(f"你与{friend}的聊天图片不足{number},已为你保存全部的{saved_num}张图片")
   
     
 
@@ -3326,7 +3403,7 @@ class Monitor():
     '''监听消息的一些方法'''          
 
     @staticmethod
-    def listen_on_chat(dialog_window:WindowSpecification,duration:str,save_file:bool=False,save_photo:bool=False,target_folder:str=None,close_dialog_window:bool=True)->dict:
+    def listen_on_chat(dialog_window:WindowSpecification,duration:str,save_file:bool=False,save_media:bool=False,target_folder:str=None,close_dialog_window:bool=True)->dict:
         '''
         该方法用来在指定时间内监听会话窗口内的新消息(可以配合多线程使用,一次监听多个会话内的消息)
         Args:
@@ -3356,55 +3433,19 @@ class Monitor():
         Returns:
             details:该聊天窗口内的新消息(文本内容),格式为{'新消息总数':x,'文本数量':x,'文件数量':x,'图片数量':x,'视频数量':x,'链接数量':x,'文本内容':x}
         '''
-
-        def make_unique_id(listitem:ListItemWrapper):
-            '''根据图片所在listitem的高度与runtime_id之和生成unique_id
-            不能用宽度,所有的listitem宽度都一样,不同大小的图片listitem高度不一样
-            内容一样的图片runtime_id一样,高度也一样,unique_id也一样
-            '''
-            height=listitem.rectangle().bottom-listitem.rectangle().top
-            runtime_id=listitem.element_info.runtime_id
-            unique_id=runtime_id[0]+runtime_id[1]+runtime_id[2]+height
-            return unique_id
-        
-        def save_photos(chatList:ListViewWrapper):
-            #必须全屏,不全屏图片被折叠
-            win32gui.SendMessage(dialog_window.handle, win32con.WM_SYSCOMMAND, win32con.SC_MAXIMIZE,0)
-            saved_image_count=0
-            chatList.children()[-1].double_click_input()#点一下最后一个
-            while saved_image_count!=image_count:
-                selected=[listitem for listitem in chatList.children(control_type='ListItem',class_name='mmui::ChatBubbleReferItemView',title='图片') 
-                if listitem.has_keyboard_focus()]   
-                if selected:
-                    unique_id=make_unique_id(selected[-1])
-                    if image_ids[-1]==unique_id:
-                        timestamp=time.strftime(f'%y-%m-%d-%H时%M分%S秒')
-                        path=os.path.join(image_folder,f'{friend}_{timestamp}.png')#时间戳和好友名字做文件名保证不会重复
-                        rectangle=selected[-1].rectangle()
-                        side_x=rectangle.left+120
-                        center_y=rectangle.mid_point().y
-                        mouse.right_click(coords=(side_x,center_y))#不要直接right_click_input(),x方向应该是chatList左边界靠右一些,y方向是中心
-                        pyautogui.press('down',interval=0.5)
-                        pyautogui.press('enter',interval=0.5)
-                        SystemSettings.save_pasted_image(path)
-                        saved_image_count+=1
-                        image_ids.pop()#最后的元素即刚刚保存的图片的runtime_id从image_ids从尾部pop出去
-                chatList.type_keys('{UP}',pause=0.25)
-            win32gui.SendMessage(dialog_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MINIMIZE,0)
-
         duration=Tools.match_duration(duration)#将's','min','h'转换为秒
         if duration is None:#不按照指定的时间格式输入,需要提前中断退出
             raise TimeNotCorrectError
-        if (save_file or save_photo ) and target_folder is None:
+        if (save_file or save_media ) and target_folder is None:
             target_folder=os.path.join(os.getcwd(),f'{dialog_window.window_text()}_listen_on_chat聊天文件保存')
             print(f'未传入文件夹路径,文件,图片将分别保存到{target_folder}内的Files,Images文件夹下\n')
             os.makedirs(target_folder,exist_ok=True)
         if save_file:
             file_folder=os.path.join(target_folder,'Files')
             os.makedirs(file_folder,exist_ok=True)
-        if save_photo:
-            image_folder=os.path.join(target_folder,'Images')
-            os.makedirs(image_folder,exist_ok=True)
+        if save_media:
+            media_folder=os.path.join(target_folder,'Images')
+            os.makedirs(media_folder,exist_ok=True)
         total=0
         link_count=0
         video_count=0
@@ -3412,7 +3453,6 @@ class Monitor():
         files=[]
         texts=[]
         memberEvents=[]
-        image_ids=[]
         friend=dialog_window.window_text()
         file_pattern=Regex_Patterns.File_pattern
         timestamp=time.strftime('%Y-%m')
@@ -3441,9 +3481,6 @@ class Monitor():
                         link_count+=1
                     if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and newMessage.window_text()=='图片':
                         image_count+=1
-                        unique_id=make_unique_id(newMessage)#把图片的runtime_id和其所处的listitem高度保存下来结合一下作为它的唯一可识别属性
-                        image_ids.append(unique_id)
-                        #只是依靠class_name,window_text还有数量筛选，假如结束时又新发了几张图片，内容会对不上         
                     if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and '视频' in newMessage.window_text():
                         video_count+=1#视频需要下载直接右键复制不行,需要先点击,如果时间长,要等半天，不太方便
                     if newMessage.class_name()=='mmui::ChatBubbleItemView' and '文件' in newMessage.window_text():
@@ -3451,12 +3488,12 @@ class Monitor():
                         filepath=os.path.join(chatfile_folder,timestamp,filename)
                         files.append(filepath)
                     initial_runtime_id=runtime_id
-       
+        media_count=image_count+video_count
         SystemSettings.close_listening_mode()
+        if close_dialog_window:dialog_window.close()
         #最后结束时再批量复制到target_folder,不在循环里逐个复制是考虑到若文件过大(几百mb)没有自动下载完成移动不了
         if save_file and files:SystemSettings.copy_files(files,file_folder)#文件复制粘贴到target_folder/Files内
-        if save_photo and image_count:save_photos(chatList)#保存图片到target_folder/Images内
-        if close_dialog_window:dialog_window.close()
+        if save_media and media_count:Messages.save_media(friend=friend,number=media_count,target_folder=target_folder)#保存图片到target_folder/Images内
         details={'新消息总数':total,'文本数量':len(texts),'文件数量':len(files),'图片数量':image_count,'视频数量':video_count,'链接数量':link_count,'文本内容':texts,'出入群通知':memberEvents}
         return details
 

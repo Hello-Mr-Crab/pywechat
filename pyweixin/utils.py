@@ -25,6 +25,7 @@ class Regex_Patterns():
     '''常用正则pattern'''
     def __init__(self):
         #|表示或的逻辑关系,关于Python正则表达式的任何问题和入门级教程可以看这篇博客:https://blog.csdn.net/weixin_73953650/article/details/151123336?spm=1001.2014.3001.5501
+        self.Audio_pattern=re.compile(r'(?<=语音)\d+"秒(.*)$')#语音转文字后的文本内容
         self.Sns_Timestamp_pattern=re.compile(r'\d+分钟前|\d+小时前|昨天|\d+天前')#朋友圈好友发布内容左下角的时间戳
         self.Chafile_Timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日|\d{1,2}月\d{1,2}日|昨天|星期\w|\d{1,2}:\d{2})')#微信聊天文件时间戳
         self.Snsdetail_Timestamp_pattern=re.compile(r'(?<=\s)\d{4}年\d{1,2}月\d{1,2}日\s\d{1,2}:\d{2}|\d{1,2}月\d{1,2}日\s\d{1,2}:\d{2}|昨天\s\d{1,2}:\d{2}|星期\w\s\d{1,2}:\d{2}|\d{1,2}:\d{2}\s$')#微信好友朋友圈主页内的时间戳

@@ -206,25 +206,34 @@ class SystemSettings():
                 pass
     
     @staticmethod
-    def save_pasted_image(img_path:str):
+    def save_pasted_image(image_path:str)->bool:
         '''
-        将复制到剪贴板的图片数据并保存到指定路径
+        从剪贴板保存微信视频文件
         Args:
-            img_path:图片待保存路径
+            image_path:输出的图片文件路径,xxx.png
+        Returns:
+            is_saved:是否保存到了指定路径
         '''
+        is_saved=False
+        file_path=''
         win32clipboard.OpenClipboard()
-        if win32clipboard.IsClipboardFormatAvailable(win32clipboard.CF_DIB):
-            data=win32clipboard.GetClipboardData(win32clipboard.CF_DIB)
-            image=Image.open(io.BytesIO(data))
-            image.save(img_path)
+        if win32clipboard.IsClipboardFormatAvailable(win32clipboard.CF_HDROP):
+            hdrop=win32clipboard.GetClipboardData(win32clipboard.CF_HDROP)
+            file_path=hdrop[0]
         win32clipboard.CloseClipboard()
+        try:
+            shutil.copy2(file_path,image_path)
+            is_saved=True
+        except Exception:
+            pass
+        return is_saved
     
     @staticmethod
     def save_pasted_video(video_path:str)->bool:
         '''
         从剪贴板保存微信视频文件
         Args:
-            output_path:输出的mp4文件路径,xxx.mp4
+            video_path:输出的mp4文件路径,xxx.mp4
             
         Returns:
             is_saved:是否保存到了指定路径

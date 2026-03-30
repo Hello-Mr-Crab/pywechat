@@ -389,9 +389,11 @@ print(check_new_message())
 ## 注意:
 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！ 
 
-##### 本项目相关技术博客
+##### 本项目相关博客
 - `pywinauto使用教程`:https://mrcrab.blog.csdn.net/article/details/157546162?fromshare=blogdetail&sharetype=blogdetail&sharerId=157546162&sharerefer=PC&sharesource=weixin_73953650&sharefrom=from_link
 - `python正则表达式`:https://mrcrab.blog.csdn.net/article/details/151123336?fromshare=blogdetail&sharetype=blogdetail&sharerId=151123336&sharerefer=PC&sharesource=weixin_73953650&sharefrom=from_link
+- `shutil文件移动`:https://mrcrab.blog.csdn.net/article/details/148735930?fromshare=blogdetail&sharetype=blogdetail&sharerId=148735930&sharerefer=PC&sharesource=weixin_73953650&sharefrom=from_link
+- `os.path文件路径`:https://mrcrab.blog.csdn.net/article/details/147304200?fromshare=blogdetail&sharetype=blogdetail&sharerId=147304200&sharerefer=PC&sharesource=weixin_73953650&sharefrom=from_link
 - `x86虚拟机安装问题`:https://mrcrab.blog.csdn.net/article/details/158418985?fromshare=blogdetail&sharetype=blogdetail&sharerId=158418985&sharerefer=PC&sharesource=weixin_73953650&sharefrom=from_link 
 <br>
 

@@ -21,7 +21,7 @@ Examples
 
 # @property修饰getter函数可以实现直接访问类内属性,也就是class().xx,而不通过类内方法class().getter()的格式访问
 # @xx.setter修饰setter函数可以实现直接等号赋值来修改类内属性值而不是通过类内的setter方法修改,
-# 也就是class().xx=yy,而不是class().setter(newValue)=yy
+# 也就是class().xx=yy,而不是class().setter(yy)
 # @xx.setter与@property修饰的方法名需要一致,必须先定义@property，再定义@xxx.setter
 
 #example:
