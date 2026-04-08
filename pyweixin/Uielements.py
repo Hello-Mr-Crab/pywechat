@@ -181,7 +181,7 @@ class Panes():
         self.ChangeShortcutPane={'title':'','control_type':'Pane','class_name':'SetAcceleratorWnd'}#修改快捷键时弹出的框
         self.MomentsPane={'title':'朋友圈','control_type':'Pane','class_name':'sg_ichat_main_wnd'}#好友朋友圈窗口
         self.OfficialAccountPane={'title':'公众号','control_type':'Pane','class_name':'Chrome_WidgetWin_0','framework_id':'Win32'}#公众号窗口
-
+        self.GroupInvitationPane={'control_type':'Pane','class_name':'Chrome_WidgetWin_0','title':''}
 
 class Menus():
     def __init__(self):

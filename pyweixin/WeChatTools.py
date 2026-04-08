@@ -421,8 +421,7 @@ class Tools():
         mouse.move(coords=(rectangle.mid_point().x,rectangle.mid_point().y))
         chat_history_list.type_keys('{PGUP}')
         
-        
-    
+
     @staticmethod
     def get_next_item(listview:ListViewWrapper,listitem:ListItemWrapper)->(ListItemWrapper|None):
         '''获取当前listview中给定的listitem的下一个                             ,如果该listitem是最后一个或不在该listview则返回None
@@ -1008,10 +1007,13 @@ class Navigator():
             search=main_window.descendants(**Edits.SearchEdit)[0]
             search.click_input()
             search.set_text(friend)
-            time.sleep(0.8)
-            search_results=main_window.child_window(**Lists.SearchResult)#搜索结果列表
-            search_result=Tools.get_search_result(friend=friend,search_result=search_results)
-            search_mobile=search_results.children(**ListItems.MobileSearchListItem)#绿色的网络查找手机/QQ号选项
+            try:
+                search_results=main_window.child_window(**Lists.SearchResult).wait(wait_for='ready',timeout=3)#搜索结果列表
+                search_result=Tools.get_search_result(friend=friend,search_result=search_results)
+                search_mobile=search_results.children(**ListItems.MobileSearchListItem)#绿色的网络查找手机/QQ号选项
+            except Exception:
+                search_result=None
+                search_mobile=None
             if search_result and not search_mobile:#有搜索结果没有网络查找qq号手机号选项
                 search_result.click_input()
                 edit_area=main_window.child_window(**Edits.CurrentChatEdit)
@@ -1114,10 +1116,8 @@ class Navigator():
     
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
-        
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
-
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
         chat_button=main_window.child_window(**SideBar.Weixin)
         chat_button.click_input()
@@ -1125,12 +1125,14 @@ class Navigator():
         search=main_window.descendants(**Main_window.Search)[0]
         search.click_input()
         search.set_text(friend)
-        time.sleep(0.8)
-        search_results=main_window.child_window(title='',control_type='List')
-        search_result,is_contact=get_search_result(friend=friend,search_result=search_results)
-        if search_result:
+        try:
+            search_results=main_window.child_window(**Lists.SearchResult).wait(wait_for='ready',timeout=3)#搜索结果列表
+            search_result,is_contact=get_search_result(friend=friend,search_result=search_results)
+        except Exception:
+            search_result=None
+        if search_result is not None:
             search_result.click_input()
-            time.sleep(0.8)
+            time.sleep(1)
             if is_contact:
                 friend_listitem=[listitem for listitem in session_list.children(control_type='ListItem') if listitem.is_selected()][0]
                 friend_listitem.double_click_input()

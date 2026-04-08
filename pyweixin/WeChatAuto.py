@@ -3216,7 +3216,7 @@ class Messages():
         if isinstance(search_content,str):
             search_bar=chat_history_window.descendants(**Edits.SearchEdit)[0]
             search_bar.set_text(search_content)
-        if not chat_history_list.exists(timeout=0.1):
+        if not chat_history_list.exists(timeout=1):
             warn(message=f"你与{friend}的聊天记录为空,无法获取聊天记录",category=NoChatHistoryWarning)
             chat_history_window.close()
             return [],[]
@@ -3230,7 +3230,7 @@ class Messages():
             alia_image=Tools.capture_alias(first_item)
             alia_image.save(path)
         while len(messages)<number:
-            pyautogui.press('down',presses=2,_pause=False)
+            pyautogui.press('down',presses=1,_pause=False)
             selected=[listitem for listitem in chat_history_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
             if selected:
                 runtime_ids.append(selected[0].element_info.runtime_id)
@@ -3243,10 +3243,11 @@ class Messages():
                     path=os.path.join(alias_folder,f'与{friend}聊天记录_{len(messages)}.png')
                     alia_image=Tools.capture_alias(selected[0])
                     alia_image.save(path)
+
         chat_history_list.type_keys('{HOME}')
         chat_history_window.close()
         messages=messages[:number]
-        timestamps=[timestamp_pattern.search(message).group(0) if timestamp_pattern.search(message) else '微信红包或转账(时间戳为图片非文本无法获取)' for message in messages]
+        timestamps=[timestamp_pattern.search(message).group(0) if timestamp_pattern.search(message) else '系统消息或为红包与转账(无法获取时间戳)' for message in messages]
         messages=[timestamp_pattern.sub('',message) for message in messages]
         return messages,timestamps
 
@@ -3318,7 +3319,7 @@ class Messages():
     @staticmethod
     def save_media(friend:str,number:int,target_folder:str=None,is_maximize:bool=None,close_weixin:bool=None,search_pages:int=None)->None:
         '''
-        该函数用来保存与某个好友或群聊的图片和视频到指定文件夹中
+        该方法用来保存与某个好友或群聊的图片和视频到指定文件夹中
         Args:
             friend:好友或群聊备注
             number:需要保存的图片数量
@@ -3342,7 +3343,7 @@ class Messages():
         if target_folder and not os.path.isdir(target_folder):
             raise NotFolderError(f'所选路径不是文件夹!无法保存聊天记录,请重新选择!')
         if not target_folder:
-            target_folder=os.path.join(os.getcwd(),r'save_media聊天图片保存',friend)
+            target_folder=os.path.join(os.getcwd(),'save_media聊天图片保存',friend)
             os.makedirs(name=target_folder,exist_ok=True)
             print(f'未传入文件夹路径,聊天图片或视频将保存至 {target_folder}')
         saved_num=0
@@ -3397,7 +3398,70 @@ class Messages():
         if saved_num<number and saved_num!=0:
             print(f"你与{friend}的聊天图片不足{number},已为你保存全部的{saved_num}张图片")
   
-    
+    @staticmethod
+    def accept_group_invitation(friend:str,number:int,max_num:int=100,is_maximize:bool=None,close_weixin:bool=None,search_pages:int=None)->None:
+        '''
+        该方法用来从聊天记录链接中查找入群邀请并加入
+        Args:
+            number:群聊邀请链接的数量
+            max_num:在历史聊天记录中查找入群邀请时的历史记录的最大遍历条数
+            search_pages:在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,当search_pages为0时,直接从顶部搜索栏法搜索好友信息打开聊天界面
+            is_maximize:微信界面是否全屏,默认全屏。
+            close_wechat:任务结束后是否关闭微信,默认关闭
+        Returns:
+            joined_num:实际加入的数量
+        '''
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+        if search_pages is None:
+            search_pages=GlobalConfig.search_pages
+
+        def click_cardLink(listitem):
+            listitem.click_input()
+            group_invitation_pane=desktop.window(**Panes.GroupInvitationPane)
+            group_invitation_pane.restore()
+            join_button=group_invitation_pane.child_window(title='加入群聊',control_type='Button')
+            if join_button.exists():
+                join_button.click_input()
+                return True
+            else:
+                group_invitation_pane.close()
+                return False
+        checked_num=0
+        joined_num=0
+        runtime_ids=[]
+        Timestamp_pattern=re.compile(r'(?<=\s)(\d{2}/\d{1,2}/\d{1,2}|\d{1,2}/\d{1,2}|星期\w|昨天|\d{2}:\d{2})$')
+        chat_history_window=Navigator.open_chat_history(friend=friend,TabItem='链接',search_pages=search_pages,is_maximize=is_maximize,close_weixin=close_weixin)
+        chat_history_list=chat_history_window.child_window(**Lists.ChatHistoryList)
+        if not chat_history_list.exists(timeout=1):
+            warn(message=f"你与{friend}的聊天记录为空,无法获取入群链接",category=NoChatHistoryWarning)
+            chat_history_window.close()
+            return [],[]
+        first_item=chat_history_list.children(control_type='ListItem')[0]
+        runtime_ids.append(first_item.element_info.runtime_id)
+        Tools.activate_chatHistoryList(chat_history_list)#激活滑块
+        #因为要先按down向下遍历,第一个被selected的实际是第二条
+        while checked_num<max_num:
+            pyautogui.press('down',presses=2,_pause=False)
+            selected=[listitem for listitem in chat_history_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
+            if selected:
+                title=Timestamp_pattern.sub('',selected[0].window_text()).strip()
+                runtime_ids.append(selected[0].element_info.runtime_id)
+                #同一个runtime_id挨着重复出现就说明到底部了无法继续下滑
+                if runtime_ids[-1]==runtime_ids[-2]:
+                    break
+                if title=='Group Chat Invitation':
+                    result=click_cardLink(selected[0])
+                    if result:
+                        joined_num+=1
+            if joined_num>=number:
+                break
+            checked_num+=1
+        chat_history_list.type_keys('{HOME}')
+        chat_history_window.close()
+        return joined_num
 
 class Monitor():
     '''监听消息的一些方法'''          
