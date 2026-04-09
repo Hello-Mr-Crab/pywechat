@@ -761,7 +761,7 @@ class Navigator():
         chatinfo_pane,main_window=Navigator.open_chatinfo(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         friend_button=chatinfo_pane.child_window(title=friend,control_type='Button')
         if friend_button.exists(timeout=1):
-            profile_button=friend_button.children(title='',control_type='Button')[0]
+            profile_button=friend_button
             profile_button.click_input()
             profile_pane=main_window.window(**Windows.PopUpProfileWindow)
             return profile_pane,main_window
