@@ -305,7 +305,7 @@ class Collections():
         rectangle=selected_item.rectangle()
         side_x=rectangle.right-15
         center_y=rectangle.mid_point().y
-        while selected_item.window_text()!=last_item:
+        while selected_item.window_text()!=last_item:#while循环的结束条件是到达底部
             url=copy_url(selected_item)
             title=selected_item.window_text()[2:]#前两个字是固定的,为链接二字,后边的文本才是需要的
             title=timestamp_pattern.sub('',title)#替换掉时间戳
@@ -315,6 +315,12 @@ class Collections():
             selected_item=[listitem for listitem in link_list.children(control_type='ListItem') if listitem.has_keyboard_focus() and listitem.window_text()!=''][0]
             if len(links)>=number:
                 break
+        if selected_item.window_text()==last_item:#已经到达底部需要将最后一条也记录一下
+            last_item=link_list.children(control_type='ListItem')[-1]
+            last_url=copy_url(last_item)
+            last_title=last_item.window_text()[2:]#前两个字是固定的,为链接二字,后边的文本才是需要的
+            last_title=timestamp_pattern.sub('',title)#替换掉时间戳
+            links[last_url]=last_title
         if close_weixin:main_window.close()
         return links
     
@@ -359,6 +365,8 @@ class Collections():
                     time.sleep(delay)
                     child.right_click_input()
                     clicked.append(child.element_info.runtime_id)
+                    # rec=child.rectangle()
+                    # mouse.click(coords=(rec.mid_point().x+5,rec.mid_point().y+50))
                     offAcc_window.child_window(title='收藏',control_type='Text').click_input()
                     if collected_num>=number:
                         break
@@ -394,7 +402,7 @@ class Contacts():
         rec=moments_list.children()[0].rectangle()
         coords=(rec.right-60,rec.bottom-35)
         mouse.click(coords=coords)
-        profile_pane=desktop.window(**Windows.PopUpProfileWindow)
+        profile_pane=moments_window.window(**Windows.PopUpProfileWindow)
         group=profile_pane.child_window(control_type='Group',found_index=3).children()[1]
         texts=group.descendants(control_type='Text')
         texts=[item.window_text() for item in texts]
@@ -490,12 +498,9 @@ class Contacts():
         contact_item=main_window.child_window(control_type='ListItem',title_re=r'联系人\d+',class_name="mmui::ContactsCellGroupView")
         if contact_item.exists(timeout=0.1):
             total_num=int(re.search(r'\d+',contact_item.window_text()).group(0))
-            if total_num>2000:
-                interval=0.3
-            if 1000<total_num<2000:
-                interval=0.1
-            if total_num<1000:
-                interval=0
+            if total_num>2000:interval=0.3
+            if 1000<total_num<2000:interval=0.1
+            if total_num<1000:interval=0
             contact_item.click_input()
             #有具体的数量,后续可以更换为for循环
             switch_to_first_friend()
@@ -503,7 +508,7 @@ class Contacts():
             friends_detail.append(info)
             mouse.move(coords=area)
             for _ in range(total_num-1):
-                time.sleep(interval)
+                if interval:time.sleep(interval)
                 pyautogui.keyDown('down',_pause=False)#不能press,press比keydown更频繁容易被检测,keydown是一直长按
                 info=get_specific_info()
                 friends_detail.append(info)
@@ -1793,7 +1798,7 @@ class Files():
                 year=int(re.search(r'(\d+)年',timestamp).group(1))
             if '月' in timestamp:
                 month=int(re.search(r'(\d+)月',timestamp).group(1))
-            timestamp_folder=f'{year}-{month}' if month>10 else f'{year}-0{month}'
+            timestamp_folder=f'{year}-{month}' if month>=10 else f'{year}-0{month}'
             return filename,timestamp_folder
         
         if target_folder is not None and not os.path.isdir(target_folder):
@@ -3404,7 +3409,7 @@ class Messages():
         该方法用来从聊天记录链接中查找入群邀请并加入
         Args:
             number:群聊邀请链接的数量
-            max_num:在历史聊天记录中查找入群邀请时的历史记录的最大遍历条数
+            max_num:在链接中查找入群邀请时的历史记录的最大遍历条数
             search_pages:在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,当search_pages为0时,直接从顶部搜索栏法搜索好友信息打开聊天界面
             is_maximize:微信界面是否全屏,默认全屏。
             close_wechat:任务结束后是否关闭微信,默认关闭
@@ -3419,49 +3424,72 @@ class Messages():
             search_pages=GlobalConfig.search_pages
 
         def click_cardLink(listitem):
-            listitem.click_input()
-            group_invitation_pane=desktop.window(**Panes.GroupInvitationPane)
-            group_invitation_pane.restore()
-            join_button=group_invitation_pane.child_window(title='加入群聊',control_type='Button')
-            if join_button.exists():
-                join_button.click_input()
-                return True
-            else:
+            sign='无法加入'
+            listitem.double_click_input()
+            try:
+                group_invitation_pane=desktop.window(**Panes.GroupInvitationPane)
+                group_invitation_pane.restore()
+                time.sleep(3)
+                join_group_button=group_invitation_pane.child_window(**Buttons.JoinGroupButton)
+                invitation_sent_text=group_invitation_pane.child_window(**Texts.InvitationSentText)
+                invitation_expired_text=group_invitation_pane.child_window(**Texts.InvitationExpiredText)
+                if invitation_sent_text.exists(timeout=0.1):
+                    sign='邀请由自己发送,已加入该群'
+                    group_invitation_pane.close()
+                if invitation_expired_text.exists(timeout=0.1):
+                    sign='邀请已过期'
+                    group_invitation_pane.close()
+                if join_group_button.exists(timeout=0.1):
+                    join_group_button.click_input()
+                    sign='成功入群'
+            except Exception:
+                sign='网络异常,未能正确打开群聊邀请界面'
                 group_invitation_pane.close()
-                return False
+            return sign
+        
         checked_num=0
         joined_num=0
-        runtime_ids=[]
+        results=[]
+        invitation_text='邀请你加入群聊'
         Timestamp_pattern=re.compile(r'(?<=\s)(\d{2}/\d{1,2}/\d{1,2}|\d{1,2}/\d{1,2}|星期\w|昨天|\d{2}:\d{2})$')
         chat_history_window=Navigator.open_chat_history(friend=friend,TabItem='链接',search_pages=search_pages,is_maximize=is_maximize,close_weixin=close_weixin)
+        Tools.cancel_pin(chat_history_window)#取消聊天记录框置顶,不然入群邀请窗口只能在聊天记录窗口底部
         chat_history_list=chat_history_window.child_window(**Lists.ChatHistoryList)
         if not chat_history_list.exists(timeout=1):
             warn(message=f"你与{friend}的聊天记录为空,无法获取入群链接",category=NoChatHistoryWarning)
             chat_history_window.close()
             return [],[]
-        first_item=chat_history_list.children(control_type='ListItem')[0]
-        runtime_ids.append(first_item.element_info.runtime_id)
-        Tools.activate_chatHistoryList(chat_history_list)#激活滑块
-        #因为要先按down向下遍历,第一个被selected的实际是第二条
-        while checked_num<max_num:
-            pyautogui.press('down',presses=2,_pause=False)
-            selected=[listitem for listitem in chat_history_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
-            if selected:
-                title=Timestamp_pattern.sub('',selected[0].window_text()).strip()
-                runtime_ids.append(selected[0].element_info.runtime_id)
-                #同一个runtime_id挨着重复出现就说明到底部了无法继续下滑
-                if runtime_ids[-1]==runtime_ids[-2]:
+        search_edit=chat_history_window.child_window(control_type='Edit')
+        search_edit.set_text(invitation_text)
+        win32gui.SendMessage(chat_history_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MAXIMIZE,0)
+        scrollable=Tools.is_scrollable(chat_history_list)
+        if not scrollable:
+            for listitem in chat_history_list.children(control_type='ListItem'):
+                title=Timestamp_pattern.sub('',listitem.window_text()).strip()
+                if title==invitation_text:
+                    sign=click_cardLink(listitem)
+                    results.append(sign)
+        else:
+            current_item=chat_history_list.children(control_type='ListItem')[0]
+            while checked_num<max_num:
+                next_item=Tools.get_next_item(chat_history_list,current_item)
+                if next_item is None:
+                    pyautogui.press('pagedown',interval=0.5)
+                    chat_history_list=chat_history_window.child_window(**Lists.ChatHistoryList)
+                    next_item=Tools.get_next_item(chat_history_list,current_item)
+                if next_item is None:#到达底部
                     break
-                if title=='Group Chat Invitation':
-                    result=click_cardLink(selected[0])
-                    if result:
-                        joined_num+=1
-            if joined_num>=number:
-                break
-            checked_num+=1
+                sign=click_cardLink(current_item)
+                results.append(sign)
+                if sign=='成功入群':
+                    joined_num+=1
+                if joined_num>=number:
+                    break
+                current_item=next_item
+                checked_num+=1
         chat_history_list.type_keys('{HOME}')
         chat_history_window.close()
-        return joined_num
+        return results
 
 class Monitor():
     '''监听消息的一些方法'''          

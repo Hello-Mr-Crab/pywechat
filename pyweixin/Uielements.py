@@ -90,6 +90,7 @@ class Buttons():
         self.AddButton={'title':'添加','control_type':'Button'}#通讯录管理点击新建标签后右侧的添加按钮
         self.SendMessageButton={'title':'发消息','control_type':'Button'}#添加好友窗口里的发消息按钮
         self.RotateButton={'title':'旋转','control_type':'Button'}#图片预览窗口内的旋转按钮
+        self.JoinGroupButton={'title':'加入群聊','control_type':'Button'}#群聊邀请界面内的加入群聊按钮(点击群聊邀请链接后出现的窗口)
         
 class Edits():
     '''微信主界面内所有类型为Edit(不包含独立窗口)的UI控件'''
@@ -137,6 +138,8 @@ class Texts():
         self.GroupLabelText={'auto_id':"content_view.top_content_view.title_h_view.left_v_view.left_content_v_view.left_ui_.big_title_line_h_view.current_chat_count_label",'control_type':'Text'}#聊天界面是群聊时顶部才会出现的文本
         self.ImageExpiredText={'control_type':'Text','title':'图片已过期或被清理','class_name':'mmui::XTextView'}#图片预览窗口过期的图片
         self.EarliestOneText={'title':'已是第一张','control_type':'Text'}#图片预览窗口里的这是最早的一张图片文本
+        self.InvitationSentText={'title':'该群聊邀请已发送','control_type':'Text'}#群聊邀请窗口内的群聊邀请文本,如果出现,说明该群聊自己发出并且已加入
+        self.InvitationExpiredText={'title':'该群聊邀请已过期','control_type':'Text'}#群聊邀请窗口内的群聊邀请过期文本
 
 class TabItems():
     def __init__(self):

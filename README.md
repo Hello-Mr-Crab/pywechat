@@ -6,7 +6,7 @@ https://github.com/Hello-Mr-Crab/pywechat/blob/main/Weixin4.0.md
 
 ### pywechat是一个基于pywinauto实现的Windows系统下PC微信自动化(pure uiautomation)的Python项目(不涉及逆向Hook操作),实现了PC微信内置的大部分功能。
 
-### 微信版本:3.9+,4.1+
+### 微信版本:3.9+,4.1.6+
 ### 操作系统:🪟windows 7 🪟windows 10 🪟windows 11
 ### python版本🐍:3.9+(支持TypeHint)
 ### 支持语言:简体中文,English,繁体中文
