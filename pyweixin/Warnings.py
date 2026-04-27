@@ -8,3 +8,6 @@ class LongTextWarning(Warning):
 class NoChatHistoryWarning(Warning):
     '''聊天记录不足指定的个数'''
     pass
+class LanguageDetectionFailedWarning(Warning):
+    '''微信当前使用的语言探测失败'''
+    pass

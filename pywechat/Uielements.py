@@ -337,7 +337,6 @@ class Texts():
             self.DeletedText={'title':'Deleted','control_type':'Text'}#聊天记录列表里点击视频播放按钮后可能出现的已被删除按钮
             self.OfficialAccountsText={'title':'Official Accounts','control_type':'Text','found_index':2}#通讯录中点击公众号选项后右侧主界面的公众号文本
             self.SavePaymentCodeText={'title':'保存收款码','control_type':'Text'}#微信收款助手小账本内点击个人收款码后弹出的经营账户窗口内的保存收款码文本，点击后可以出发保存事件
-
         if self.language=='繁体中文':
             self.NetWorkError={'title':'網絡不可用，請檢查你的網絡設定','control_type':'Text'}#微信没联网时顶部的红色文本
             self.SearchContactsResult={'title_re':'搜尋','control_type':'Text'}#搜索联系人时的文本结果

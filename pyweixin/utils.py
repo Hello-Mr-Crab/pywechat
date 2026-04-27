@@ -1,42 +1,217 @@
 import re
+import os
 import time
 import emoji
-import psutil
 import pyautogui
 from functools import wraps
 from pywinauto import WindowSpecification,Desktop,mouse
 from pywinauto.controls.uia_controls import ListItemWrapper#TypeHint要用到
+from .Errors import TimeNotCorrectError
 from .Config import GlobalConfig
 from .WeChatTools import Navigator,Tools
 from .WinSettings import SystemSettings
-from .Errors import TimeNotCorrectError,NotFriendError
-from .Uielements import Main_window,SideBar,Buttons,Edits,Lists,Windows
+from .Uielements import Main_window,SideBar,Buttons,Edits,Lists,Windows,Texts
 #######################################################################################
-Main_window=Main_window()#主界面UI
-SideBar=SideBar()#侧边栏UI
-Buttons=Buttons()#所有Button类型UI
-Edits=Edits()#所有Edit类型UI
-Lists=Lists()#所有List类型UI
-Windows=Windows()#所有Windows类型UI
 pyautogui.FAILSAFE=False#防止鼠标在屏幕边缘处造成的误触
-desktop=Desktop(backend='uia')
+desktop=Desktop(backend='uia')#windows桌面WindowSpecification示例
+language=GlobalConfig.language#微信语言
 
-class Regex_Patterns():
-    '''常用正则pattern'''
-    def __init__(self):
-        #|表示或的逻辑关系,关于Python正则表达式的任何问题和入门级教程可以看这篇博客:https://blog.csdn.net/weixin_73953650/article/details/151123336?spm=1001.2014.3001.5501
-        self.Audio_pattern=re.compile(r'(?<=语音)\d+"秒(.*)$')#语音转文字后的文本内容
-        self.Sns_Timestamp_pattern=re.compile(r'\d+分钟前|\d+小时前|昨天|\d+天前')#朋友圈好友发布内容左下角的时间戳
-        self.Chafile_Timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日|\d{1,2}月\d{1,2}日|昨天|星期\w|\d{1,2}:\d{2})')#微信聊天文件时间戳
-        self.Snsdetail_Timestamp_pattern=re.compile(r'(?<=\s)\d{4}年\d{1,2}月\d{1,2}日\s\d{1,2}:\d{2}|\d{1,2}月\d{1,2}日\s\d{1,2}:\d{2}|昨天\s\d{1,2}:\d{2}|星期\w\s\d{1,2}:\d{2}|\d{1,2}:\d{2}\s$')#微信好友朋友圈主页内的时间戳
-        self.Chathistory_Timestamp_pattern=re.compile(r'(?<=\s)(\d{4}年\d{1,2}月\d{1,2}日\s\d{2}:\d{2}|\d{1,2}月\d{1,2}日\s\d{2}:\d{2}|\d{2}:\d{2}|昨天\s\d{2}:\d{2}|星期\w\s\d{2}:\d{2})$')#聊天记录界面内的时间戳
-        self.Session_Timestamp_pattern=re.compile(r'(?<=\s)(\d{4}/\d{1,2}/\d{1,2}|\d{1,2}/\d{1,2}|\d{2}:\d{2}|昨天 \d{2}:\d{2}|星期\w)$')#主界面左侧会话列表内的时间戳
-        self.GroupMember_Num_pattern=re.compile(r'\((\d+)\)$')#通讯录设置界面中每个最近群聊ListItem后边的数字
+class Regex_Pattern():
+    '''微信内常用正则pattern,适配多语言'''
+    def __init__(self,language=language):
+        self.language=language
         self.QtWindow_pattern=re.compile(r'Qt\d+QWindowIcon')#qt窗口通用classname
         self.Filename_pattern=re.compile(r'.*\.\w+\s')#用来匹配.docx,.ppt等文件名，只适合在微信聊天文件界面中使用
-        self.File_pattern=re.compile(r'文件\n(.*)\n')#微信聊天窗口发送的聊天文件卡片上的内容(有两个换行符)
+        self.GroupMember_Num_pattern=re.compile(r'\((\d+)\)$')#通讯录设置界面中每个最近群聊ListItem后边的数字
         self.Article_Timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日|\d{1,2}月\d{1,2}日|昨天|星期\w|今天)')#公众号文章的时间戳
-        self.Message_Timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日\s星期\w\s\d{2}:\d{2}|\d{1,2}月\d{1,2}日\s星期\w\s\d{2}:\d{2}|\d{1,2}月\d{1,2}日\s\d{2}:\d{2}|昨天\s\d{2}:\d{2}|星期\w\s\d{2}:\d{2}|\d{2}:\d{2})')#聊天界面内的时间戳
+        self.UserLib_Pattern=re.compile(r'--user-lib-dir=(.*?)')#匹配微信命令行参数内的userlib文件夹路径
+        if self.language=='简体中文':
+            #|表示或的逻辑关系,关于Python正则表达式的任何问题和入门级教程可以看这篇博客:https://blog.csdn.net/weixin_73953650/article/details/151123336?spm=1001.2014.3001.5501
+            self.Audio_pattern=re.compile(r'(?<=语音)\d+"秒(.*)$')#语音转文字后的文本内容
+            self.Sns_Timestamp_pattern=re.compile(r'\d+分钟前|\d+小时前|昨天|\d+天前')#朋友圈好友发布内容左下角的时间戳
+            self.Contain_Images_pattern=re.compile(r'\s包含(\d+)张图片\s')#朋友圈包含\d+张图片
+            self.Chafile_Timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日|\d{1,2}月\d{1,2}日|昨天|星期\w|\d{1,2}:\d{2})')#微信聊天文件时间戳
+            self.Snsdetail_Timestamp_pattern=re.compile(r'(?<=\s)(\d{4}年\d{1,2}月\d{1,2}日\s\d{1,2}:\d{2}|\d{1,2}月\d{1,2}日\s\d{1,2}:\d{2}|昨天\s\d{1,2}:\d{2}|星期\w\s\d{1,2}:\d{2}|\d{1,2}:\d{2})\s')#微信好友朋友圈主页内的时间戳
+            self.Chathistory_Timestamp_pattern=re.compile(r'(?<=\s)(\d{4}年\d{1,2}月\d{1,2}日\s\d{2}:\d{2}|\d{1,2}月\d{1,2}日\s\d{2}:\d{2}|\d{2}:\d{2}|昨天\s\d{2}:\d{2}|星期\w\s\d{2}:\d{2})$')#聊天记录界面内的时间戳
+            self.Session_Timestamp_pattern=re.compile(r'(?<=\s)(\d{4}/\d{1,2}/\d{1,2}|\d{1,2}/\d{1,2}|\d{2}:\d{2}|昨天 \d{2}:\d{2}|星期\w)$')#主界面左侧会话列表内的时间戳
+            self.File_pattern=re.compile(r'文件\n(.*)\n')#微信聊天窗口发送的聊天文件卡片上的内容(有两个换行符)
+            self.Message_Timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日\s星期\w\s\d{2}:\d{2}|\d{1,2}月\d{1,2}日\s星期\w\s\d{2}:\d{2}|\d{1,2}月\d{1,2}日\s\d{2}:\d{2}|昨天\s\d{2}:\d{2}|星期\w\s\d{2}:\d{2}|\d{2}:\d{2})')#聊天界面内的时间戳
+            self.newMessage_pattern=re.compile(r'\n\[(\d+)条\]')#微信主页左侧会话列表内带有新消息提示的好友
+        if self.language=='English':
+            self.Audio_pattern=re.compile(r'(?<=Audio)\d+"sec(.*)$')#语音转文字后的文本内容
+            self.Sns_Timestamp_pattern=re.compile(r'\d+\sminute\(s\)\sago|\d+\shour\(s\)\sago|Yesterday|\d+\sday\(s\)\sago')#朋友圈好友发布内容左下角的时间戳
+            self.Contain_Images_pattern=re.compile(r'\sContain\s(\d+)\simage\(s\)\s')#朋友圈包含\d+张图片
+            self.Chafile_Timestamp_pattern=re.compile(r'(\d{4}-\d{1,2}-\d{1,2}|Yesterday|\w+day|\d{1,2}:\d{2})')#微信聊天文件界面内文件右下角的时间戳
+            self.Snsdetail_Timestamp_pattern=re.compile(r'(?<=\s)(\d{4}-\d{1,2}-\d{1,2}\s\d{1,2}:\d{2}|Yesterday\s\d{1,2}:\d{2}|\d{1,2}:\d{2})\s')#微信好友朋友圈主页内的时间戳
+            self.Chathistory_Timestamp_pattern=re.compile(r'(?<=\s)(\d{4}-\d{1,2}-\d{1,2}\s\d{2}:\d{2})$')#聊天记录界面内的时间戳
+            self.Session_Timestamp_pattern=re.compile(r'(?<=\s)(\d{4}/\d{1,2}/\d{1,2}|\d{1,2}/\d{1,2}|\d{2}:\d{2}|Yesterday \d{2}:\d{2}|\w+day)$')#主界面左侧会话列表内的时间戳
+            self.File_pattern=re.compile(r'File\n(.*)\n')#微信聊天窗口发送的聊天文件卡片上的内容(有两个换行符)
+            self.Message_Timestamp_pattern=re.compile(r'(\d{4}-\d{1,2}-\d{1,2}\s\d{2}:\d{2}|\d{1,2}/\d{1,2}\s\d{2}:\d{2}|Yesterday\s\d{2}:\d{2}|\w+day\s\d{2}:\d{2}|\d{2}:\d{2})')#聊天界面内的时间戳
+            self.newMessage_pattern=re.compile(r'\n\[(\d+)\]')#微信主页左侧会话列表内带有新消息提示的好友
+        if self.language=='繁體中文':
+            self.Audio_pattern=re.compile(r'(?<=語音)\d+"秒(.*)$')#语音转文字后的文本内容
+            self.Sns_Timestamp_pattern=re.compile(r'\d+分鐘前|\d+小時前|昨天|\d+天前')#朋友圈好友发布内容左下角的时间戳
+            self.Contain_Images_pattern=re.compile(r'\s包含\s(\d+)\s張圖片\s')#朋友圈包含\d+张图片
+            self.Chafile_Timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日|\d{1,2}月\d{1,2}日|昨天|星期\w|\d{1,2}:\d{2})')#微信聊天文件时间戳
+            self.Snsdetail_Timestamp_pattern=re.compile(r'(?<=\s)\d{4}年\d{1,2}月\d{1,2}日\s\d{1,2}:\d{2}|\d{1,2}月\d{1,2}日\s\d{1,2}:\d{2}|昨天\s\d{1,2}:\d{2}|星期\w\s\d{1,2}:\d{2}|\d{1,2}:\d{2}\s$')#微信好友朋友圈主页内的时间戳
+            self.Chathistory_Timestamp_pattern=re.compile(r'(?<=\s)(\d{4}年\d{1,2}月\d{1,2}日\s\d{2}:\d{2}|\d{1,2}月\d{1,2}日\s\d{2}:\d{2}|\d{2}:\d{2}|昨天\s\d{2}:\d{2}|星期\w\s\d{2}:\d{2})$')#聊天记录界面内的时间戳
+            self.Session_Timestamp_pattern=re.compile(r'(?<=\s)(\d{4}/\d{1,2}/\d{1,2}|\d{1,2}/\d{1,2}|\d{2}:\d{2}|昨天 \d{2}:\d{2}|星期\w)$')#主界面左侧会话列表内的时间戳
+            self.File_pattern=re.compile(r'檔案\n(.*)\n')#微信聊天窗口发送的聊天文件卡片上的内容(有两个换行符)
+            self.Message_Timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日\s星期\w\s\d{2}:\d{2}|\d{1,2}月\d{1,2}日\s星期\w\s\d{2}:\d{2}|\d{1,2}月\d{1,2}日\s\d{2}:\d{2}|昨天\s\d{2}:\d{2}|星期\w\s\d{2}:\d{2}|\d{2}:\d{2})')#聊天界面内的时间戳
+            self.newMessage_pattern=re.compile(r'\n\[(\d+)条\]')#微信主页左侧会话列表内带有新消息提示的好友            
+class Special_Label():
+    '''常用的一些微信内的标签,比如:“消息已置顶”，这些标签随着微信的语言会变化.'''
+    def __init__(self,language=language):
+        self.language=language
+        self.EnterPrise='企业'
+        self.RealName='实名'
+        self.State='员工状态'
+        self.Duty='职务'
+        self.WorkingTime='工作时间'
+        self.OnlineTime='在线时间'
+        self.Location='地址'
+        self.From='来自'
+        self.WeCom='企业微信'
+        if self.language=='简体中文':
+            self.EnterPriseInfomation='企业信息'
+            self.Block='加入黑名单'
+            self.UnBlock='移出黑名单'
+            self.StuckonTop='已置顶\n'
+            self.Star='设为星标朋友'
+            self.UnStar='不再设为星标朋友'
+            self.MuteNotifications='消息免打扰\n'
+            self.LightMode='浅色模式'
+            self.DarkMode='深色模式'
+            self.Automatic='跟随系统'
+            self.Image='图片'
+            self.File='文件'
+            self.Link='[链接]'
+            self.Video='视频'
+            self.WxNum='微信号：'
+            self.Nickname='昵称：' 
+            self.Region='地区：'
+            self.Remark='备注'
+            self.SharedGroups='共同群聊' 
+            self.Signature='个性签名' 
+            self.Source='来源'
+            self.Mobile='电话'
+            self.Description='描述'
+            self.Tags='标签'
+            self.Privacy='朋友权限'
+            self.ViewAll='查看全部'
+            self.YearSep='年'
+            self.MonthSep='月'
+            self.DaysAgo='天前'
+            self.NotDownloaded='未下载'
+            self.Expired='已过期'
+            self.SendInterrupt='发送中断'
+            self.Yesterday='昨天'
+            self.Moments='朋友圈'
+            self.Messages='发消息'
+            self.VoiceCall='语音聊天'
+            self.VideoCall='视频聊天'
+            self.Download='下载'
+            self.NotCare={'session_item_服务号','session_item_公众号'}
+            self.Minutes={f'{i}分钟前' for i in range(1,60)}
+            self.Hours={f'{i}小时前' for i in range(1,24)}
+            self.WeekDays={f'{i}天前' for i in range(1,8)}
+            self.MonthDays={f'{i}天前' for i in range(1,31)}
+            self.Hours.update(self.Minutes)
+            self.WeekDays.update(self.Hours)
+            self.WeekDays.add(self.Yesterday)
+            self.MonthDays.update(self.WeekDays)
+        if self.language=='English':
+            self.Block='Block'
+            self.UnBlock='UnBlock'
+            self.EnterPriseInfomation='Enterprise Information'
+            self.StuckonTop='Stuck on Top\n'
+            self.Star='Star'
+            self.UnStar='UnStar'
+            self.MuteNotifications='Mute Notifications\n'
+            self.LightMode='LightMode'
+            self.DarkMode='DarkMode'
+            self.Automatic='Automatic'
+            self.Image='Image'
+            self.File='File'
+            self.Link='[Link]'
+            self.Video='Video'
+            self.WxNum='Weixin ID:'
+            self.Nickname='Name:' 
+            self.Region='Region:'
+            self.Remark='Remark'
+            self.SharedGroups='Shared Groups' 
+            self.Signature="What's Up" 
+            self.Source='Source'
+            self.Mobile='Mobile'
+            self.Description='Description'
+            self.Tags='Tags'
+            self.Privacy='Privacy'
+            self.ViewAll='View All'
+            self.YearSep='-'
+            self.MonthSep='-'
+            self.DaysAgo='day(s) ago'
+            self.NotDownloaded='Not Downloaded'
+            self.Expired='Expired'
+            self.SendInterrupt='Send Interrupt'
+            self.Yesterday='Yesterday'
+            self.Moments='Moments'
+            self.Messages='Messages'
+            self.VoiceCall='Voice Call'
+            self.VideoCall='Video Call'
+            self.Download='Download'
+            self.NotCare={'session_item_Service Accounts','session_item_Official Accounts'}
+            self.Minutes={f'{i} minute(s) ago' for i in range(1,60)}
+            self.Hours={f'{i} hour(s) ago' for i in range(1,24)}
+            self.WeekDays={f'{i} day(s) ago' for i in range(1,8)}
+            self.MonthDays={f'{i} day(s) ago' for i in range(1,31)}
+            self.Hours.update(self.Minutes)
+            self.WeekDays.update(self.Hours)
+            self.WeekDays.add(self.Yesterday)
+            self.MonthDays.update(self.WeekDays)
+        if self.language=='繁體中文':
+            self.Block='加入黑名單'
+            self.UnBlock='移出黑名單'
+            self.Star='設為超級好友'
+            self.UnStar='不再設為超級好友'
+            self.StuckonTop='已置頂\n'
+            self.MuteNotifications='訊息免打擾\n'
+            self.LightMode='淺色模式'
+            self.DarkMode='深色模式'
+            self.Automatic='跟隨系统'
+            self.Image='圖片'
+            self.File='檔案'
+            self.Link='[連結]'
+            self.Video='影片'
+            self.WxNum='微信 ID:'
+            self.Nickname='暱稱:' 
+            self.Region='地區:'
+            self.Remark='備註'
+            self.SharedGroups='共同群組' 
+            self.Signature='個性簽名' 
+            self.Source='來源'
+            self.Mobile='電話'
+            self.Description='描述'
+            self.Tags='標籤'
+            self.Privacy='朋友權限'
+            self.ViewAll='查看全部'
+            self.YearSep='年'
+            self.MonthSep='月'
+            self.DaysAgo='天前'
+            self.NotDownloaded='未下载'
+            self.Expired='已过期'
+            self.SendInterrupt='发送中断'
+            self.Yesterday='昨天'
+            self.Moments='朋友圈'
+            self.Download='下載'
+            self.NotCare={'session_item_服務賬號','session_item_官方賬號'}
+            self.Minutes={f'{i}分鐘前' for i in range(1,60)}
+            self.Hours={f'{i}小時前' for i in range(1,24)}
+            self.WeekDays={f'{i}天前' for i in range(1,8)}
+            self.MonthDays={f'{i}天前' for i in range(1,31)}
+            self.Hours.update(self.Minutes)
+            self.WeekDays.update(self.Hours)
+            self.WeekDays.add(self.Yesterday)
+            self.MonthDays.update(self.WeekDays)
 
 class ColorMatch():
     '''朋友圈点赞评论时需要用颜色识别点击按钮'''
@@ -164,67 +339,150 @@ class ColorMatch():
             mouse.click(coords=(fallback_x, fallback_y))
             return False
 
-def auto_reply_to_friend_decorator(duration:str,friend:str,search_pages:int=5,is_maximize:bool=False,close_weixin:bool=False):
+
+def send_messages_to_friend(main_window:WindowSpecification,messages:list[str],at_members:list[str]=[],at_all:bool=False,send_delay:float=None):
     '''
-    该函数为自动回复指定好友的修饰器
+    该函数用于给当前微信界面内所在的好友发送信息
     Args:
-        friend:好友或群聊备注
-        duration:自动回复持续时长,格式:'s','min','h',单位:s/秒,min/分,h/小时
-        search_pages:在会话列表中查询查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
-        is_maximize:微信界面是否全屏,默认全屏。
-        close_weixin:任务结束后是否关闭微信,默认关闭
-    Examples:
-        >>> from pyweixin.utils import auto_reply_to_friend_decorator
-        >>> @auto_reply_to_friend_decorator(duration='10min',friend='好友')
-        >>> def reply_func(newMessage):
-        >>>     if '你好' in message:
-        >>>         return '你好,有什么可以帮您的吗[呲牙]?'
-        >>>     if '在吗' in message:
-        >>>         return '在的[旺柴]'
-        >>>     return '自动回复[微信机器人]:您好,我当前不在,请您稍后再试'
-        >>> reply_func()
+        main_window:已切换到某个好友聊天框后的微信主界面或者是单独的聊天窗口
+        messages:所有待发送消息列表。格式:message=["消息1","消息2"]
+        at_members:群聊内所有需要@的群成员昵称列表(注意必须是群昵称)
+        at_all:群聊内@所有人,默认为False
+        send_delay:发送单条消息延迟,单位:秒/s,默认0.2s(0.1-0.2之间是极限)。
+        clear:是否删除编辑区域已有的内容,默认删除
     '''
-    def decorator(reply_func):
-        @wraps(reply_func)
-        def wrapper():
-            durations=Tools.match_duration(duration)#将's','min','h'转换为秒
-            if not durations:#不按照指定的时间格式输入,需要提前中断退出
-                raise TimeNotCorrectError
-            #打开好友的对话框,返回值为编辑消息框和主界面
-            main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
-            #需要判断一下是不是公众号
-            voice_call_button=main_window.child_window(**Buttons.VoiceCallButton)
-            video_call_button=main_window.child_window(**Buttons.VideoCallButton)
-            if not voice_call_button.exists(timeout=0.1):
-                #公众号没有语音聊天按钮
-                main_window.close()
-                raise NotFriendError(f'非正常好友,无法自动回复!')
-            if not video_call_button.exists(timeout=0.1) and voice_call_button.exists(timeout=0.1):
-                main_window.close()
-                raise NotFriendError('auto_reply_to_friend只用来自动回复好友')
-            ########################################################################################################
-            chatList=main_window.child_window(**Lists.FriendChatList)#聊天界面内存储所有信息的容器
-            edit_area=main_window.child_window(**Edits.CurrentChatEdit)
-            initial_message=chatList.children(control_type='ListItem')[-1]#刚打开聊天界面时的最后一条消息的listitem
-            initial_runtime_id=initial_message.element_info.runtime_id
-            SystemSettings.open_listening_mode()#开启监听模式,此时电脑只要不断电不会息屏 
-            end_timestamp=time.time()+durations#根据秒数计算截止时间
-            while time.time()<end_timestamp:
-                newMessage=chatList.children(control_type='ListItem')[-1]
-                runtime_id=newMessage.element_info.runtime_id
-                if runtime_id!=initial_runtime_id:
-                    if not Tools.is_my_bubble(main_window,newMessage,edit_area):
-                        reply_content=reply_func(newMessage.window_text())
-                        if reply_content is not None:
-                            edit_area.click_input()
-                            edit_area.set_text(reply_content)
-                            pyautogui.hotkey('alt','s')
-                        initial_runtime_id=runtime_id
-            SystemSettings.close_listening_mode()
-            if close_weixin:
-                main_window.close()
-        return wrapper
-    return decorator 
+    if send_delay is None:
+        send_delay=GlobalConfig.send_delay
+    edit_area=main_window.child_window(**Edits.CurrentChatEdit)
+    if not edit_area.exists(timeout=0.1):
+        print('非正常好友,无法发送消息!')
+        return 
+    if at_all:
+        At_all(main_window)
+    if at_members:
+        At(main_window,at_members)
+    for message in messages:
+        if 0<len(message)<2000:
+            edit_area.click_input()
+            edit_area.set_text(message)
+            time.sleep(send_delay)
+            pyautogui.hotkey('alt','s',_pause=False)
+        elif len(message)>2000:#字数超过200字发送txt文件
+            SystemSettings.convert_long_text_to_txt(message)
+            pyautogui.hotkey('ctrl','v',_pause=False)
+            time.sleep(send_delay)
+            pyautogui.hotkey('alt','s',_pause=False)
+
+def message_chain(main_window:WindowSpecification,content:str=None,theme:str=None,example:str=None,description:str=None):
+    '''
+    该函数用来在当前微信界面所在的群聊发起接龙
+    Args:
+        main_window:已切换到某个群聊后的微信主界面或者是单独的聊天窗口
+        content:发起接龙时自己所填的内容
+        theme:接龙的主题
+        example:接龙的例子
+        description:接龙详细描述
+        search_pages:在会话列表中查找群聊时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面 
+        is_maximize:微信界面是否全屏,默认不全屏。
+        close_weixin:任务结束后是否关闭微信,默认关闭
+    '''
+    edit_area=main_window.child_window(**Edits.CurrentChatEdit)
+    if not edit_area.exists(timeout=0.1):
+        print(f'非正常好友,无法发送消息')
+        return
+    if Tools.is_group_chat(main_window):
+        edit_area.set_text('#接龙')
+        pyautogui.press('down')
+        pyautogui.press('enter')
+        solitaire_window=main_window.child_window(**Windows.SolitaireWindow)
+        solitaire_button=solitaire_window.child_window(**Buttons.SolitaireButton)
+        solitaire_list=solitaire_window.child_window(**Lists.SolitaireList)
+        if content is not None:
+            SystemSettings.copy_text_to_clipboard(content)
+            solitaire_list.click_input()#自己填写的内容正好在接龙列表的中间,所以直接click_input()
+            pyautogui.hotkey('ctrl','a')#全选删除然后复制content
+            pyautogui.press('backspace')
+            pyautogui.hotkey('ctrl','v')
+        if isinstance(theme,str):
+            solitaire_window.child_window(control_type='Edit',found_index=0).set_text(theme)
+        if isinstance(example,str):
+            solitaire_window.child_window(control_type='Edit',found_index=1).set_text(example)
+        if isinstance(description,str):
+            text=solitaire_window.child_window(**Texts.AddContentText)
+            rec=text.rectangle()
+            position=rec.left+2,rec.mid_point().y
+            mouse.click(coords=position)
+            solitaire_window.child_window(control_type='Edit',found_index=2).set_text(description)
+        solitaire_button.click_input()
+
+
+def send_files_to_friend(main_window:WindowSpecification,files:list[str],with_messages:bool=False,messages:list=[str],messages_first:bool=False,
+    send_delay:float=None)->None:
+    '''
+    该函数用于给单个好友或群聊发送多个文件
+    Args:
+        main_window:已切换到某个聊天后的微信主界面或者是单独的聊天窗口
+        files:所有待发送文件所路径列表。
+        with_messages:发送文件时是否给好友发消息。True发送消息,默认为False。
+        messages:与文件一同发送的消息。格式:message=["消息1","消息2","消息3"]
+        send_delay:发送单条信息或文件的延迟,单位:秒/s,默认0.2s。
+        messages_first:默认先发送文件后发送消息,messages_first设置为True,先发送消息,后发送文件,
+    '''
+    #发送消息逻辑
+    def send_messages(messages):
+        for message in messages:
+            if 0<len(message)<2000:
+                edit_area.set_text(message)
+                pyautogui.hotkey('ctrl','v',_pause=False)
+                time.sleep(send_delay)
+                pyautogui.hotkey('alt','s',_pause=False)
+            if len(message)>2000:
+                SystemSettings.convert_long_text_to_txt(message)
+                pyautogui.hotkey('ctrl','v',_pause=False)
+                time.sleep(send_delay)
+                pyautogui.hotkey('alt','s',_pause=False)
+    #发送文件逻辑
+    def send_files(files):
+        if len(files)<=9:
+            SystemSettings.copy_files_to_clipboard(filepaths_list=files)
+            pyautogui.hotkey("ctrl","v")
+            time.sleep(send_delay)
+            pyautogui.hotkey('alt','s',_pause=False)
+        else:
+            files_num=len(files)
+            rem=len(files)%9
+            for i in range(0,files_num,9):
+                if i+9<files_num:
+                    SystemSettings.copy_files_to_clipboard(filepaths_list=files[i:i+9])
+                    pyautogui.hotkey('ctrl','v')
+                    time.sleep(send_delay)
+                    pyautogui.hotkey('alt','s',_pause=False)
+            if rem:
+                SystemSettings.copy_files_to_clipboard(filepaths_list=files[files_num-rem:files_num])
+                pyautogui.hotkey('ctrl','v')
+                time.sleep(send_delay)
+                pyautogui.hotkey('alt','s',_pause=False)
+    
+    if send_delay is None:
+        send_delay=GlobalConfig.send_delay
+    #对发送文件校验
+    if files:            
+        files=[file for file in files if os.path.isfile(file)]
+        files=[file for file in files if 0<os.path.getsize(file)<1073741824]#0到1g之间的文件才可以发送
+    if not files:
+        return
+    edit_area=main_window.child_window(**Edits.CurrentChatEdit)
+    if not edit_area.exists(timeout=0.1):
+        print(f'非正常好友,无法发送文件!')
+        return 
+    if with_messages  and messages_first:
+        send_messages(messages)
+        send_files(files)
+    if with_messages and not messages_first:
+        send_files(files)
+        send_messages(messages)
+    if not with_messages:
+        send_files(files)       
 
 def get_new_message_num(main_window:WindowSpecification=None,is_maximize:bool=None,close_weixin:bool=None):
     '''
@@ -308,20 +566,6 @@ def At(main_window:WindowSpecification,at_members:list[str]):
             else:
                 edit_area.set_text('')
     
-def open_red_packet(dialog_window:WindowSpecification,red_packet:ListItemWrapper)->int:
-    '''
-    该函数用来点击领取好友发送的红包
-    Args:
-        dialog_window:好友的聊天窗口,可使用Navigator内的方法打开
-        redpacket:红包对应的ListItem
-    '''
-    red_envelop_view=dialog_window.child_window(class_name='mmui::PayRedEnvelopeInfoView',title='',control_type='Group')#微信红包点击后弹出的界面
-    red_envelop_detail=desktop.window(class_name='mmui::PayRedEnvelopDetailWindow',control_type='Window',title='微信')
-    red_packet.click_input()
-    open_button=red_envelop_view.child_window(control_type='Button',title='拆开')
-    open_button.click_input()
-    red_envelop_detail.close()
-
 def scan_for_new_messages(main_window:WindowSpecification=None,delay:float=0.3,is_maximize:bool=None,close_weixin:bool=None)->dict:
     '''
     该函数用来扫描检查一遍会话列表中的所有新消息,返回发送对象以及新消息数量(不包括免打扰)
@@ -336,14 +580,15 @@ def scan_for_new_messages(main_window:WindowSpecification=None,delay:float=0.3,i
     def traverse_messsage_list(listItems):
         #newMessageTips为newMessagefriends中每个元素的文本:['测试365 5条新消息','一家人已置顶20条新消息']这样的字符串列表
         listItems=[listItem for listItem in listItems if listItem.automation_id() not in not_care 
-        and '消息免打扰' not in listItem.window_text()]
+        and mute_notifications not in listItem.window_text()]
         listItems=[listItem for listItem in listItems if new_message_pattern.search(listItem.window_text())]
         senders=[listItem.automation_id().replace('session_item_','') for listItem in listItems]
         newMessageTips=[listItem.window_text() for listItem in listItems if listItem.window_text() not in newMessageSenders]
         newMessageNum=[int(new_message_pattern.search(text).group(1)) for text in newMessageTips]
         return senders,newMessageNum
 
-    not_care={'session_item_服务号','session_item_公众号'}
+    not_care=Special_Labels.NotCare
+    mute_notifications=Special_Labels.MuteNotifications
     if is_maximize is None:
         is_maximize=GlobalConfig.is_maximize
     if close_weixin is None:
@@ -352,7 +597,7 @@ def scan_for_new_messages(main_window:WindowSpecification=None,delay:float=0.3,i
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
     newMessageSenders=[]
     newMessageNums=[]
-    newMessages_dict=dict(zip(newMessageSenders,newMessageNums))
+    newMessages_dict={}
     chats_button=main_window.child_window(**SideBar.Weixin)
     chats_button.click_input()
     #左上角微信按钮的红色消息提示(\d+条新消息)在FullDescription属性中,
@@ -362,7 +607,7 @@ def scan_for_new_messages(main_window:WindowSpecification=None,delay:float=0.3,i
     session_list.type_keys('{HOME}')
     new_message_num=re.search(r'\d+',full_desc)#正则提取数量
     #微信会话列表内ListItem标准格式:备注\s(已置顶)\s(\d+)条未读\s最后一条消息内容\s时间
-    new_message_pattern=re.compile(r'\n\[(\d+)条\]')#只给数量分组.group(1)获取
+    new_message_pattern=Regex_Patterns.newMessage_pattern#只给数量分组.group(1)获取
     if not new_message_num:
         print(f'没有新消息')
         return {}
@@ -391,23 +636,5 @@ def scan_for_new_messages(main_window:WindowSpecification=None,delay:float=0.3,i
         main_window.close()
     return newMessages_dict
 
-def language_detector()->(str|None):
-    '''
-    通过WechatAppex的命令行参数判断语言版本
-    Returns:
-        lang:简体中文,繁体中文,English
-    '''
-    lang=None
-    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
-        if proc.info['name'] and 'wechatappex' in proc.info['name'].lower():
-            cmdline=proc.info['cmdline']
-            if not cmdline:
-                continue
-    cmd_str=' '.join(cmdline).lower()
-    if '--lang=zh-cn' in cmd_str:
-        lang='简体中文'
-    if '--lang=zh-tw' in cmd_str:
-        lang='繁体中文'
-    if '--lang=en' in cmd_str:
-        lang='English'
-    return lang
+Special_Labels=Special_Label(language=language)#所有特殊符号或文本
+Regex_Patterns=Regex_Pattern(language=language)#所有正则表达式

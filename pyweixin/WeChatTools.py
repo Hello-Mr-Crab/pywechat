@@ -13,7 +13,7 @@ Tools
     - `where_wxid_folder`: 当前登录微信的wxid文件夹
     - `where_msg_folder`: 获取微信msg文件夹路径
     - `where_chatfiles_folder`: 获取微信聊天文件存放路径(文件夹)
-    - `set_weixin_as_environ_path`: 将微信路径添加到用户变量
+    - `where_userlib_folder`: 获取微信userlib文件夹路径(可用来获取版本号)
     - `cancle_pin`: 取消窗口置顶,为了保证准确性(基于微信主界面的操作,必须让微信主界面置于顶层,不然在当前界面内乱点就尴尬了),
         open_weixin需要将微信主窗口置于桌面顶层,但这可能导致打开微信内独立(比如朋友圈)窗口时,该窗口无法自动浮于微信窗口顶层,
         只是在微信主界面底部,为解决该问题,已在涉及各种类似操作的方法中调用过该方法,如果二次开发时遇到这个特性,可以使用该方法取消微信主窗口置顶
@@ -65,7 +65,7 @@ Also:
 
     ```
     from pyweixin import Navigator,GlobalConfig
-    GlobalConfig.load_delay=1.5
+    GlobalConfig.load_delay=3
     GlobalConfig.is_maximize=True
     GlobalConfig.close_weixin=False
     Navigator.search_channels(search_content='微信4.0')
@@ -86,7 +86,6 @@ Also:
 ############################外部依赖###########################
 import os
 import re
-import ctypes
 import time
 import winreg
 import psutil
@@ -106,26 +105,10 @@ from .Errors import NetWorkError
 from .Errors import NoSuchFriendError
 from .Errors import NotFriendError,NotStartError,NotLoginError
 from .Errors import NoResultsError,NotInstalledError,NotFoundError
-from pyweixin.Uielements import (Login_window,Main_window,SideBar,Independent_window,ListItems,
-Buttons,Texts,Menus,TabItems,Lists,Edits,Windows,Panes,MenuItems)
+from pyweixin.Uielements import (Main_window,SideBar,Independent_window,ListItems,
+Buttons,Texts,TabItems,Lists,Edits,Windows,Panes,MenuItems)#导入的是自动判断语言后的实例化对象,如果自行使用需要导入xxx_Control
 from pyweixin.WinSettings import SystemSettings 
 ##########################################################################################
-
-#各种UI实例化
-Login_window=Login_window()#登录界面的UI
-Main_window=Main_window()#主界面UI
-SideBar=SideBar()#侧边栏UI
-Independent_window=Independent_window()#独立主界面UI
-Buttons=Buttons()#所有Button类型UI
-Texts=Texts()#所有Text类型UI
-TabItems=TabItems()#所有TabIem类型UI
-Lists=Lists()#所有列表类型UI
-Menus=Menus()#所有Menu类型UI
-Edits=Edits()#所有Edits类型UI
-Windows=Windows()#所有Window类型UI
-Panes=Panes()#所有Pane类型UI
-ListItems=ListItems()#所有ListItem类型UI
-MenuItems=MenuItems()#所有MenuItem类型UI
 desktop=Desktop(backend='uia')#Window桌面
 pyautogui.FAILSAFE=False#防止鼠标在屏幕边缘处造成的误触
 
@@ -162,8 +145,20 @@ wx=WxWindowManage()
 
 class Tools():
     '''
-    一些关于PC微信的工具
+    一些关于PC微信的工具,主要是获取路径和ui状态相关的一些方法
     ''' 
+    @staticmethod
+    def about_weixin()->dict:
+        '''获取关于微信的一些基本信息'''
+        exe_path=Tools.where_weixin()
+        userlib_folder=Tools.where_userlib_folder()
+        wxid_folder=Tools.where_wxid_folder()
+        wxid=Tools.get_current_wxid()
+        version=GlobalConfig.version
+        language=GlobalConfig.language
+        chatfiles_folder=Tools.where_chatfile_folder()
+        return {'exe路径':exe_path,'版本':version,'语言':language,'wxid':wxid,'wxid目录':wxid_folder,'用户配置目录':userlib_folder,'聊天文件目录':chatfiles_folder}
+
     @staticmethod
     def is_weixin_running()->bool:
         '''
@@ -240,10 +235,8 @@ class Tools():
             if 'MMKV'  in mem_map.path:
                 wxid_folder=os.path.dirname(mem_map.path).replace('db_storage','').replace('MMKV','')
                 break
-        if wxid_folder:
-            wxid_folder=os.path.normpath(wxid_folder)
-        if open_folder:
-            os.startfile(wxid_folder)
+        if wxid_folder:wxid_folder=os.path.normpath(wxid_folder)
+        if open_folder:os.startfile(wxid_folder)
         return wxid_folder
 
     @staticmethod
@@ -258,11 +251,25 @@ class Tools():
         '''
         msg_folder=''
         wxid_folder=Tools.where_wxid_folder(open_folder=False)
-        if wxid_folder:
-            msg_folder=os.path.join(wxid_folder,'msg')
-        if open_folder:
-            os.startfile(msg_folder)
+        if wxid_folder:msg_folder=os.path.join(wxid_folder,'msg')
+        if open_folder:os.startfile(msg_folder)
         return msg_folder
+
+    @staticmethod
+    def where_db_folder(open_folder:bool=False)->str:
+        '''
+        该方法用来获取微信db_storage文件夹路径
+        使用时微信必须登录,否则无法获取到完整路径
+        Args:
+            open_folder:是否打开存放db文件的文件夹,默认不打开
+        Returns:
+            db_folder:db_storage文件夹路径
+        '''
+        db_storage=''
+        wxid_folder=Tools.where_wxid_folder(open_folder=False)
+        if wxid_folder:db_storage=os.path.join(wxid_folder,'db_storage')
+        if open_folder:os.startfile(db_storage)
+        return db_storage
 
     @staticmethod
     def where_chatfile_folder(open_folder:bool=False)->str:
@@ -278,8 +285,7 @@ class Tools():
         wxid_folder=Tools.where_wxid_folder(open_folder=False)
         if wxid_folder:
             chatfile_folder=os.path.join(wxid_folder,'msg','file')
-        if open_folder:
-            os.startfile(chatfile_folder)
+        if open_folder:os.startfile(chatfile_folder)
         return chatfile_folder
     
     @staticmethod
@@ -294,14 +300,32 @@ class Tools():
         '''
         video_folder=''
         msg_folder=Tools.where_msg_folder(open_folder=False)
-        if msg_folder:
-            video_folder=os.path.join(msg_folder,'video')
+        if msg_folder:video_folder=os.path.join(msg_folder,'video')
         if open_folder:os.startfile(video_folder)
         return video_folder
 
     @staticmethod
+    def where_userlib_folder(open_folder:bool=False)->str:
+        '''
+        通过weixin.exe的命令行参数获取微信userlib路径
+        Returns:
+            userlib_folder:微信userlib文件夹根目录是微信版本号
+        '''
+        cmdline=''
+        userlib_folder=''
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            if proc.info['name'] and 'weixin' in proc.info['name'].lower():
+                cmdline=proc.info['cmdline']
+                if len(cmdline)>2:break
+        user_lib_dir=re.search(r'--user-lib-dir=(.*)',cmdline[1])
+        if user_lib_dir is not None:userlib_folder=os.path.normpath(user_lib_dir.group(1))
+        if open_folder:os.startfile(userlib_folder)
+        return userlib_folder
+
+    @staticmethod
     def get_current_wxid()->str:
         '''该方法用来获取当前登录账号的wxid,只有登录后才可以获取到
+        登录过多个账号可能有缓存,需要重启微信(关闭再打开)
         Returns:
             wxid:当期登录微信号的wxid
         '''
@@ -310,6 +334,43 @@ class Tools():
         wxid=wxid_pattern.search(wxid_folder)
         if wxid:return wxid.group(0)
         return ''
+        
+    @staticmethod
+    def get_weixin_version():
+        '''通过查询注册表来获取微信版本
+        Returns:
+            weixin_version:微信版本号,4.1.x.xx
+        '''
+        try:
+            reg_path=r"Software\Tencent\Weixin"
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER,reg_path) as key:
+                int_version=winreg.QueryValueEx(key,"Version")[0]
+                #0xf254186b,0xf25之后是微信版本,每隔一位加个.,最后两位16转10进制就是版本号
+                hex_str=hex(int_version)[5:]
+                weixin_version=f'{hex_str[0]}.{hex_str[1]}.{hex_str[2]}.{int(hex_str[-2:],16)}'
+            return weixin_version
+        except Exception:
+            raise NotInstalledError
+    
+    @staticmethod
+    def language_detector()->(str|None):
+        '''
+        通过WechatAppex的命令行参数判断语言版本
+        Returns:
+            lang:简体中文,繁體中文,English
+        '''
+        cmdline=''
+        lang=None
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            if proc.info['name'] and 'wechatappex' in proc.info['name'].lower():
+                cmdline=proc.info['cmdline']
+                if not cmdline:
+                    continue
+        cmd_str=' '.join(cmdline).lower()
+        if '--lang=zh-cn' in cmd_str:lang='简体中文'
+        if '--lang=zh-tw' in cmd_str:lang='繁體中文'
+        if '--lang=en' in cmd_str:lang='English'
+        return lang
 
     @staticmethod
     def cancel_pin(main_window:WindowSpecification):
@@ -363,10 +424,8 @@ class Tools():
         first_children=list_control.children()[0]
         list_control.type_keys("{PGDN}")
         scrollable=list_control.children()[0]!=first_children
-        if back=='top':
-            list_control.type_keys("{HOME}") 
-        if back=='end':
-            list_control.type_keys("{END}")
+        if back=='top':list_control.type_keys("{HOME}") 
+        if back=='end':list_control.type_keys("{END}")
         return scrollable
     
     @staticmethod
@@ -376,10 +435,7 @@ class Tools():
         rect=listitem.rectangle()
         mouse.right_click(coords=(rect.left+100,rect.mid_point().y))
         copy_menu_item=main_window.child_window(**MenuItems.CopyMenuItem)        
-        if copy_menu_item.exists(timeout=0.1):
-            # edit_rect=edit_area.rectangle()
-            # mouse.click(coords=(edit_rect.left+5,edit_rect.mid_point().y))
-            return False
+        if copy_menu_item.exists(timeout=0.1):return False
         return True
     
     @staticmethod
@@ -425,7 +481,7 @@ class Tools():
 
     @staticmethod
     def get_next_item(listview:ListViewWrapper,listitem:ListItemWrapper)->(ListItemWrapper|None):
-        '''获取当前listview中给定的listitem的下一个                             ,如果该listitem是最后一个或不在该listview则返回None
+        '''获取当前listview中给定的listitem的下一个,如果该listitem是最后一个或不在该listview则返回None
         Args:
             listview:pywinauto中control_type为List的ListViewWrapper
             listitem:在该listview中的子元素
@@ -443,8 +499,16 @@ class Tools():
             friend:搜索的内容,好友或群聊的备注,公众号服务号名称等
             search_result:微信主界面搜索内容后的结果列表,即Uielements内的Lists.SearchResult
         '''
-        searh_content_label={'最近使用','联系人','群聊','服务号','公众号','最常使用'}
-        xtable_label={'功能','最近使用','最常使用'}
+        language=GlobalConfig.language
+        if language=='简体中文':
+            searh_content_label={'最近使用','联系人','群聊','服务号','公众号','最常使用'}
+            xtable_label={'功能','最近使用','最常使用'}
+        if language=='English':
+            searh_content_label={'Recent used','Contacts','Groups','Service Accounts','Official Accounts','Most used'}
+            xtable_label={'Features','Recent used','Most used'}
+        if language=='繁體中文':
+            searh_content_label={'最近使用','联系人','群聊','服务号','公众号','最常使用'}
+            xtable_label={'功能','最近使用','最常使用'}
         texts=[listitem.window_text() for listitem in search_result.children(control_type="ListItem")]
         listitems=search_result.children(control_type='ListItem')
         #正常好友群聊服务号公众号的class_name是mmui::SearchContentCellView
@@ -505,7 +569,7 @@ class Tools():
                 recent_group_item.click_input()
 
     @staticmethod
-    def collapse_contacts(main_window,contact_list):
+    def collapse_contacts(main_window:WindowSpecification,contact_list:ListViewWrapper):
         '''用来收起通讯录中每个分区:包括"新的朋友","群聊","企业微信联系人","联系人"等
         Args:
             main_window:切换到通讯录后的微信主界面
@@ -519,13 +583,13 @@ class Tools():
                 if items[i]==listitem and i<len(items)-1:
                     return items[i+1]
             return None
-        newfriend_item=main_window.child_window(control_type='ListItem',title=r'新的朋友',class_name="mmui::ContactsCellGroupView")
-        group_item=main_window.child_window(control_type='ListItem',title_re=r'群聊\d+',class_name="mmui::ContactsCellGroupView")
-        official_item=main_window.child_window(control_type='ListItem',title_re=r'公众号\d+',class_name="mmui::ContactsCellGroupView")
-        service_item=main_window.child_window(control_type='ListItem',title_re=r'服务号\d+',class_name="mmui::ContactsCellGroupView")
-        wecom_item=main_window.child_window(control_type='ListItem',title_re=r'企业微信联系人\d+',class_name="mmui::ContactsCellGroupView")
-        mycom_item=main_window.child_window(control_type='ListItem',title_re=r'我的企业\d+',class_name="mmui::ContactsCellGroupView")
-        contact_item=main_window.child_window(control_type='ListItem',title_re=r'联系人\d+',class_name="mmui::ContactsCellGroupView")
+        newfriend_item=main_window.child_window(**ListItems.NewFriendListItem)
+        group_item=main_window.child_window(**ListItems.SavedGroupsListIte)
+        official_item=main_window.child_window(**ListItems.OfficialAccountsListItem)
+        service_item=main_window.child_window(**ListItems.ServiceAccountsListItem)
+        wecom_item=main_window.child_window(**ListItems.WeComContactsListItems)
+        mycom_item=main_window.child_window(**ListItems.MyEnterPriseListItems)
+        contact_item=main_window.child_window(**ListItems.ContactsListItem)
         contact_list.type_keys('{HOME}')
         if newfriend_item.exists(timeout=0.1):
             if contact_list.children()[2].class_name()!="mmui::ContactsCellGroupView":
@@ -586,7 +650,6 @@ class Tools():
             return None
 
 class Navigator():
-
     '''打开微信内一切能打开的界面'''
     @staticmethod 
     def open_weixin(is_maximize:bool=None,window_size:tuple=None)->WindowSpecification:
@@ -678,7 +741,7 @@ class Navigator():
             chats_button.click_input()
         if not session_list.is_visible():
             chats_button.click_input()
-        current_chat_label=Texts.CurrentChatText
+        current_chat_label=Texts.CurrentChatNameText#右上角顶部的好友名称
         current_chat_label['title']=friend
         current_chat=main_window.child_window(**current_chat_label)
         if current_chat.exists(timeout=0.1):
@@ -717,7 +780,7 @@ class Navigator():
         return main_window
     
     @staticmethod
-    def open_chatinfo(friend:str,is_maximize:bool=None,search_pages:int=None)->tuple[WindowSpecification]:
+    def open_chatinfo(friend:str,is_maximize:bool=None,search_pages:int=None)->tuple[WindowSpecification,WindowSpecification]:
         '''
         该函数用来打开好友或群聊的聊天信息界面,即在聊天界面中点击···后右侧弹出的界面
         Args:
@@ -761,16 +824,25 @@ class Navigator():
             search_pages=GlobalConfig.search_pages
         chatinfo_pane,main_window=Navigator.open_chatinfo(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         friend_button=chatinfo_pane.child_window(title=friend,control_type='Button')
-        if friend_button.exists(timeout=1):
-            profile_button=friend_button
-            profile_button.click_input()
-            profile_pane=main_window.window(**Windows.PopUpProfileWindow)
+        try:
+            friend_button.wait(wait_for='ready',timeout=2)
+            friend_button.click_input()
+            profile_pane=desktop.window(**Windows.PopUpProfileWindow) if '4.1.9' in GlobalConfig.version else main_window.window(**Windows.PopUpProfileWindow)
             return profile_pane,main_window
-        else:
+        except Exception:
             chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton)
             chatinfo_button.click_input()
             main_window.close()
             raise NotFriendError(f'此为群聊,非好友,无法打开个人简介界面!')
+        # if friend_button.exists(timeout=1):
+        #     friend_button.click_input()
+        #     profile_pane=main_window.window(**Windows.PopUpProfileWindow)
+        #     return profile_pane,main_window
+        # else:
+        #     chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton)
+        #     chatinfo_button.click_input()
+        #     main_window.close()
+        #     raise NotFriendError(f'此为群聊,非好友,无法打开个人简介界面!')
         
     @staticmethod
     def open_friend_moments(friend:str,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->WindowSpecification:
@@ -907,7 +979,7 @@ class Navigator():
         more.click_input()
         settings_button=main_window.child_window(**Buttons.SettingsButton)
         settings_button.click_input()
-        settings_window=Tools.move_window_to_center(Independent_window.SettingWindow)        
+        settings_window=Tools.move_window_to_center(Independent_window.SettingsWindow)        
         if close_weixin:
             main_window.close() 
         return settings_window
@@ -995,7 +1067,7 @@ class Navigator():
         chat_button=main_window.child_window(**SideBar.Weixin)
         chat_button.click_input() 
         #先看看当前聊天界面是不是好友的聊天界面
-        current_chat_label=Texts.CurrentChatText#右上角顶部的好友名称Text
+        current_chat_label=Texts.CurrentChatNameText#右上角顶部的好友名称Text
         current_chat_label['title']=friend
         current_chat=main_window.child_window(**current_chat_label)
         #如果当前主界面聊天界面顶部的名称为好友名称，直接返回结果
@@ -1067,7 +1139,7 @@ class Navigator():
             #is_find为True,即说明find_friend_in_SessionList找到了聊天窗口,直接返回结果
             if is_find:
                 edit_area=main_window.child_window(**Edits.CurrentChatEdit)
-                if edit_area.exists() and edit_area.is_visible():
+                if edit_area.exists(timeout=0.2) and edit_area.is_visible():
                     edit_area.click_input()
                 return main_window
             #is_find为False没有在会话列表中找到好友,在顶部搜索栏中搜索好友
@@ -1130,7 +1202,7 @@ class Navigator():
             search_results=main_window.child_window(**Lists.SearchResult).wait(wait_for='ready',timeout=3)#搜索结果列表
             search_result,is_contact=get_search_result(friend=friend,search_result=search_results)
         except Exception:
-            search_result=None
+            search_result=None 
         if search_result is not None:
             search_result.click_input()
             time.sleep(1)
@@ -1173,7 +1245,7 @@ class Navigator():
         search_bar.set_text(keyword)
         time.sleep(0.8)#必须停顿1s等待加载出结果来
         search_results=main_window.child_window(title='',control_type='List')
-        chat_history_label=search_results.child_window(control_type='ListItem',title='聊天记录',class_name="mmui::XTableCell")
+        chat_history_label=search_results.child_window(**ListItems.ChatHistoryListItem)
         #微信搜索相关好友后会显示共同群聊，如果搜索结果中有群聊这个灰色标签的ListItem，说明有共同群聊
         if not chat_history_label.exists(timeout=0.5):
             print(f'无 {keyword} 相关的聊天记录!')
@@ -1208,13 +1280,19 @@ class Navigator():
             search_pages=GlobalConfig.search_pages
         main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         chat_history_button=main_window.child_window(**Buttons.ChatHistoryButton)
-        if not chat_history_button.exists():
+        if not chat_history_button.exists(timeout=0.3):
             main_window.close()
             raise NotFriendError(f'非正常好友或群聊！无法打开该好友或群聊的聊天记录界面')
         chat_history_button.click_input()
-        chat_history_window=Tools.move_window_to_center(Independent_window.ChatHistoryWindow)
+        #增加窗口名称,避免出现打开多个聊天窗口时出现ElementAmbigousError
+        if GlobalConfig.language=='简体中文':title=f'与{friend}的聊天记录窗口' 
+        if GlobalConfig.language=='English':title=f'Chat History with "{friend}"' 
+        if GlobalConfig.language=='繁體中文':title=f'與「{friend}」的聊天記錄' 
+        ChatHistoryWindow=Independent_window.ChatHistoryWindow
+        ChatHistoryWindow['title']=title
+        chat_history_window=Tools.move_window_to_center(ChatHistoryWindow)
         tab_button=chat_history_window.child_window(control_type='Button',class_name="mmui::XMouseEventView")
-        if tab_button.exists():
+        if tab_button.exists(timeout=0.2):
             tab_button.click_input()
         if TabItem:
             tabItems={'文件':TabItems.FileTabItem,'图片与视频':TabItems.PhotoAndVideoTabItem,'链接':TabItems.LinkTabItem,
@@ -1248,48 +1326,6 @@ class Navigator():
         addfriendWindow=Tools.move_window_to_center(Window=Independent_window.AddFriendWindow)
         return addfriendWindow,main_window
 
-    @staticmethod
-    def open_traywnd()->WindowSpecification:
-        '''点击右下角的显示隐藏图标按钮打开系统托盘'''
-        #打开系统托盘
-        #微信的新消息通知托盘的句柄
-        #任务栏
-        tool_bar_handle=win32gui.FindWindow("Shell_TrayWnd",None)
-        tool_bar=desktop.window(handle=tool_bar_handle)#要进行后续点击等操作需要一个pywinauto的windowSpecification对象
-        #右下角^按钮,名称为显示隐藏图标的按钮
-        tool_bar.child_window(control_type='Button',auto_id="SystemTrayIcon",title='显示隐藏的图标').click_input()
-        #弹出的溢出菜单
-        tray_wnd=desktop.window(class_name="TopLevelWindowForOverflowXamlIsland")
-        return tray_wnd
-
-    @staticmethod
-    def open_weixin_traywnd()->WindowSpecification:
-        '''在右下角系统托盘中打开微信托盘'''
-        tray_notify=None
-        #微信的新消息通知托盘的句柄
-        #任务栏
-        tray_wnd=Navigator.open_traywnd()
-        tray_notify=desktop.window(class_name="mmui::UnreadMessageHoverWindow",control_type='Window')
-        #在弹出的溢出菜单中找到绿色的微信图标
-        wechat_button=tray_wnd.child_window(title=' 微信', auto_id='NotifyItemIcon',control_type="Button")
-        if not wechat_button.exists():
-            raise NotStartError
-        mid_point=wechat_button.rectangle().mid_point()
-        center_x=mid_point.x
-        center_y=mid_point.y
-        #必须使用该底层方法将鼠标移动到微信按钮上才可以激活新消息窗口,使用pyautogui和mouse.move都不行！
-        def hardware_mouse_move(x,y):
-            """使用硬件级鼠标移动"""
-            #直接设置光标位置
-            ctypes.windll.user32.SetCursorPos(x, y)
-            #发送硬件鼠标移动事件
-            for _ in range(3):
-                ctypes.windll.user32.mouse_event(0x0001, 1, 0, 0, 0)  # MOUSEEVENTF_MOVE
-                time.sleep(0.05)
-        hardware_mouse_move(center_x,center_y)
-        if not tray_notify.exists(timeout=1):
-            tray_notify=None
-        return tray_notify
 
     @staticmethod
     def search_official_account(name:str,load_delay:float=None,subscribe:bool=False,is_maximize:bool=None,close_weixin:bool=None)->WindowSpecification:
@@ -1318,7 +1354,7 @@ class Navigator():
         search_result=search_window.child_window(control_type="Button",found_index=0,framework_id="Chrome",title_re=name)
         if search_result.exists(timeout=load_delay):
             search_result.click_input()
-            official_acount_window=Tools.move_window_to_center(Window=Panes.OfficialAccountPane)
+            official_acount_window=Tools.move_window_to_center(Panes.OfficialAccountPane)
             search_window.close()
             subscribe_button=official_acount_window.child_window(**Buttons.SubScribeButton)
             if subscribe_button.exists(timeout=2) and subscribe:

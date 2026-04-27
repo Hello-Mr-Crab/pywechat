@@ -17,7 +17,7 @@ packages=['pywechat','pyweixin'] if sys.maxsize==2**63-1 else ['pywechat'],
 license='LGPL',
 keywords=['rpa','windows','wechat','automation'],
 install_requires=[
-'emoji>=2.14.1','PyAutoGUI>=0.9.54','pycaw>=20240210','pywin32>=308','pywin32-ctypes>=0.2.2','pywinauto>=0.6.8','psutil>=5.9.5','pillow>=10.4.0']
+'emoji>=2.14.1','PyAutoGUI>=0.9.54','pycaw>=20240210','pywin32>=308','pywin32-ctypes>=0.2.2','pywinauto>=0.6.8','psutil>=5.9.5','pillow>=10.4.0','sounddevice>=0.5.1','soundfile>=0.13.1']
 )
 '''
 Author:Hello-Mr-Crab

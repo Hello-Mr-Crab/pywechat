@@ -6,7 +6,7 @@ https://github.com/Hello-Mr-Crab/pywechat/blob/main/Weixin4.0.md
 
 ### pywechat是一个基于pywinauto实现的Windows系统下PC微信自动化(pure uiautomation)的Python项目(不涉及逆向Hook操作),实现了PC微信内置的大部分功能。
 
-### 微信版本:3.9+,4.1.6+
+### 微信版本:3.9.12+,4.1.6+~4.1.9+
 ### 操作系统:🪟windows 7 🪟windows 10 🪟windows 11
 ### python版本🐍:3.9+(支持TypeHint)
 ### 支持语言:简体中文,English,繁体中文
@@ -72,6 +72,7 @@ git clone https://github.com/Hello-Mr-Crab/pywechat.git
 ##### 内部的一些函数主要用来二次开发,大部分传入的参数是main_window,pywinauto实例化的对象(使用Navigator.open_weixin打开)
 ##### class包括：
 - `Regex_Patterns`:自动化过程中用到的正则pattern。
+- `Special_Label`:微信内一些特殊的标签,比如:“消息已置顶”，这些标签随着微信的语言会变化。
 ##### func包括:
 - `At`:在群聊中At指定的一些好友
 - `At_all`:在群聊中At所有人
@@ -90,6 +91,12 @@ xxx.yy
 ```
 <br>
 
+#### 关于微信的基本信息输出
+```
+from pyweixin import Tools
+print(Tools.about_weixin())
+```
+<br>
 
 #### 多线程监听消息
 ```
@@ -391,6 +398,7 @@ print(check_new_message())
 
 ##### 本项目相关博客
 - `pywinauto使用教程`:https://mrcrab.blog.csdn.net/article/details/157546162?fromshare=blogdetail&sharetype=blogdetail&sharerId=157546162&sharerefer=PC&sharesource=weixin_73953650&sharefrom=from_link
+- `使用微信语音发送指定的音频给好友`:https://mrcrab.blog.csdn.net/article/details/160481307?fromshare=blogdetail&sharetype=blogdetail&sharerId=160481307&sharerefer=PC&sharesource=weixin_73953650&sharefrom=from_link
 - `python正则表达式`:https://mrcrab.blog.csdn.net/article/details/151123336?fromshare=blogdetail&sharetype=blogdetail&sharerId=151123336&sharerefer=PC&sharesource=weixin_73953650&sharefrom=from_link
 - `shutil文件移动`:https://mrcrab.blog.csdn.net/article/details/148735930?fromshare=blogdetail&sharetype=blogdetail&sharerId=148735930&sharerefer=PC&sharesource=weixin_73953650&sharefrom=from_link
 - `os.path文件路径`:https://mrcrab.blog.csdn.net/article/details/147304200?fromshare=blogdetail&sharetype=blogdetail&sharerId=147304200&sharerefer=PC&sharesource=weixin_73953650&sharefrom=from_link

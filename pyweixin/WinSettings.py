@@ -29,7 +29,6 @@ Examples:
 
 '''
 import os
-import io
 import shutil
 import ctypes
 import win32clipboard
@@ -37,7 +36,6 @@ import ctypes
 from ctypes import cast, POINTER
 from comtypes import CLSCTX_ALL
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
-from PIL import Image
 
 #常量
 ES_DISPLAY_REQUIRED=0x00000002
@@ -63,8 +61,7 @@ class SystemSettings():
         volume=cast(interface,POINTER(IAudioEndpointVolume))
         #需要判断是不是静音,倘若是静音需要解除静音,否则即使设置音量成功也还是静音状态
         mute=volume.GetMute()
-        if mute==1:
-            volume.SetMute(False,None)
+        if mute==1:volume.SetMute(False,None)
         #设置音量
         volume.SetMasterVolumeLevelScalar(volume_level/100,None)
 

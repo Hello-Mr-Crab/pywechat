@@ -64,13 +64,14 @@ from collections import Counter
 from typing import Literal
 from warnings import warn
 from pywinauto import WindowSpecification
-from pywinauto.controls.uia_controls import ListItemWrapper,ListViewWrapper #TypeHint要用到
+from pywinauto.controls.uia_controls import ListItemWrapper,ListViewWrapper#TypeHint要用到
 from typing import Callable
+from packaging import version#字符串版本比较,4.1.9>4.1.8>4.1.7
 #####################################################################################
 #内部依赖
 from .Config import GlobalConfig
 from .utils import scan_for_new_messages,get_new_message_num
-from .utils import At,At_all,Regex_Patterns,ColorMatch
+from .utils import At,At_all,ColorMatch,Regex_Patterns,Special_Labels
 from .Warnings import LongTextWarning,NoChatHistoryWarning
 from .WeChatTools import Tools,Navigator,mouse,Desktop
 from .WinSettings import SystemSettings
@@ -78,40 +79,23 @@ from .Errors import TimeNotCorrectError
 from .Errors import NoFilesToSendError
 from .Errors import NotFolderError
 from .Errors import NotFriendError
-from .Uielements import (Main_window,SideBar,Independent_window,Buttons,
-Edits,Texts,TabItems,Lists,Panes,Windows,CheckBoxes,MenuItems,Menus,Groups,Customs,ListItems)
+from .Uielements import (Main_window,SideBar,Buttons,
+Edits,Texts,Lists,Panes,Windows,CheckBoxes,MenuItems,Groups,Customs,ListItems)#导入的是自动判断语言后的实例化对象,如果自行使用需要导入xxx_Control
 #######################################################################################
 desktop=Desktop(backend='uia')#pywinauto的windows桌面对象(WindowSpecification)实例化
-Main_window=Main_window()#主界面UI
-SideBar=SideBar()#侧边栏UI
-Independent_window=Independent_window()#独立主界面UI
-Buttons=Buttons()#所有Button类型UI
-Edits=Edits()#所有Edit类型UI
-Texts=Texts()#所有Text类型UI
-TabItems=TabItems()#所有TabIem类型UI
-Lists=Lists()#所有列表类型UI
-Panes=Panes()#所有Pane类型UI
-Windows=Windows()#所有Window类型UI
-CheckBoxes=CheckBoxes()#所有CheckBox类型UI
-MenuItems=MenuItems()#所有MenuItem类型UI
-Menus=Menus()#所有Menu类型UI
-Groups=Groups()#所有Group类型UI
-Customs=Customs()#所有Custom类型UI
-ListItems=ListItems()#所有ListItems类型UI
 pyautogui.FAILSAFE=False#防止鼠标在屏幕边缘处造成的误触
-Regex_Patterns=Regex_Patterns()#所有的正则pattern
-
 
 class AutoReply():
     
     @staticmethod
-    def auto_reply_to_friend(dialog_window:WindowSpecification,duration:str,callback:Callable[[str,list],str],save_file:bool=False,save_media:bool=False,target_folder:str=None,close_dialog_window:bool=True)->dict:
+    def auto_reply_to_friend(dialog_window:WindowSpecification,duration:str,callback:Callable[[str,list[str]],str],contexts:list[str]=[],save_file:bool=False,save_media:bool=False,target_folder:str=None,close_dialog_window:bool=True)->dict:
         '''
         该方法用来在指定时间内自动回复会话窗口内的新消息并监听内容
         Args:
             dialog_window:好友单独的聊天窗口或主界面内的聊天窗口,可使用Navigator内的open_seperate_dialoig_window打开
             duraiton:监听持续时长,监听消息持续时长,格式:'s','min','h'单位:s/秒,min/分,h/小时
             callback:新消息处理函数,入参是当前消息和上下文消息(可见的消息列表内的所有文本构成的列表)
+            contexts:上下文信息字符串列表,可通过Messages.dump_chat_history获取后传入,在实际运行时会传入给callback函数
             save_file:是否保存文件,需开启自动下载文件并设置为1024MB,默认为False
             save_media:是否保存图片或视频
             target_folder:文件或图片的保存文件夹
@@ -162,16 +146,22 @@ class AutoReply():
         if save_media:
             media_folder=os.path.join(target_folder,'Media')
             os.makedirs(media_folder,exist_ok=True)
+        files=[]
+        texts=[]
         total=0
         link_count=0
         video_count=0
         image_count=0
-        files=[]
-        texts=[]
         initial_runtime_id=0
+        link_label=Special_Labels.Link
+        image_labal=Special_Labels.Image
+        video_label=Special_Labels.Video
+        file_label=Special_Labels.File
         file_pattern=Regex_Patterns.File_pattern
         timestamp=time.strftime('%Y-%m')
         friend=dialog_window.window_text()
+        chatName=dialog_window.child_window(**Texts.CurrentChatNameText)
+        if chatName.exists(timeout=0.2):friend=chatName.window_text()
         chatfile_folder=Tools.where_chatfile_folder()
         chatList=dialog_window.child_window(**Lists.FriendChatList)#聊天界面内存储所有信息的容器
         input_edit=dialog_window.child_window(**Edits.InputEdit)
@@ -187,24 +177,22 @@ class AutoReply():
                 runtime_id=newMessage.element_info.runtime_id
                 if runtime_id!=initial_runtime_id: 
                     total+=1
-                    contexts=[listitem.window_text() for listitem in chatList.children(control_type='ListItem')]
                     if newMessage.class_name()=='mmui::ChatTextItemView':
                         texts.append(newMessage.window_text())
                         dialog_window.restore()
-                        is_my_bubble=Tools.is_my_bubble(dialog_window,newMessage,input_edit)
+                        is_my_bubble=Tools.is_my_bubble(dialog_window,newMessage)
                         if not is_my_bubble:
                             reply_content=callback(newMessage.window_text(),contexts)
                             if reply_content is not None:
                                 input_edit.set_text(reply_content)
                                 pyautogui.hotkey('alt','s')
-                                win32gui.SendMessage(dialog_window.handle, win32con.WM_SYSCOMMAND, win32con.SC_MINIMIZE,0)
-                    if newMessage.class_name()=='mmui::ChatBubbleItemView' and newMessage.window_text()[:2]=='[链接]':#
+                    if newMessage.class_name()=='mmui::ChatBubbleItemView' and newMessage.window_text()[:2]==link_label:
                         link_count+=1 
-                    if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and newMessage.window_text()=='图片':
+                    if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and newMessage.window_text()==image_labal:
                         image_count+=1      
-                    if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and '视频' in newMessage.window_text():
+                    if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and video_label in newMessage.window_text():
                         video_count+=1
-                    if newMessage.class_name()=='mmui::ChatBubbleItemView' and '文件' in newMessage.window_text():
+                    if newMessage.class_name()=='mmui::ChatBubbleItemView' and file_label in newMessage.window_text():
                         filename=file_pattern.search(newMessage.window_text()).group(1)
                         filepath=os.path.join(chatfile_folder,timestamp,filename)
                         files.append(filepath)
@@ -221,7 +209,7 @@ class AutoReply():
 
 class Call():
     @staticmethod
-    def voice_call(friend:str,is_maximize:bool=None,close_weixin:bool=None)->None:
+    def voice_call(friend:str,is_maximize:bool=None,close_weixin:bool=None)->(WindowSpecification|None):
         '''
         该方法用来给好友拨打语音电话
         Args:
@@ -233,26 +221,57 @@ class Call():
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
         main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize)  
+        is_group=Tools.is_group_chat(main_window)
         voice_call_button=main_window.child_window(**Buttons.VoiceCallButton)
-        voice_call_button.click_input()
+        current_version=version.parse(GlobalConfig.version)
+        old_version=version.parse('4.1.7')#4.1.8开始微信把语言和视频电话合并在顶部
+        if not is_group:
+            if current_version>old_version:
+                voice_call_button.click_input()
+                pyautogui.press('down')
+                pyautogui.press('enter')
+            else:
+                voice_call_button=main_window.child_window(**Buttons.VoiceCallButton)
+                voice_call_button.click_input()
+            VoipCall_window=Tools.move_window_to_center(Windows.VoipCallWindow)
+        if is_group:
+            print(f'不支持群聊语音电话(SessionPicker-Window Ui自动化有Bug,微信会卡死崩溃！')
+            VoipCall_window=None
         if close_weixin:main_window.close()
+        return VoipCall_window
 
     @staticmethod
-    def video_call(friend:str,is_maximize:bool=None,close_weixin:bool=None)->None:
+    def video_call(friend:str,is_maximize:bool=None,close_weixin:bool=None)->(WindowSpecification|None):
         '''
         该方法用来给好友拨打视频电话
         Args:
             friend:好友备注
             close_weixin:任务结束后是否关闭微信,默认关闭
         '''
+    
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
-        main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize)  
-        video_call_button=main_window.child_window(**Buttons.VideoCallButton)
-        video_call_button.click_input()
+        main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize) 
+        is_group=Tools.is_group_chat(main_window)
+        current_version=version.parse(GlobalConfig.version)
+        old_version=version.parse('4.1.7')#4.1.8开始微信把语言和视频电话合并在顶部
+        if not is_group: 
+            if current_version>old_version:
+                voice_call_button=main_window.child_window(**Buttons.VoiceCallButton)
+                voice_call_button.click_input()
+                pyautogui.press('down',presses=2)
+                pyautogui.press('enter')
+            else:
+                video_call_button=main_window.child_window(**Buttons.VideoCallButton)
+                video_call_button.click_input()
+            VoipCall_window=Tools.move_window_to_center(Windows.VoipCallWindow)
+        if is_group:
+            VoipCall_window=None
+            print(f'不支持群聊视频电话(SessionPicker-Window Ui自动化有Bug,微信会卡死崩溃！')
         if close_weixin:main_window.close()
+        return VoipCall_window
 
 class Collections():
     
@@ -296,7 +315,7 @@ class Collections():
         if not link_item.exists(timeout=0.1):
             return links
         link_item.double_click_input()
-        link_list=main_window.child_window(title='链接',control_type='List')
+        link_list=main_window.child_window(**Lists.LinkList)
         link_list.type_keys('{END}')
         last_item=link_list.children(control_type='ListItem')[-2].window_text()
         link_list.type_keys('{HOME}')
@@ -391,7 +410,7 @@ class Contacts():
         Returns:
             myinfo:个人资料{'昵称':,'微信号':,'地区':,'wxid':}
         '''
-        #思路:鼠标移动到朋友圈顶部右下角,点击头像按钮，激活弹出窗口
+        #鼠标移动到朋友圈顶部右下角,点击头像按钮，激活弹出窗口
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
@@ -402,7 +421,7 @@ class Contacts():
         rec=moments_list.children()[0].rectangle()
         coords=(rec.right-60,rec.bottom-35)
         mouse.click(coords=coords)
-        profile_pane=moments_window.window(**Windows.PopUpProfileWindow)
+        profile_pane=desktop.window(**Windows.PopUpProfileWindow)
         group=profile_pane.child_window(control_type='Group',found_index=3).children()[1]
         texts=group.descendants(control_type='Text')
         texts=[item.window_text() for item in texts]
@@ -447,45 +466,48 @@ class Contacts():
             signature='无'#个性签名
             source='无'#好友来源
             descrption='无'#描述
-            phonenumber='无'#电话号
-            permission='无'#朋友权限
+            mobile='无'#电话号
+            privacy='无'#朋友权限
             texts=contact_profile.descendants(control_type='Text')
             texts=[item.window_text() for item in texts]
             nickname=texts[0]
-            if '微信号：' in texts:
-                wx_number=texts[texts.index('微信号：')+1]#微信号
-            if '昵称：' in texts:
-                nickname=texts[texts.index('昵称：')+1]
-            if '地区：' in texts:
-                region=texts[texts.index('地区：')+1]
-            if '备注' in texts:
-                remark=texts[texts.index('备注')+1]
-                if remark in labels:
-                    remark='无'
-            if '共同群聊' in texts:
-                common_group_num=texts[texts.index('共同群聊')+1]
-            if '个性签名' in texts:
-                signature=texts[texts.index('个性签名')+1]
-            if '来源' in texts:
-                source=texts[texts.index('来源')+1]
-            if '电话' in texts:
-                phonenumber=texts[texts.index('电话')+1]
-            if '描述' in texts:
-                descrption=texts[texts.index('描述')+1]
-            if '标签' in texts:
-                tag=texts[texts.index('标签')+1]
-            if '朋友权限' in texts:
-                permission=texts[texts.index('朋友权限')+1]
-            info={'昵称':nickname,'微信号':wx_number,'地区':region,'备注':remark,'电话':phonenumber,
-            '标签':tag,'描述':descrption,'朋友权限':permission,'共同群聊':f'{common_group_num}','个性签名':signature,'来源':source}
+            if wxnum_label in texts:wx_number=texts[texts.index(wxnum_label)+1]#微信号
+            if nickname_label in texts:nickname=texts[texts.index(nickname_label)+1]
+            if region_label in texts:region=texts[texts.index(region_label)+1]
+            if remark_label in texts:
+                remark=texts[texts.index(remark_label)+1]
+                if remark in labels:remark='无'
+            if sharedgroups_label in texts:common_group_num=texts[texts.index(sharedgroups_label)+1]
+            if signature_label in texts:signature=texts[texts.index(signature_label)+1]
+            if source_label in texts:source=texts[texts.index(source_label)+1]
+            if mobile_label in texts:mobile=texts[texts.index(mobile_label)+1]
+            if description_label in texts:descrption=texts[texts.index(description_label)+1]
+            if tags_label in texts:tag=texts[texts.index(tags_label)+1]
+            if privacy_label in texts:privacy=texts[texts.index(privacy_label)+1]
+            info={'昵称':nickname,'微信号':wx_number,'地区':region,'备注':remark,'电话':mobile,
+            '标签':tag,'描述':descrption,'朋友权限':privacy,'共同群聊':f'{common_group_num}','个性签名':signature,'来源':source}
             return info
         
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
-        labels={'微信号：','昵称：','地区：','备注','共同群聊','个性签名','来源','电话','描述','标签','朋友权限','朋友圈'}#联系人分区的标签
+        #所有的标签,这些标签的下一个便是其对应的值,即texts[texts.index(label)+1]
+        wxnum_label=Special_Labels.WxNum
+        nickname_label=Special_Labels.Nickname
+        region_label=Special_Labels.Region
+        remark_label=Special_Labels.Remark
+        sharedgroups_label=Special_Labels.SharedGroups
+        signature_label=Special_Labels.Signature
+        source_label=Special_Labels.Source
+        mobile_label=Special_Labels.Mobile
+        description_label=Special_Labels.Description
+        tags_label=Special_Labels.Tags
+        privacy_label=Special_Labels.Privacy
+        moments_label=Special_Labels.Moments
         friends_detail=[]
+        labels={wxnum_label,nickname_label,region_label,remark_label,sharedgroups_label,signature_label,
+        source_label,mobile_label,description_label,tags_label, privacy_label,moments_label}#联系人分区的标签
         #通讯录列表
         contact_list,main_window=Navigator.open_contacts(is_maximize=is_maximize)
         #右侧的自定义面板
@@ -495,7 +517,7 @@ class Contacts():
         area=(contact_custom.rectangle().mid_point().x,contact_custom.rectangle().mid_point().y)
         #联系人分区
         Tools.collapse_contacts(main_window,contact_list)
-        contact_item=main_window.child_window(control_type='ListItem',title_re=r'联系人\d+',class_name="mmui::ContactsCellGroupView")
+        contact_item=main_window.child_window(**ListItems.ContactsListItem)
         if contact_item.exists(timeout=0.1):
             total_num=int(re.search(r'\d+',contact_item.window_text()).group(0))
             if total_num>2000:interval=0.3
@@ -531,7 +553,6 @@ class Contacts():
         Returns:
             friends_detail:所有企业微信好友的信息
         '''
-     
         #切换到企业微信联系人分区内的第一个好友
         def switch_to_first_friend():
             contact_list.type_keys('{HOME}')
@@ -546,50 +567,60 @@ class Contacts():
         
         #获取右侧好友信息面板内的具体信息
         def get_specific_info():
-            #没用的文本信息
-            no_need_labels=['企业','昵称：','备注','实名','职务','员工状态','朋友圈','工作时间',
-            '在线时间','地址','发消息','语音聊天','视频聊天','企业信息','来自','企业微信']
             company='无'#好友的企业
             remark='无'#备注
             realname='无'#实名
             state='在职'#员工状态
             duty='无'#职务
+            online_time='无'#在线时间
             working_time='无'#工作时间
             location='无'#地址
             texts=contact_profile.descendants(control_type='Text')
             texts=[item.window_text() for item in texts]
             nickname=texts[0] 
-            company=texts[texts.index('企业')+1]#微信号
-            if '昵称：' in texts:
-                nickname=texts[texts.index('昵称：')+1]
-            if '备注' in texts:
-                remark=texts[texts.index('备注')+1]
-                if remark=='企业信息' or remark=='朋友圈':
+            company=texts[texts.index(enterprise_label)+1]#微信号
+            if nickname_label in texts:nickname=texts[texts.index(nickname_label)+1]
+            if remark_label in texts:
+                remark=texts[texts.index(remark_label)+1]
+                if remark==enterprise_label or remark==moments_label:
                     remark='无'
-            if '实名' in texts:
-                realname=texts[texts.index('实名')+1]
-            if '职务' in texts:
-                duty=texts[texts.index('职务')+1]
-            if '员工状态' in texts:
-                state=texts[texts.index('员工状态')+1]
-            if '工作时间' in texts:
-                working_time=texts[texts.index('工作时间')+1]
-            if '在线时间' in texts:
-                working_time=texts[texts.index('在线时间')+1]
-            if '地址' in texts:
-                location=texts[texts.index('地址')+1]
+            if realname_label in texts:realname=texts[texts.index(realname_label)+1]
+            if duty_label in texts:duty=texts[texts.index(duty_label)+1]
+            if state_label in texts:state=texts[texts.index(state_label)+1]
+            if workingtime_label in texts:working_time=texts[texts.index(workingtime_label)+1]
+            if onlinetime_label in texts:online_time=texts[texts.index(onlinetime_label)+1]
+            if location_label in texts:location=texts[texts.index(location_label)+1]
             info={'昵称':nickname,'备注':remark,'企业':company,'实名':realname,'在职状态':state,
-            '职务':duty,'工作时间':working_time,'地址':location}
+            '职务':duty,'工作时间':working_time,'在线时间':online_time,'地址':location}
             no_need_labels.extend(info.values())
             others=[text for text in texts if text not in no_need_labels and text!=f'@{company}']
-            if others:
-                info['其他']=others
+            if others:info['其他']=others
             return info
         
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
+        #所有的标签,这些标签的下一个是其对应的值
+        wecom_label=Special_Labels.WeCom
+        nickname_label=Special_Labels.Nickname
+        enterprise_label=Special_Labels.EnterPrise
+        moments_label=Special_Labels.Moments
+        remark_label=Special_Labels.Remark
+        realname_label=Special_Labels.RealName
+        duty_label=Special_Labels.Duty
+        state_label=Special_Labels.State
+        workingtime_label=Special_Labels.WorkingTime
+        onlinetime_label=Special_Labels.OnlineTime
+        location_label=Special_Labels.Location
+        messages_label=Special_Labels.Messages
+        voicecall_label=Special_Labels.VoiceCall
+        from_label=Special_Labels.From
+        enterinfo_label=Special_Labels.EnterPriseInfomation
+        videocall_label=Special_Labels.VideoCall
+        #没用的文本信息
+        no_need_labels=[enterprise_label,nickname_label,remark_label,realname_label,duty_label,state_label,moments_label,workingtime_label,
+        onlinetime_label,location_label,messages_label,voicecall_label,videocall_label,enterinfo_label,from_label,wecom_label]
         friends_detail=[]
         #通讯录列表
         contact_list,main_window=Navigator.open_contacts(is_maximize=is_maximize)
@@ -600,24 +631,21 @@ class Contacts():
         area=(contact_custom.rectangle().mid_point().x,contact_custom.rectangle().mid_point().y)
         #企业微信联系人分区
         Tools.collapse_contacts(main_window,contact_list)
-        wecom_item=main_window.child_window(control_type='ListItem',title_re=r'企业微信联系人\d+',class_name="mmui::ContactsCellGroupView")
+        wecom_item=main_window.child_window(**ListItems.WeComContactsListItems)
         if not wecom_item.exists(timeout=0.1):
             print(f'你没有企业微信联系人,无法获取企业微信好友信息！')
         if wecom_item.exists(timeout=0.1):
             total_num=int(re.search(r'\d+',wecom_item.window_text()).group(0))
-            if total_num>2000:
-                interval=0.3
-            if 1000<total_num<2000:
-                interval=0.1
-            if total_num<1000:
-                interval=0
+            if total_num>2000:interval=0.3
+            if 1000<total_num<2000:interval=0.1
+            if total_num<1000:interval=0
             wecom_item.click_input()
             switch_to_first_friend()
             info=get_specific_info()
             friends_detail.append(info)
             mouse.move(coords=area)
             for _ in range(total_num+1):
-                time.sleep(interval)
+                if interval:time.sleep(interval)
                 pyautogui.keyDown('Down',_pause=False)
                 info=get_specific_info()
                 friends_detail.append(info)
@@ -665,7 +693,7 @@ class Contacts():
             texts=contact_profile.descendants(control_type='Text')
             texts=[item.window_text() for item in texts]
             name=texts[0]
-            wx_number=texts[texts.index("微信号：")+1]
+            wx_number=texts[texts.index(wxnum_label)+1]
             description=texts[-2] if len(texts)==5 else '无'
             info={'名称':name,'微信号':wx_number,'描述':description}
             return info
@@ -674,6 +702,7 @@ class Contacts():
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
+        wxnum_label=Special_Labels.WxNum
         friends_detail=[]
         #通讯录列表
         contact_list,main_window=Navigator.open_contacts(is_maximize=is_maximize)
@@ -684,17 +713,14 @@ class Contacts():
         contact_profile=contact_custom.child_window(**Groups.ContactProfileGroup)
         #企业微信联系人分区
         Tools.collapse_contacts(main_window,contact_list)
-        service_item=main_window.child_window(control_type='ListItem',title_re=r'服务号\d+',class_name="mmui::ContactsCellGroupView")
+        service_item=main_window.child_window(**ListItems.ServiceAccountsListItem)
         if not service_item.exists(timeout=0.1):
             print(f'你没有关注过任何服务号,无法获取服务号信息！')
         if service_item.exists(timeout=0.1):
             total_num=int(re.search(r'\d+',service_item.window_text()).group(0))
-            if total_num>2000:
-                interval=0.3
-            if 1000<total_num<2000:
-                interval=0.1
-            if total_num<1000:
-                interval=0
+            if total_num>2000:interval=0.3
+            if 1000<total_num<2000:interval=0.1
+            if total_num<1000:interval=0
             service_item.click_input()
             switch_to_first_friend()
             info=get_specific_info()
@@ -750,7 +776,7 @@ class Contacts():
             texts=contact_profile.descendants(control_type='Text')
             texts=[item.window_text() for item in texts]
             name=texts[0]
-            wx_number=texts[texts.index("微信号：")+1]
+            wx_number=texts[texts.index(wxnum_label)+1]
             description=texts[-2] if len(texts)==5 else '无'
             info={'名称':name,'微信号':wx_number,'描述':description}
             return info
@@ -759,6 +785,7 @@ class Contacts():
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
+        wxnum_label=Special_Labels.WxNum
         friends_detail=[]
         #通讯录列表
         contact_list,main_window=Navigator.open_contacts(is_maximize=is_maximize)
@@ -769,24 +796,21 @@ class Contacts():
         contact_profile=contact_custom.child_window(**Groups.ContactProfileGroup)
         #企业微信联系人分区
         Tools.collapse_contacts(main_window,contact_list)
-        official_item=main_window.child_window(control_type='ListItem',title_re=r'公众号\d+',class_name="mmui::ContactsCellGroupView")
+        official_item=main_window.child_window(**ListItems.OfficialAccountsListItem)
         if not official_item.exists(timeout=0.1):
             print(f'你没有关注过任何公众号,无法获取公众号信息！')
         if official_item.exists(timeout=0.1):
             total_num=int(re.search(r'\d+',official_item.window_text()).group(0))
-            if total_num>2000:
-                interval=0.3
-            if 1000<total_num<2000:
-                interval=0.1
-            if total_num<1000:
-                interval=0
+            if total_num<1000:interval=0
+            if 1000<total_num<2000:interval=0.1
+            if total_num>2000:interval=0.3
             official_item.click_input()
             switch_to_first_friend()
             info=get_specific_info()
             friends_detail.append(info)
             mouse.move(coords=area)
             for _ in range(total_num):
-                time.sleep(interval)
+                if interval:time.sleep(interval)
                 pyautogui.keyDown('Down',_pause=False)
                 info=get_specific_info()
                 friends_detail.append(info)
@@ -808,12 +832,25 @@ class Contacts():
         Returns:
             groups:所有已加入的群聊名称
         '''
+        def switct_to_top():
+            first_group=Tools.get_next_item(search_results,group_label)
+            pyautogui.press('down')
+            focused_item=[listitem for listitem in 
+            search_results.children(control_type='ListItem') 
+            if listitem.has_keyboard_focus()]
+            while focused_item[0]!=first_group:#当前选中对象不是群聊标签下方第一个群聊时一直向下
+                pyautogui.press('down')
+                focused_item=[listitem for listitem in 
+                search_results.children(control_type='ListItem') 
+                if listitem.has_keyboard_focus()]
+
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
-        
+       
         groups=[]
+        viewAll_label=Special_Labels.ViewAll
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
         myname=Contacts.check_my_info(close_weixin=False,is_maximize=is_maximize).get('昵称')
         chat_button=main_window.child_window(**SideBar.Weixin)
@@ -821,35 +858,36 @@ class Contacts():
         search=main_window.descendants(**Main_window.Search)[0]
         search.click_input()
         search.set_text(myname)
-        time.sleep(0.8)#必须停顿0.8s等待加载出结果来
         search_results=main_window.child_window(title='',control_type='List')
-        group_label=search_results.child_window(control_type='ListItem',title='群聊',class_name="mmui::XTableCell")
-        check_all_buttons=[button for button in search_results.children() if r'查看全部' in button.window_text()]
-        if check_all_buttons:
-            total=int(re.search(r'\d+',check_all_buttons[0].window_text()).group(0))
-            check_all_buttons[0].click_input()
-            pyautogui.press('up',presses=4,interval=0.1)
-            #微信潜规则,展开全部按钮之上只显示3个搜索结果，
-            #所以按四下up健可以到达第一个搜索结果
-            for _ in range(total+1):
-                #获取灰色的被选中的listitem记录
-                focused_item=[listitem for listitem in search_results.children(control_type='ListItem',class_name="mmui::SearchContentCellView") if listitem.has_keyboard_focus()]
-                if focused_item:
-                    groups.append(focused_item[0].window_text())
-                    pyautogui.keyDown('down',_pause=False)
-                else:
-                    break
-        else:
-            total=4
-            #先定位到群聊这个灰色标签
-            length=len(search_results.children(control_type='ListItem'))
-            for i in range(length):
-                if search_results.children(control_type='ListItem')[i]==group_label:#群聊标签的下一个，也就是第一个共同群聊
-                    break
-            for listitem in search_results.children(control_type='ListItem')[i:i+total]:
-                if listitem.class_name()=="mmui::SearchContentCellView":
-                    groups.append(listitem.window_text())#
-            #从前往后逆序倒过来total个
+        search_results.wait(wait_for='active',timeout=3)
+        group_label=search_results.child_window(**ListItems.GroupLabelListItem)
+        if group_label.exists(timeout=0.2):
+            check_all_buttons=[button for button in search_results.children() if viewAll_label in button.window_text()]
+            if check_all_buttons:
+                total=int(re.search(r'\d+',check_all_buttons[0].window_text()).group(0))
+                check_all_buttons[0].click_input()
+                pyautogui.press('up',presses=20,_pause=False)#回到顶部,无法使用Home健
+                #微信潜规则,展开全部按钮之上只显示3个搜索结果，
+                switct_to_top()
+                for _ in range(total+1):
+                    #获取灰色的被选中的listitem记录
+                    focused_item=[listitem for listitem in search_results.children(control_type='ListItem',class_name="mmui::SearchContentCellView") if listitem.has_keyboard_focus()]
+                    if focused_item:
+                        groups.append(focused_item[0].window_text())
+                    else:
+                        break
+                    pyautogui.press('down',_pause=False)
+            else:
+                total=4
+                #先定位到群聊这个灰色标签
+                length=len(search_results.children(control_type='ListItem'))
+                for i in range(length):
+                    if search_results.children(control_type='ListItem')[i]==group_label:#群聊标签的下一个，也就是第一个共同群聊
+                        break
+                for listitem in search_results.children(control_type='ListItem')[i:i+total]:
+                    if listitem.class_name()=="mmui::SearchContentCellView":
+                        groups.append(listitem.window_text())#
+                #从前往后逆序倒过来total个
         groups=groups[-total:]
         if close_weixin:main_window.close()
         return groups
@@ -865,11 +903,25 @@ class Contacts():
         Returns:
             groups:所有已加入的群聊名称
         '''
+        def switct_to_top():
+            first_group=Tools.get_next_item(search_results,group_label)
+            pyautogui.press('up',presses=20,_pause=False)#回到顶部,无法使用Home健
+            pyautogui.press('down')
+            focused_item=[listitem for listitem in 
+            search_results.children(control_type='ListItem') 
+            if listitem.has_keyboard_focus()]
+            while focused_item[0]!=first_group:#当前选中对象不是群聊标签下方第一个群聊时一直向下
+                pyautogui.press('down')
+                focused_item=[listitem for listitem in 
+                search_results.children(control_type='ListItem') 
+                if listitem.has_keyboard_focus()]
+
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
         groups=[]
+        viewAll_label=Special_Labels.ViewAll
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
         chat_button=main_window.child_window(**SideBar.Weixin)
         chat_button.click_input()
@@ -878,26 +930,25 @@ class Contacts():
         search_bar.set_text(friend)
         time.sleep(1)#必须停顿1s等待加载出结果来
         search_results=main_window.child_window(title='',control_type='List')
-        group_label=search_results.child_window(control_type='ListItem',title='群聊',class_name="mmui::XTableCell")
+        group_label=search_results.child_window(**ListItems.GroupLabelListItem)
         #微信搜索相关好友后会显示共同群聊，如果搜索结果中有群聊这个灰色标签的ListItem，说明有共同群聊
         if not group_label.exists():
             print(f'你与 {friend} 并无共同群聊!')
         else:#
             #只有当共同群聊数量大于4时候微信才会将其收起，此时有一个名为查看全部(\d+)的按钮
-            check_all_buttons=[button for button in search_results.children() if r'查看全部' in button.window_text()]
+            check_all_buttons=[button for button in search_results.children() if viewAll_label in button.window_text()]
             if check_all_buttons:
                 total=int(re.search(r'\d+',check_all_buttons[0].window_text()).group(0))
                 check_all_buttons[0].click_input()#点一下查看全部按钮，此时focus的listitem是第共同群聊中的第四个
-                #微信潜规则,展开全部按钮之上只显示3个共同群聊结果，
-                #所以按四下up健可以到达第一个搜索结果
-                pyautogui.press('up',presses=4,interval=0.1)
+                switct_to_top()
+                # pyautogui.press('up',presses=4,interval=0.1)
                 #然后按total+1下按钮获取被选中的listitem的window_text*()
                 for _ in range(total+1):
                     #获取灰色的被选中的listitem记录
                     focused_item=[listitem for listitem in search_results.children(control_type='ListItem',class_name="mmui::SearchContentCellView") if listitem.has_keyboard_focus()]
                     if focused_item:
                         groups.append(focused_item[0].window_text())
-                        pyautogui.keyDown('down',_pause=False)
+                        pyautogui.press('down',_pause=False)
                     else:
                         break
             else:#共同群聊总数小于4,最多就是3
@@ -934,6 +985,17 @@ class Contacts():
             close_weixin=GlobalConfig.close_weixin
         if search_pages is None:
             search_pages=GlobalConfig.search_pages
+        wxnum_label=Special_Labels.WxNum
+        nickname_label=Special_Labels.Nickname
+        region_label=Special_Labels.Region
+        remark_label=Special_Labels.Remark
+        sharedgroups_label=Special_Labels.SharedGroups
+        signature_label=Special_Labels.Signature
+        source_label=Special_Labels.Source
+        mobile_label=Special_Labels.Mobile
+        description_label=Special_Labels.Description
+        tags_label=Special_Labels.Tags
+        privacy_label=Special_Labels.Privacy
         wx_number='无'#好友的微信号
         region='无'#好友的地区
         tag='无'#好友标签
@@ -942,41 +1004,30 @@ class Contacts():
         signature='无'#个性签名
         source='无'#好友来源
         descrption='无'#描述
-        phonenumber='无'#电话号
-        permission='无'#朋友权限
+        mobile='无'#电话号
+        privacy='无'#朋友权限
         #没用的文本信息
         no_need_labels=['企业','昵称：','备注','实名','职务','员工状态','朋友圈','工作时间',
         '在线时间','地址','发消息','语音聊天','视频聊天','企业信息','来自','企业微信']
         profile_pane,main_window=Navigator.open_friend_profile(friend=friend,search_pages=search_pages,is_maximize=is_maximize)
         text_uis=profile_pane.descendants(control_type='Text')
         texts=[item.window_text() for item in text_uis]
-        nickname=texts[0]
-        if '微信号：' in texts:
-            wx_number=texts[texts.index('微信号：')+1]#微信号
-        if '昵称：' in texts:
-            nickname=texts[texts.index('昵称：')+1]
-        if '地区：' in texts:
-            region=texts[texts.index('地区：')+1]
-        if '备注' in texts:
-            remark=texts[texts.index('备注')+1]
-            if remark in no_need_labels:
-                remark='无'
-        if '共同群聊' in texts:
-            common_group_num=texts[texts.index('共同群聊')+1]
-        if '个性签名' in texts:
-            signature=texts[texts.index('个性签名')+1]
-        if '来源' in texts:
-            source=texts[texts.index('来源')+1]
-        if '电话' in texts:
-            phonenumber=texts[texts.index('电话')+1]
-        if '描述' in texts:
-            descrption=texts[texts.index('描述')+1]
-        if '标签' in texts:
-            tag=texts[texts.index('标签')+1]
-        if '朋友权限' in texts:
-            permission=texts[texts.index('朋友权限')+1]
-        profile={'昵称':nickname,'微信号':wx_number,'地区':region,'备注':remark,'电话':phonenumber,
-        '标签':tag,'描述':descrption,'朋友权限':permission,'共同群聊':f'{common_group_num}','个性签名':signature,'来源':source}
+        nickname=texts[0]#昵称肯定有
+        if wxnum_label in texts:wx_number=texts[texts.index(wxnum_label)+1]
+        if nickname_label in texts:nickname=texts[texts.index(nickname_label)+1]
+        if region_label in texts:region=texts[texts.index(region_label)+1]
+        if remark_label in texts:
+            remark=texts[texts.index(remark_label)+1]
+            if remark in no_need_labels:remark='无'
+        if sharedgroups_label in texts:common_group_num=texts[texts.index(sharedgroups_label)+1]
+        if signature_label in texts:signature=texts[texts.index(signature_label)+1]
+        if source_label in texts:source=texts[texts.index(source_label)+1]
+        if mobile_label in texts:mobile=texts[texts.index(mobile_label)+1]
+        if description_label in texts:  descrption=texts[texts.index(description_label)+1]
+        if tags_label in texts:tag=texts[texts.index(tags_label)+1]
+        if privacy_label in texts:privacy=texts[texts.index(privacy_label)+1]
+        profile={'昵称':nickname,'微信号':wx_number,'地区':region,'备注':remark,'电话':mobile,
+        '标签':tag,'描述':descrption,'朋友权限':privacy,'共同群聊':f'{common_group_num}','个性签名':signature,'来源':source}
         friend_text=main_window.child_window(title=friend,control_type='Text',found_index=1)
         friend_text.click_input()
         if close_weixin:main_window.close()
@@ -1080,12 +1131,13 @@ class Contacts():
         #右侧的自定义面板
         chat_button=main_window.child_window(**SideBar.Weixin)
         contact_custom=main_window.child_window(**Customs.ContactDetailCustom)
-        verify_button=contact_custom.child_window(control_type='Button',title='前往验证')
+        verify_button=contact_custom.child_window(**Buttons.VerifyNowButton)
+        more_button=contact_custom.child_window(**Buttons.MoreButton)
         Tools.collapse_contacts(main_window,contact_list)
         #验证好友窗口
         verifyFriend_window=desktop.window(**Windows.VerifyFriendWindow2)
         #新的朋友联系人分区
-        newfriend_item=main_window.child_window(control_type='ListItem',title=r'新的朋友',class_name="mmui::ContactsCellGroupView")
+        newfriend_item=main_window.child_window(**ListItems.NewFriendListItem)
         if not newfriend_item.exists(timeout=0.1):
             print(f'你没有新的朋友,无法获取新的朋友信息!')
         if newfriend_item.exists(timeout=0.1):
@@ -1106,7 +1158,7 @@ class Contacts():
                         clear_item(selected[0])
                         contact_list.children(control_type='ListItem')[2].click_input()
                     else:
-                        pyautogui.keyDown('down',_pause=False)
+                        pyautogui.keyDown('down')
                     selected=[listitem for listitem in contact_list.children(control_type='ListItem') if listitem.is_selected()]
             if clear:clear_item(selected[0])
             contact_list.type_keys('{HOME}')
@@ -1135,15 +1187,15 @@ class FriendSettings():
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
         add_friend_pane,main_window=Navigator.open_add_friend_panel(is_maximize=is_maximize)
-        edit=add_friend_pane.child_window(control_type='Edit')
-        edit.set_text('')
-        edit.set_text(number)
-        edit.type_keys('{ENTER}')
+        search_edit=add_friend_pane.child_window(control_type='Edit')
+        search_edit.set_text('')
+        search_edit.type_keys(number,with_spaces=True)
+        search_edit.type_keys('{ENTER}')
         time.sleep(1)
         contact_profile_view=add_friend_pane.child_window(**Groups.ContactProfileViewGroup)
-        if contact_profile_view.exists(timeout=0.1):
+        if contact_profile_view.exists(timeout=0.2):
             add_to_contact=contact_profile_view.child_window(**Buttons.AddToContactsButton)
-            if add_to_contact.exists(timeout=0.1):
+            if add_to_contact.exists(timeout=2):
                 add_to_contact.click_input()
                 verify_friend_window=Tools.move_window_to_center(Window=Windows.VerifyFriendWindow)
                 request_content_edit=verify_friend_window.child_window(control_type='Edit',found_index=0)
@@ -1280,10 +1332,11 @@ class FriendSettings():
         more_button.click_input()
         pyautogui.press('down',presses=2)
         pyautogui.press('enter')
-        open_privacy_group=profile_pane.child_window(**Groups.OpenPrivacyGroup)
-        chat_only_group=profile_pane.child_window(**Groups.ChatOnlyGroup)
-        check_box1=profile_pane.child_window(**CheckBoxes.DontShowOthersCheckBox)
-        check_box2=profile_pane.child_window(**CheckBoxes.DontSeeOthersCheckBox)
+        privacy_window=desktop.window(**Windows.PrivacyWindow) if '4.1.9' in GlobalConfig.version else profile_pane
+        open_privacy_group=privacy_window.child_window(**Groups.OpenPrivacyGroup)
+        chat_only_group=privacy_window.child_window(**Groups.ChatOnlyGroup)
+        check_box1=privacy_window.child_window(**CheckBoxes.DontShowOthersCheckBox)
+        check_box2=privacy_window.child_window(**CheckBoxes.DontSeeOthersCheckBox)
         if chat_privacy==1:
              open_privacy_group.click_input()
         if chat_privacy==0:
@@ -1300,8 +1353,9 @@ class FriendSettings():
             if sns_privacy==2:
                 if not check_box2.get_toggle_state():
                     check_box2.click_input()
-        complete_button=profile_pane.child_window(**Buttons.CompleteButton)
-        complete_button.click_input()
+        complete_button=profile_pane.child_window(**Buttons.FinishButton)
+        if complete_button.exists():
+            complete_button.click_input()
         chatinfo_button.click_input()
         if close_weixin:
             main_window.close()
@@ -1324,6 +1378,8 @@ class FriendSettings():
             search_pages=GlobalConfig.search_pages
         if state not in {0,1}:
             raise ValueError('state的取整为0或1!')
+        star=Special_Labels.Star
+        unstar=Special_Labels.UnStar
         profile_pane,main_window=Navigator.open_friend_profile(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton)
         more_button=profile_pane.child_window(**Buttons.MoreButton)
@@ -1331,9 +1387,9 @@ class FriendSettings():
         pyautogui.press('down',presses=4)
         menu=profile_pane.child_window(class_name='mmui::XMenu',title='Weixin')
         selected_item=[item for item in menu.children(control_type='MenuItem') if item.has_keyboard_focus()]
-        if selected_item[0].window_text()=='设为星标朋友' and state==1:
+        if selected_item[0].window_text()==star and state==1:
             pyautogui.press('enter')
-        if selected_item[0].window_text()=='不再设为星标朋友' and state==0:
+        if selected_item[0].window_text()==unstar and state==0:
             pyautogui.press('enter')
         chatinfo_button.click_input()
         if close_weixin:
@@ -1371,7 +1427,7 @@ class FriendSettings():
             main_window.close()
     
     @staticmethod
-    def add_to_blacklist(friend:str,state:int=0,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None):
+    def block_friend(friend:str,state:int=0,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None):
         '''该方法用来将好友添加至黑名单或从黑名单移出
         Args:
             friend:好友备注
@@ -1388,6 +1444,8 @@ class FriendSettings():
             search_pages=GlobalConfig.search_pages
         if state not in {0,1}:
             raise ValueError('state的取整为0或1!')
+        block=Special_Labels.Block
+        unblock=Special_Labels.UnBlock
         profile_pane,main_window=Navigator.open_friend_profile(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton)
         more_button=profile_pane.child_window(**Buttons.MoreButton)
@@ -1395,11 +1453,11 @@ class FriendSettings():
         pyautogui.press('down',presses=5)
         menu=profile_pane.child_window(class_name='mmui::XMenu',title='Weixin')
         selected_item=[item for item in menu.children(control_type='MenuItem') if item.has_keyboard_focus()]
-        if selected_item[0].window_text()=='加入黑名单' and state==1:
+        if selected_item[0].window_text()==block and state==1:
             pyautogui.press('enter')
             confirm_button=profile_pane.child_window(**Buttons.ConfirmButton)
             confirm_button.click_input()
-        if selected_item[0].window_text()=='移出黑名单' and state==0:
+        if selected_item[0].window_text()==unblock and state==0:
             pyautogui.press('enter')
         chatinfo_button.click_input()
         if close_weixin:
@@ -1430,7 +1488,7 @@ class FriendSettings():
         more_button.click_input()
         pyautogui.press('down',presses=1)
         pyautogui.press('enter')
-        remarkAndtag_window=profile_pane.child_window(**Windows.RemarkAndTagWindow)
+        remarkAndtag_window=desktop.window(**Windows.EditContactWindow) if '4.1.9' in GlobalConfig.version else main_window.window(**Windows.EditContactWindow)
         remark_edit=remarkAndtag_window.child_window(control_type='Edit',found_index=0)
         clearPhoneNum_buttons=remarkAndtag_window.descendants(**Buttons.ClearPhoneNumButton)
         if clearPhoneNum_buttons and clear_phoneNum:
@@ -1445,7 +1503,7 @@ class FriendSettings():
             description_edit.set_text(description)
         addphone_button=remarkAndtag_window.child_window(**Buttons.AddPhoneNumButon)
         remark_edit.set_text(remark)
-        confirm_button=remarkAndtag_window.child_window(**Buttons.CompleteButton)
+        confirm_button=remarkAndtag_window.child_window(**Buttons.FinishButton)
         confirm_button.click_input()
         chatinfo_button.click_input()
         if close_weixin:
@@ -1472,20 +1530,21 @@ class FriendSettings():
         common_groups=[]
         profile_window,main_window=Navigator.open_friend_profile(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton) 
-        common_group_button=profile_window.child_window(title_re=r'\d+个',control_type='Button')
-        if common_group_button.exists(timeout=3):
-            total_num=int(common_group_button.window_text().replace('个',''))
-            common_group_button.click_input()
+        shared_groups_label=profile_window.child_window(**Texts.SharedGroupsText)
+        if shared_groups_label.exists(timeout=2):
+            number_button=shared_groups_label.parent().descendants(control_type='Button',class_name='mmui::XMouseEventView')[0]
+            total_num=int(number_button.window_text().replace('个','').replace('個',''))
+            number_button.click_input()
             popup_window=main_window.window(**Windows.PopUpProfileWindow)
-            common_group_list=popup_window.child_window(**Lists.CommonGroupList)
-            common_group_list.type_keys('{END}')
-            last_item=common_group_list.children()[-1].window_text()
-            common_group_list.type_keys('{HOME}')
+            shared_groups_list=popup_window.child_window(**Lists.CommonGroupList)
+            shared_groups_list.type_keys('{END}')
+            last_item=shared_groups_list.children()[-1].window_text()
+            shared_groups_list.type_keys('{HOME}')
             while len(common_groups)<total_num:
-                texts=[listitem.window_text() for listitem in common_group_list.children()]
+                texts=[listitem.window_text() for listitem in shared_groups_list.children()]
                 texts=[text for text in texts if text not in  common_groups]
                 common_groups.extend(texts)
-                common_group_list.type_keys('{PGDN}')
+                shared_groups_list.type_keys('{PGDN}')
                 if common_groups[-1]==last_item:
                     break
         profile_window.close()
@@ -1509,7 +1568,7 @@ class FriendSettings():
     #         SessionPickerWindow=Windows.SessionPickerWindow
     #         SessionPickerWindow['title']='微信添加成员'
     #         session_pick_window=contacts_manage.child_window(**Windows.SessionPickerWindow)
-    #         complete_button=session_pick_window.child_window(**Buttons.CompleteButton)
+    #         complete_button=session_pick_window.child_window(**Buttons.FinishButton)
     #         checkbox=session_pick_window.child_window(control_type='CheckBox',found_index=0)
     #         search_field=session_pick_window.child_window(control_type='Edit',found_index=0)
     #         search_field.click_input()
@@ -1794,10 +1853,14 @@ class Files():
             year=int(time.strftime('%Y'))
             month=int(time.strftime('%m'))
             timestamp_folder=time.strftime('%Y-%m')#默认当年当月
-            if '年' in timestamp:
+            if year_sep in timestamp and year_sep=='-':
+                year=int(re.search(r'(\d{4})-\d{1,2}-\d{1,2}',timestamp).group(1))
+            if year_sep in timestamp and year_sep=='年':
                 year=int(re.search(r'(\d+)年',timestamp).group(1))
-            if '月' in timestamp:
+            if month_sep in timestamp and month_sep=='月':
                 month=int(re.search(r'(\d+)月',timestamp).group(1))
+            if month_sep in timestamp and month_sep=='-':
+                month=int(re.search(r'\d{4}-(\d{1,2})-\d{1,2}',timestamp).group(1))
             timestamp_folder=f'{year}-{month}' if month>=10 else f'{year}-0{month}'
             return filename,timestamp_folder
         
@@ -1811,6 +1874,13 @@ class Files():
 
         filepaths=[]
         filenames=[]
+        year_sep=Special_Labels.YearSep
+        month_sep=Special_Labels.MonthSep
+        not_download=Special_Labels.NotDownloaded
+        expired=Special_Labels.Expired
+        send_interrupt=Special_Labels.SendInterrupt
+        filename_pattern=Regex_Patterns.Filename_pattern
+        timestamp_pattern=Regex_Patterns.Chafile_Timestamp_pattern
         chatfile_folder=Tools.where_chatfile_folder()
         filename_pattern=Regex_Patterns.Filename_pattern
         timestamp_pattern=Regex_Patterns.Chafile_Timestamp_pattern
@@ -1831,7 +1901,7 @@ class Files():
         last_file=fileList.children(control_type='ListItem',class_name='mmui::FileListCell')[-1].window_text()
         fileList.type_keys('{HOME}')
         labels=[listitem.window_text() for listitem in fileList.children(control_type='ListItem',class_name='mmui::FileListCell')]
-        labels=[label for label in labels if '未下载' not in labels or '已过期' not in label]
+        labels=[label for label in labels if (not_download not in label) or (expired not in label) or (send_interrupt not in label)]
         while len(labels)<number:
             fileList.type_keys('{PGDN}')
             last=fileList.children(control_type='ListItem',class_name='mmui::FileListCell')[-1].window_text()
@@ -1842,7 +1912,7 @@ class Files():
                 break
             if last==last_file:#到达底部
                 break
-        labels=[label for label in labels if '未下载' not in labels or '已过期' not in label]
+        labels=[label for label in labels if (not_download not in label) or (expired not in label) or (send_interrupt not in label)]
         for label in labels:
             filename,timestamp=extract_info(label)
             filepath=os.path.join(chatfile_folder,timestamp,filename)
@@ -1874,7 +1944,7 @@ class Files():
 
     @staticmethod
     def export_recent_files(target_folder:str=None,is_maximize:bool=None,close_weixin:bool=None):
-        '''该方法用来导出与某个好友的聊天文件,过期未下载的无法导出
+        ''' 该方法用来导出最近打开使用的文件,过期未下载的无法导出
         Args:
             target_folder:导出文件存放的文件夹路径,不传入会自动在本地新建一个
             is_maximize:微信界面是否全屏,默认不全屏。
@@ -1900,11 +1970,15 @@ class Files():
             year=int(time.strftime('%Y'))
             month=int(time.strftime('%m'))
             timestamp_folder=time.strftime('%Y-%m')#默认当年当月
-            if '年' in timestamp:
+            if year_sep in timestamp and year_sep=='-':
+                year=int(re.search(r'(\d{4})-\d{1,2}-\d{1,2}',timestamp).group(1))
+            if year_sep in timestamp and year_sep=='年':
                 year=int(re.search(r'(\d+)年',timestamp).group(1))
-            if '月' in timestamp:
+            if month_sep in timestamp and month_sep=='月':
                 month=int(re.search(r'(\d+)月',timestamp).group(1))
-            timestamp_folder=f'{year}-{month}' if month>10 else f'{year}-0{month}'
+            if month_sep in timestamp and month_sep=='-':
+                month=int(re.search(r'\d{4}-(\d{1,2})-\d{1,2}',timestamp).group(1))
+            timestamp_folder=f'{year}-{month}' if month>=10 else f'{year}-0{month}'
             return filename,timestamp_folder
         
         if target_folder and not os.path.isdir(target_folder):
@@ -1914,7 +1988,7 @@ class Files():
             os.makedirs(name=folder_name,exist_ok=True)
             target_folder=os.path.join(os.getcwd(),folder_name)
             print(f'未传入文件夹路径,聊天文件将保存至 {target_folder}')
-        '''该方法用来导出最近打开使用的文件'''
+       
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
@@ -1922,6 +1996,11 @@ class Files():
     
         filenames=[]
         filepaths=[]
+        year_sep=Special_Labels.YearSep
+        month_sep=Special_Labels.MonthSep
+        not_download=Special_Labels.NotDownloaded
+        expired=Special_Labels.Expired
+        send_interrupt=Special_Labels.SendInterrupt
         filename_pattern=Regex_Patterns.Filename_pattern
         timestamp_pattern=Regex_Patterns.Chafile_Timestamp_pattern
         chatfile_folder=Tools.where_chatfile_folder()
@@ -1941,7 +2020,7 @@ class Files():
             texts=[listitem.window_text() for listitem in listitems]
             texts=[file for file in texts if file not in labels]
             labels.extend(texts)
-        labels=[label for label in labels if ('未下载' not in label) or ('已过期' not in label) or ('发送中断' not in label)]
+        labels=[label for label in labels if (not_download not in label) or (expired not in label) or (send_interrupt not in label)]
         for label in labels:
             filename,timestamp=extract_info(label)
             filepath=os.path.join(chatfile_folder,timestamp,filename)
@@ -1976,7 +2055,7 @@ class Files():
         该函数用来导出微信保存到本地的聊天视频,只有点击下载过的视频才可以被导出
         Args:
             year:年份,除非手动删除聊天视频否则一直保存,格式:YYYY:2025,2024
-            month:月份,微信聊天视屏是按照xxxx年-xx月分批存储的格式:XX:05,11
+            month:月份,微信聊天视屏是按照YYYY年-XX月分批存储的格式:2025-12,2025-06
             target_folder:导出的聊天视频保存的位置,需要是文件夹
         Returns:
             exported_videos:导出的mp4视频路径列表
@@ -1988,6 +2067,7 @@ class Files():
             print(f'未传入文件夹路径,所有导出的微信聊天视频将保存至 {target_folder}')
         if target_folder is not None and not os.path.isdir(target_folder):
             raise NotFolderError(f'给定路径不是文件夹,无法导入保存聊天文件')
+        exported_videos=[]
         chatfiles_folder=Tools.where_video_folder()
         folders=os.listdir(chatfiles_folder)
         #先找到所有以年份开头的文件夹,并将得到的文件夹名字与其根目录chatfile_folder这个路径join
@@ -2050,6 +2130,8 @@ class Settings():
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
         style_map={0:'跟随系统',1:'浅色模式',2:'深色模式'}
+        DarkMode=Special_Labels.DarkMode
+        LightMode=Special_Labels.LightMode
         settings_window=Navigator.open_settings(is_maximize=is_maximize,close_weixin=close_weixin)
         general_button=settings_window.child_window(**Buttons.GeneralButton)
         general_button.click_input()
@@ -2060,9 +2142,9 @@ class Settings():
         #弹出的菜单无论怎么都无法定位到，干脆纯按键操作
         #顺序是固定的:跟随系统,浅色模式,深色模式
         #无论怎么说先回到顶部
-        if current_style=='浅色模式':
+        if current_style==LightMode:
             pyautogui.press('up')
-        if current_style=='深色模式':
+        if current_style==DarkMode:
             pyautogui.press('up',presses=2)
         #回到顶部后根据传入的style来选择向下按几次
         if style==1:
@@ -2070,7 +2152,7 @@ class Settings():
         if style==2:
             pyautogui.press('down',presses=2)
         pyautogui.press('enter')
-        print(f'已将主题设置为{style_map.get(style)}')
+        print(f'已将微信主题设置为{style_map.get(style)}')
         settings_window.close()
     
     @staticmethod
@@ -2114,8 +2196,7 @@ class Settings():
         confirm_button=settings_window.child_window(**Buttons.ConfirmButton)
         if confirm_button.exists(timeout=0.1):
             confirm_button.click_input()
-        print(f'已将语言设置为{language_map.get(language)}')
-        settings_window.close()
+        print(f'已将微信语言设置为{language_map.get(language)},如需进行后续自动化操作,请手动登录')
 
     @staticmethod
     def auto_download_size(size:int=1024,state:bool=True,is_maximize:bool=None,close_weixin:bool=None):
@@ -2243,9 +2324,9 @@ class Moments():
             close_weixin=GlobalConfig.close_weixin
         if not texts and not medias:
             raise ValueError(f'文本与图片视频至少要有一个!')
-        paths=build_path(medias)
-        if not paths:
-            raise ValueError(f'medias列表内无可用图片或视频路径!')
+        if medias:
+            paths=build_path(medias)
+            if not paths:raise ValueError(f'medias列表内无可用图片或视频路径!')
         moments=Navigator.open_moments(is_maximize=is_maximize,close_weixin=close_weixin)
         post_button=moments.child_window(**Buttons.PostButton)
         post_button.right_click_input(),
@@ -2287,21 +2368,25 @@ class Moments():
 
         def parse_post(listitem:ListItemWrapper):
             '''获取朋友圈文本中的时间戳,图片数量,以及剩余内容'''
-            #按照空格split比较理想的结果是['昵称','内容','时间戳'],但是有的人昵称中或者发布的内容都含有空格，甚至有可能内容是个时间戳
-            #或者转发的是视频号，时间戳不在文本末尾，split后可能是
-            #['昵','称','昨天xxx','1小时前','视频号xxx']
-            #但是无论如何，在这个列表中真正满足时间戳格式的字符即使用re.match筛选后，永远在列表的最后
             video_num=0
             photo_num=0
             text=listitem.window_text()
-            splited_text=text.split(' ')
-            possible_timestamps=[text for text in splited_text if sns_timestamp_pattern.match(text)]
-            post_time=possible_timestamps[-1]
-            if re.search(rf'\s包含(\d+)张图片\s',text):
-                photo_num=int(re.search(rf'\s包含(\d+)张图片\s',text).group(1))
-            if re.search(rf'\s视频\s',text):
+            post_time=sns_timestamp_pattern.search(text).group(0)
+            if GlobalConfig.language=='简体中文':
+                contain_video_pattern=re.compile(rf'\s视频\s{post_time}')
+                content_pattern=re.compile(rf'((\s包含\d+张图片\s)|(\s视频\s)).*{post_time}')
+            if GlobalConfig.language=='English':
+                contain_video_pattern=re.compile(rf'\sVideo\s{post_time}')
+                content_pattern=re.compile(rf'((\sContain\s(\d+)\simage\(s\)\s)|(\sVideo\s)).*{post_time}')
+            if GlobalConfig.language=='繁體中文':
+                contain_video_pattern=re.compile(rf'\s影片\s{post_time}')
+                content_pattern=re.compile(rf'((\s包含\s\d+\s張圖片\s)|(\s影片\s)).*{post_time}')
+            if contain_image_pattern.search(text):
+                photo_num=int(contain_image_pattern.search(text).group(1))
+            if contain_video_pattern.search(text):
                 video_num=1
-            content=re.sub(rf'(\s包含\d+张图片\s)|(\s视频\s).*{post_time}','',text)
+            content=content_pattern.sub('',text)
+            content=re.sub(r'^\s+','',content)
             return content,photo_num,video_num,post_time
         
         if is_maximize is None:
@@ -2312,19 +2397,17 @@ class Moments():
         recorded_num=0
         posts=[]
         sns_timestamp_pattern=Regex_Patterns.Sns_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳
+        contain_image_pattern=Regex_Patterns.Contain_Images_pattern#朋友圈包含1~9张图片
         not_contents=['mmui::TimelineCommentCell','mmui::TimelineCell','mmui::TimelineAdGridImageCell']#评论区，余下x条,广告,这三种不需要
         moments_window=Navigator.open_moments(is_maximize=is_maximize,close_weixin=close_weixin)
         win32gui.SendMessage(moments_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MAXIMIZE,0)
         moments_list=moments_window.child_window(**Lists.MomentsList)
         moments_list.type_keys('{HOME}')
         #微信朋友圈当天发布时间是xx分钟前,xx小时前,一周内的时间在7天内,且包含当天时间,同理一月内的时间在30天内,包含本周的时间
-        minutes={f'{i}分钟前' for i in range(1,60)}
-        hours={f'{i}小时前' for i in range(1,24)}
-        month_days={f'{i}天前' for i in range(1,31)}
-        week_days={f'{i}天前' for i in range(1,8)}
-        week_days.update(minutes)
-        week_days.update(hours)
-        month_days.update(week_days)
+        month_days=Special_Labels.MonthDays
+        week_days=Special_Labels.WeekDays
+        yesterday=Special_Labels.Yesterday
+        days_ago=Special_Labels.DaysAgo
         time.sleep(2)#等待一下刷新
         if moments_list.children(control_type='ListItem'):
             while True:
@@ -2336,9 +2419,9 @@ class Moments():
                     recorded_num+=1
                     if isinstance(number,int) and recorded_num>=number:
                         break
-                    if recent=='Today' and ('昨天' in post_time or '天前' in post_time):#昨天或者x天前在时间戳里不属于今天了
+                    if recent=='Today' and (yesterday in post_time or days_ago in post_time):#昨天或者x天前在时间戳里不属于今天了
                         break
-                    if recent=='Yesterday' and '天前' in post_time:#当前的朋友圈内容发布时间没有天前,说明是当天和昨天
+                    if recent=='Yesterday' and days_ago in post_time:#当前的朋友圈内容发布时间没有天前,说明是当天和昨天
                         break
                     if recent=='Week' and post_time not in week_days:#当前的朋友圈内容发布时间不在一周的时间内
                         break
@@ -2346,9 +2429,9 @@ class Moments():
                         break
                 moments_list.type_keys('{DOWN}',pause=0.1)
             if recent=='Today':
-                posts=[post for post in posts if  '天' not in post.get('发布时间')]
+                posts=[post for post in posts if  yesterday not in post.get('发布时间')]
             if recent=='Yesterday':
-                posts=[post for post in posts if post.get('发布时间')=='昨天']
+                posts=[post for post in posts if post.get('发布时间')==yesterday]
             if recent=='Week':
                 posts=[post for post in posts if post.get('发布时间') in week_days]
             if recent=='Month':
@@ -2371,22 +2454,25 @@ class Moments():
         '''
         def parse_listitem(listitem:ListItemWrapper):
             '''获取朋友圈文本中的时间戳,图片数量,以及剩余内容'''
-            #按照空格split比较理想的结果是['昵称','内容','时间戳'],但是有的人昵称中或者发布的内容都含有空格，甚至有可能内容是个时间戳
-            #或者转发的是视频号，时间戳不在文本末尾，split后可能是
-            #['昵','称','昨天xxx','1小时前','视频号xxx']
-            #但是无论如何，在这个列表中真正满足时间戳格式的字符即使用re.match筛选后，永远在列表的最后,并且该列表不可能为空
             video_num=0
             photo_num=0
             text=listitem.window_text()
-            text=text.strip(' ').replace('\n','')#先去掉头尾的空格去掉换行符
-            splited_text=text.split(' ')
-            possible_timestamps=[text for text in splited_text if sns_timestamp_pattern.match(text)]
-            post_time=possible_timestamps[-1]
-            if re.search(rf'\s包含(\d+)张图片\s',text):
-                photo_num=int(re.search(rf'\s包含(\d+)张图片\s',text).group(1))
-            if re.search(rf'\s视频\s',text):
+            post_time=sns_timestamp_pattern.search(text).group(0)
+            if GlobalConfig.language=='简体中文':
+                contain_video_pattern=re.compile(rf'\s视频\s{post_time}')
+                content_pattern=re.compile(rf'((\s包含\d+张图片\s)|(\s视频\s)).*{post_time}')
+            if GlobalConfig.language=='English':
+                contain_video_pattern=re.compile(rf'\sVideo\s{post_time}')
+                content_pattern=re.compile(rf'((\sContain\s(\d+)\simage\(s\)\s)|(\sVideo\s)).*{post_time}')
+            if GlobalConfig.language=='繁體中文':
+                contain_video_pattern=re.compile(rf'\s影片\s{post_time}')
+                content_pattern=re.compile(rf'((\s包含\s\d+\s張圖片\s)|(\s影片\s)).*{post_time}')
+            if contain_image_pattern.search(text):
+                photo_num=int(contain_image_pattern.search(text).group(1))
+            if contain_video_pattern.search(text):
                 video_num=1
-            content=re.sub(rf'(\s包含\d+张图片\s)|(\s视频\s).*{post_time}','',text)
+            content=content_pattern.sub('',text)
+            content=re.sub(r'^\s+','',content)
             return content,photo_num,video_num,post_time
         
         def like(content_listitem:ListItemWrapper):
@@ -2412,7 +2498,6 @@ class Moments():
                 rectangle=comment_listitem.rectangle()
                 ColorMatch.click_green_send_button(rectangle,x_offset=70,y_offset=42)
                
-
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
@@ -2420,19 +2505,17 @@ class Moments():
         
         posts=[]
         liked_num=0
-        minutes={f'{i}分钟前' for i in range(1,60)}
-        hours={f'{i}小时前' for i in range(1,24)}
-        month_days={f'{i}天前' for i in range(1,31)}
-        week_days={f'{i}天前' for i in range(1,8)}
-        week_days.update(minutes)
-        week_days.update(hours)
-        month_days.update(week_days)
+        month_days=Special_Labels.MonthDays
+        week_days=Special_Labels.WeekDays
+        yesterday=Special_Labels.Yesterday
+        days_ago=Special_Labels.DaysAgo
         sns_timestamp_pattern=Regex_Patterns.Sns_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳
+        contain_image_pattern=Regex_Patterns.Contain_Images_pattern#朋友圈包含1~9张图片
         not_contents=['mmui::TimelineCommentCell','mmui::TimelineCell','mmui::TimelineAdGridImageCell']#评论区，余下x条,广告,这三种不需要
         moments_window=Navigator.open_moments(is_maximize=is_maximize,close_weixin=close_weixin)
         time.sleep(2)#等待刷新
-        like_button=moments_window.child_window(control_type='Button',title='赞')
-        comment_button=moments_window.child_window(control_type='Button',title='评论')
+        like_button=moments_window.child_window(**Buttons.LikeButton)
+        comment_button=moments_window.child_window(**Buttons.CommentButton)
         moments_list=moments_window.child_window(**Lists.MomentsList)
         center_point=(moments_list.rectangle().mid_point().x,moments_list.rectangle().mid_point().y)
         moments_list.type_keys('{HOME}')
@@ -2450,18 +2533,18 @@ class Moments():
                         comment(selected[0],comment_listitem,content)
                     if isinstance(number,int) and liked_num>=number:
                         break
-                    if recent=='Today' and ('昨天' in post_time or '天前' in post_time):
+                    if recent=='Today' and (yesterday in post_time or days_ago in post_time):
                         break
-                    if recent=='Yesterday' and '天前' in post_time:#当前的朋友圈内容发布时间没有天前,说明是当天和昨天
+                    if recent=='Yesterday' and days_ago in post_time:#当前的朋友圈内容发布时间没有天前,说明是当天和昨天
                         break
                     if recent=='Week' and post_time not in week_days:#当前的朋友圈内容发布时间不在一周的时间内
                         break
                     if recent=='Month' and post_time not in month_days:#当前的朋友圈内容发布时间不在一个月的时间内
                         break
         if recent=='Today':
-            posts=[post for post in posts if  '天' not in post.get('发布时间')]
+            posts=[post for post in posts if  yesterday not in post.get('发布时间')]
         if recent=='Yesterday':
-            posts=[post for post in posts if post.get('发布时间')=='昨天']
+            posts=[post for post in posts if post.get('发布时间')==yesterday]
         if recent=='Week':
             posts=[post for post in posts if post.get('发布时间') in week_days]
         if recent=='Month':
@@ -2498,9 +2581,9 @@ class Moments():
                 content_listitem=sns_detail_list.children(control_type='ListItem',title='')[0]
                 rectangle=content_listitem.rectangle()
                 center_y=rectangle.mid_point().y
-                side_x=rectangle.mid_point().x-20 
+                side_x=rectangle.left+150 
                 mouse.right_click(coords=(side_x,center_y))
-                is_download=moments_window.child_window(control_type='MenuItem',title='收藏').exists(timeout=0.1)
+                is_download=moments_window.child_window(**MenuItems.AddToFavoritesMenuItem).exists(timeout=0.1)
                 pyautogui.doubleClick(x=side_x-10,y=center_y,interval=0.1)
                 image_preview_window.right_click_input()
                 while not is_download:
@@ -2508,10 +2591,12 @@ class Moments():
                     copy_item=image_preview_window.child_window(**MenuItems.CopyMenuItem)
                     if copy_item.exists(timeout=0.5):
                         is_download=True 
-                    time.sleep(0.5)       
+                    time.sleep(1)       
                 pyautogui.press('down',presses=2)
                 pyautogui.press('enter')
+                time.sleep(3)#缓存到剪贴板
                 SystemSettings.save_pasted_video(video_path)
+                pyautogui.press('esc')
             #保存图片
             if photo_num:
                 rec=sns_detail_list.rectangle()
@@ -2528,20 +2613,30 @@ class Moments():
                     time.sleep(0.5)#0.5s缓存到剪贴板时间
                     SystemSettings.save_pasted_image(path)
                     pyautogui.press('right',interval=0.05)
-            pyautogui.press('esc')
+                pyautogui.press('esc')
+            
 
         def parse_friend_post(listitem:ListItemWrapper):
             '''获取朋友圈文本中的时间戳,图片数量,以及剩余内容'''
             video_num=0
             photo_num=0
             text=listitem.window_text()
-            text=text.replace(friend,'')#先去掉头尾的空格去掉换行符
+            text=text.replace(friend,'')#好友
             post_time=sns_detail_pattern.search(text).group(0)
-            if re.search(rf'\s包含(\d+)张图片\s',text):
-                photo_num=int(re.search(r'\s包含(\d+)张图片\s',text).group(1))
-            if re.search(rf'\s视频\s{post_time}',text):
+            if GlobalConfig.language=='简体中文':
+                contain_video_pattern=re.compile(rf'\s视频\s{post_time}')
+                content_pattern=re.compile(rf'((\s包含\d+张图片\s)|(\s视频\s)).*{post_time}')
+            if GlobalConfig.language=='English':
+                contain_video_pattern=re.compile(rf'\sVideo\s{post_time}')
+                content_pattern=re.compile(rf'((\sContain\s(\d+)\simage\(s\)\s)|(\sVideo\s)).*{post_time}')
+            if GlobalConfig.language=='繁體中文':
+                contain_video_pattern=re.compile(rf'\s影片\s{post_time}')
+                content_pattern=re.compile(rf'((\s包含\s\d+\s張圖片\s)|(\s影片\s)).*{post_time}')
+            if contain_image_pattern.search(text):
+                photo_num=int(contain_image_pattern.search(text).group(1))
+            if contain_video_pattern.search(text):
                 video_num=1
-            content=re.sub(rf'(\s包含\d+张图片\s)|(\s视频\s).*{post_time}','',text)
+            content=content_pattern.sub('',text)
             content=re.sub(r'^\s+','',content)
             return content,photo_num,video_num,post_time
 
@@ -2563,6 +2658,7 @@ class Moments():
         posts=[]
         recorded_num=0
         sns_detail_pattern=Regex_Patterns.Snsdetail_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳pattern
+        contain_image_pattern=Regex_Patterns.Contain_Images_pattern#朋友圈包含1~9张图片
         not_contents=['mmui::AlbumBaseCell','mmui::AlbumTopCell']#置顶内容不需要
         image_preview_window=desktop.window(**Windows.ImagePreviewWindow)
         moments_window=Navigator.open_friend_moments(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin,search_pages=search_pages)
@@ -2588,12 +2684,12 @@ class Moments():
                         os.makedirs(detail_folder,exist_ok=True)
                         save_media(sns_detail_list,photo_num,video_num,detail_folder,content)
                     recorded_num+=1
+                    if recorded_num>=number:
+                        break
                     if sns_detail_list.exists(timeout=0.1):
                         backbutton.click_input()
                     if Tools.is_sns_at_bottom(moments_list,selected[0]):
-                        break
-                if recorded_num>=number:
-                    break
+                        break     
         moments_window.close()
         return posts
 
@@ -2616,12 +2712,22 @@ class Moments():
             photo_num=0
             text=listitem.window_text()
             text=text.replace(friend,'')#先去掉头尾的空格去掉换行符
-            post_time=sns_detail_pattern.search(text).group(0)
-            if re.search(rf'\s包含(\d+)张图片\s',text):
-                photo_num=int(re.search(r'\s包含(\d+)张图片\s',text).group(1))
-            if re.search(rf'\s视频\s{post_time}',text):
+            post_time=sns_detail_pattern.search(text).group(1)
+            if GlobalConfig.language=='简体中文':
+                contain_video_pattern=re.compile(rf'\s视频\s{post_time}')
+                content_pattern=re.compile(rf'((\s包含\d+张图片\s)|(\s视频\s)).*{post_time}')
+            if GlobalConfig.language=='English':
+                contain_video_pattern=re.compile(rf'\sVideo\s{post_time}')
+                content_pattern=re.compile(rf'((\sContain\s(\d+)\simage\(s\)\s)|(\sVideo\s)).*{post_time}')
+            if GlobalConfig.language=='繁體中文':
+                contain_video_pattern=re.compile(rf'\s影片\s{post_time}')
+                content_pattern=re.compile(rf'((\s包含\s\d+\s張圖片\s)|(\s影片\s)).*{post_time}')
+            if contain_image_pattern.search(text):
+                photo_num=int(contain_image_pattern.search(text).group(1))
+            if contain_video_pattern.search(text):
                 video_num=1
-            content=re.sub(rf'(\s包含\d+张图片\s)|(\s视频\s).*{post_time}','',text)
+            content=content_pattern.sub('',text)
+            content=re.sub(r'^\s+','',content)
             return content,photo_num,video_num,post_time
 
         def like(listview:ListViewWrapper,content_listitem:ListItemWrapper):
@@ -2655,6 +2761,7 @@ class Moments():
         posts=[]
         liked_num=0
         sns_detail_pattern=Regex_Patterns.Snsdetail_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳pattern
+        contain_image_pattern=Regex_Patterns.Contain_Images_pattern#朋友圈包含1~9张图片
         not_contents=['mmui::AlbumBaseCell','mmui::AlbumTopCell']#置顶内容不需要
         moments_window=Navigator.open_friend_moments(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin)
         backbutton=moments_window.child_window(**Buttons.BackButton)
@@ -2662,8 +2769,8 @@ class Moments():
         win32gui.SendMessage(moments_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MAXIMIZE,0)
         moments_list=moments_window.child_window(**Lists.MomentsList)
         sns_detail_list=moments_window.child_window(**Lists.SnsDetailList)
-        like_button=moments_window.child_window(control_type='Button',title='赞')
-        comment_button=moments_window.child_window(control_type='Button',title='评论')
+        like_button=moments_window.child_window(**Buttons.LikeButton)
+        comment_button=moments_window.child_window(**Buttons.CommentButton)
         moments_list.type_keys('{PGDN}')
         moments_list.type_keys('{PGUP}')
         contents=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.class_name() not in not_contents]
@@ -2687,8 +2794,6 @@ class Moments():
                     break
         moments_window.close()
         return posts
-
-
 
 class Messages():
 
@@ -2816,7 +2921,6 @@ class Messages():
         注意!messages与friends长度需一致,并且messages内每一个列表顺序需与friends中好友名称出现顺序一致,否则会出现消息发错的尴尬情况
         '''
         #多个好友的发送任务不需要使用open_dialog_window方法了直接在顶部搜索栏搜索,一个一个打开好友的聊天界面，发送消息,这样最高效
-        
         def send_messages(friend):
             if clear:
                edit_area.set_text('')
@@ -2893,7 +2997,7 @@ class Messages():
             main_window.close()
         return newMessages_dict
     
-    # #session_pick_window中使用ui自动化选择2个以上好友时微信会莫名奇妙白屏卡死，所以先暂时不实现这个方法了
+    #session_pick_window中使用ui自动化选择2个以上好友时微信会莫名奇妙白屏卡死，所以先暂时不实现这个方法了
     # @staticmethod
     # def forward_message(friends:list[str],message:str,clear:bool=None,
     #     send_delay:float=None,is_maximize:bool=None,close_weixin:bool=None)->None:
@@ -2910,7 +3014,7 @@ class Messages():
     #         raise ValueError(f'friends数量不足2,无法转发消息!')
     #     def session_picker():
     #         session_pick_window=main_window.child_window(**Windows.SessionPickerWindow)
-    #         send_button=session_pick_window.child_window(control_type='Button',title='发送')
+    #         send_button=session_pick_window.child_window(**Buttons.SendButton)
     #         checkbox=session_pick_window.child_window(control_type='CheckBox',found_index=0)
     #         rec=send_button.rectangle()
     #         x,y=rec.mid_point().x,rec.mid_point().y
@@ -2979,7 +3083,7 @@ class Messages():
         
         def extract_info(listitem):
             timestamp=''
-            pure_text=listitem.window_text().replace('已置顶\n','').replace('消息免打扰\n','')
+            pure_text=listitem.window_text().replace(SutckOnTop_label,'').replace(MuteNotifications_label,'')
             name=listitem.automation_id().replace('session_item_','')
             timestamp=timestamp_pattern.search(pure_text)
             if timestamp:timestamp=timestamp.group(0)    
@@ -2988,7 +3092,7 @@ class Messages():
 
         #正则匹配获取时间
         def get_sending_time(listitem):
-            pure_text=listitem.window_text().replace('已置顶\n','').replace('消息免打扰\n','')
+            pure_text=listitem.window_text().replace(SutckOnTop_label,'').replace(MuteNotifications_label,'')
             timestamp=timestamp_pattern.search(pure_text)
             if timestamp:return timestamp.group(0)
             return ''
@@ -3012,10 +3116,12 @@ class Messages():
             close_weixin=GlobalConfig.close_weixin
         
         sessions=[]#会话对象 ListItem
+        SutckOnTop_label=Special_Labels.StuckonTop
+        MuteNotifications_label=Special_Labels.MuteNotifications
+        Yesterday_label=Special_Labels.Yesterday
         #符合year_pattern的肯定不是今年的
         year_pattern=re.compile(r'\d{4}/\d{2}/\d{2}')#
         thismonth=str(int(time.strftime('%m')))+'/'#去年
-        yesterday='昨天'
         #最右侧时间戳正则表达式:五种,2024/05/01,10/25,昨天,星期一,10:59,
         timestamp_pattern=Regex_Patterns.Session_Timestamp_pattern
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
@@ -3046,9 +3152,9 @@ class Messages():
             main_window.close()
         #进一步筛选
         if recent=='Yesterday':
-            sessions=[session for session in sessions if yesterday in session[1]]
+            sessions=[session for session in sessions if Yesterday_label in session[1]]
         if recent=='Today':
-            sessions=[session for session in sessions if yesterday not in session[1]]
+            sessions=[session for session in sessions if Yesterday_label not in session[1]]
         if recent=='Month':
             weeek_sessions=[session for session in sessions if '/' not  in session[1]]
             month_sessions=[session for session in sessions if thismonth in session[1]]
@@ -3073,14 +3179,14 @@ class Messages():
             return listItems
 
         def get_sending_time(listitem):
-            pure_text=listitem.window_text().replace('已置顶\n','').replace('消息免打扰\n','')
+            pure_text=listitem.window_text().replace(SutckOnTop_label,'').replace(MuteNotifications_label,'')
             timestamp=timestamp_pattern.search(pure_text)
             if timestamp:return timestamp.group(0)
             return ''
         
         def extract_info(listitem):
             timestamp=''
-            pure_text=listitem.window_text().replace('已置顶\n','').replace('消息免打扰\n','')
+            pure_text=listitem.window_text().replace(SutckOnTop_label,'').replace(MuteNotifications_label,'')
             name=listitem.automation_id().replace('session_item_','')
             timestamp=timestamp_pattern.search(pure_text)
             if timestamp:timestamp=timestamp.group(0)    
@@ -3106,6 +3212,8 @@ class Messages():
             close_weixin=GlobalConfig.close_weixin
 
         sessions=[]
+        SutckOnTop_label=Special_Labels.StuckonTop
+        MuteNotifications_label=Special_Labels.MuteNotifications
         #最右侧时间戳正则表达式:五种,2024/05/01,10/25,昨天,星期一,10:59,
         timestamp_pattern=Regex_Patterns.Session_Timestamp_pattern
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
@@ -3186,9 +3294,10 @@ class Messages():
                 main_window.close()
         return messages
 
+
     @staticmethod
     def dump_chat_history(friend:str,number:int,search_content:str=None,capture_alia:bool=False,alias_folder:str=None,
-        search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->tuple[list,list]:
+        save_media:bool=False,media_folder:str=None,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->tuple[list,list]:
         '''
         该函数用来获取一定数量的聊天记录
         Args:  
@@ -3197,12 +3306,42 @@ class Messages():
             search_content:搜索关键字,传入后会先在顶部搜索关键字然后向下遍历
             capture_alia:是否截取聊天记录中聊天对象的昵称
             alias_folder:保存聊天对象昵称截图的文件夹
+            save_media:是否保存聊天记录中的图片与视频
+            media_folder:保存聊天对象昵称截图的文件夹
             search_pages:打开好友聊天窗口时在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
             (messages,timestamps):发送的消息(时间顺序从晚到早),每条消息对应的发送时间
         '''
+        def save(listitem:ListItemWrapper,media_type:int):
+            video_path=os.path.join(media_folder,f'{video_count}.mp4')
+            image_path=os.path.join(media_folder,f'{image_count}.png')
+            rec=listitem.rectangle()
+            right_click_position=rec.left+120,rec.mid_point().y
+            #保存视频
+            if media_type==0:
+                is_download=not download_label in listitem.window_text() 
+                if not is_download:
+                    mouse.click(coords=right_click_position)
+                    while not is_download:
+                        mouse.right_click(coords=right_click_position)
+                        if copy_item.exists(timeout=0.2):
+                            is_download=True 
+                        time.sleep(0.2)     
+                mouse.right_click(coords=right_click_position)     
+                pyautogui.press('down',presses=video_pressed_num)
+                pyautogui.press('enter')
+                time.sleep(2)#2s时间延迟让视频保存到剪贴板
+                SystemSettings.save_pasted_video(video_path)
+            #保存图片
+            if media_type==1:
+                mouse.right_click(coords=right_click_position)
+                pyautogui.press('down',image_pressed_num)
+                pyautogui.press('enter')
+                time.sleep(0.5)#0.5s延迟让图片缓存到剪贴板时间
+                SystemSettings.save_pasted_image(image_path)
+        
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
@@ -3213,11 +3352,23 @@ class Messages():
             alias_folder=os.path.join(os.getcwd(),f'dump_chat_history好友昵称截图',f'{friend}')
             print(f'未传入文件夹路径,好友昵称截图将分别保存到{alias_folder}内')
             os.makedirs(alias_folder,exist_ok=True)
+        if save_media and media_folder is None:
+            media_folder=os.path.join(os.getcwd(),f'dump_chat_history图片视频保存',f'{friend}')
+            print(f'未传入文件夹路径,好友昵称截图将分别保存到{media_folder}内')
+            os.makedirs(media_folder,exist_ok=True)
         messages=[]
         runtime_ids=[]
+        image_count=0
+        video_count=0
+        image_label=Special_Labels.Image
+        video_label=Special_Labels.Video
+        download_label=Special_Labels.Download
+        image_pressed_num=1 if '4.1.9' in GlobalConfig.version else 2
+        video_pressed_num=2 if '4.1.9' in GlobalConfig.version else 3
         timestamp_pattern=Regex_Patterns.Chathistory_Timestamp_pattern
         chat_history_window=Navigator.open_chat_history(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin,search_pages=search_pages)
         chat_history_list=chat_history_window.child_window(**Lists.ChatHistoryList)
+        copy_item=chat_history_window.child_window(**MenuItems.CopyMenuItem)
         if isinstance(search_content,str):
             search_bar=chat_history_window.descendants(**Edits.SearchEdit)[0]
             search_bar.set_text(search_content)
@@ -3234,6 +3385,9 @@ class Messages():
             path=os.path.join(alias_folder,f'与{friend}聊天记录_1.png')
             alia_image=Tools.capture_alias(first_item)
             alia_image.save(path)
+        if first_item.class_name()=='mmui::ChatBubbleReferItemView' and save_media:
+            if video_label in first_item.window_text():save(listitem=first_item,media_type=0)
+            if image_label in first_item.window_text():save(listitem=first_item,media_type=1)
         while len(messages)<number:
             pyautogui.press('down',presses=1,_pause=False)
             selected=[listitem for listitem in chat_history_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
@@ -3242,13 +3396,19 @@ class Messages():
                 #同一个runtime_id挨着重复出现就说明到底部了无法继续下滑
                 if runtime_ids[-1]==runtime_ids[-2]:
                     break
-                messages.append(selected[0].window_text())
                 if capture_alia:
                     time.sleep(0.1)#必须等待0.1s以上才能截出指定数量的图，不然过快来不及截图
                     path=os.path.join(alias_folder,f'与{friend}聊天记录_{len(messages)}.png')
                     alia_image=Tools.capture_alias(selected[0])
                     alia_image.save(path)
-
+                if selected[0].class_name()=='mmui::ChatBubbleReferItemView' and save_media:
+                    if video_label in selected[0].window_text():
+                        video_count+=1
+                        save(listitem=selected[0],media_type=0)
+                    if image_label in selected[0].window_text():
+                        image_count+=1
+                        save(listitem=selected[0],media_type=1)
+                messages.append(selected[0].window_text())
         chat_history_list.type_keys('{HOME}')
         chat_history_window.close()
         messages=messages[:number]
@@ -3335,7 +3495,7 @@ class Messages():
         Examples:
             ```
             from pywechat import Messages
-            target_folder=r'E:\新建文件夹'
+            target_folder=r'E:\\新建文件夹'
             save_media(friend='测试群',number=20,ftarget_folder=target_folder)
             ```
         '''
@@ -3352,6 +3512,7 @@ class Messages():
             os.makedirs(name=target_folder,exist_ok=True)
             print(f'未传入文件夹路径,聊天图片或视频将保存至 {target_folder}')
         saved_num=0
+        presses_num=1 if '4.1.9' in GlobalConfig.version else 2
         chat_history_window=Navigator.open_chat_history(friend=friend,TabItem='图片与视频',search_pages=search_pages,is_maximize=is_maximize,close_weixin=close_weixin)
         image_container=chat_history_window.child_window(control_type='Group',class_name="QFWidget")
         if not image_container.exists():#看一下是否存在聊天记录列表，如果不存在说明没有聊天记录    
@@ -3361,15 +3522,26 @@ class Messages():
         #先右键最后一个图片激活菜单
         image_preview_window=Tools.move_window_to_center(Windows.ImagePreviewWindow)
         image_expired=image_preview_window.child_window(**Texts.ImageExpiredText)
+        video_expired=image_preview_window.child_window(**Texts.VideoExpiredText)
         earliest_image=image_preview_window.child_window(**Texts.EarliestOneText)
         rotate_button=image_preview_window.child_window(**Buttons.RotateButton)
         image_area=image_preview_window.child_window(class_name='mmui::XViewPager',control_type='Custom')
         chat_history_window.close()
         while saved_num<number:
-            if image_expired.exists(timeout=0.1):  
-                #如果图片过期直接跳过
+            is_image_expired=image_expired.exists(timeout=0.1)
+            is_video_expired=video_expired.exists(timeout=0.1)
+            is_image=rotate_button.exists(timeout=0.1)
+            if is_image_expired or is_video_expired:  
+                #如果图片过期或者视频直接跳过
                 pyautogui.press('left',_pause=False)
-            if not rotate_button.exists(timeout=0.1):
+            if is_image and not is_image_expired:
+                #有旋转按钮是图片
+                saved_num+=1
+                pic_path=os.path.join(target_folder,f'与{friend}的聊天图片{saved_num}.png')
+                image=image_area.capture_as_image()
+                image.save(pic_path)
+                pyautogui.press('left',_pause=False)
+            if not is_image and not is_video_expired:
                 #没有旋转按钮是视频
                 is_download=False
                 saved_num+=1
@@ -3379,29 +3551,22 @@ class Messages():
                 while not is_download:
                     image_preview_window.right_click_input()
                     copy_item=image_preview_window.child_window(**MenuItems.CopyMenuItem)
-                    if copy_item.exists(timeout=0.5):
+                    if copy_item.exists(timeout=0.3):
                         is_download=True 
-                    time.sleep(0.5)       
-                pyautogui.press('down',presses=2)
+                    time.sleep(0.3)       
+                pyautogui.press('down',presses=presses_num)
                 pyautogui.press('enter')
-                time.sleep(1.5)
+                time.sleep(2)
                 SystemSettings.save_pasted_video(video_path=video_path)
-                pyautogui.press('left',_pause=False)
-            if rotate_button.exists(timeout=0.1):
-                #有旋转按钮是图片
-                saved_num+=1
-                pic_path=os.path.join(target_folder,f'与{friend}的聊天图片{saved_num}.png')
-                image=image_area.capture_as_image()
-                image.save(pic_path)
                 pyautogui.press('left',_pause=False)
             if earliest_image.exists(timeout=0.1):
                 #按下左键后可能会出现这是第一张图片的提示,那么直接退出循环
                 break
         image_preview_window.close()
         if saved_num==0:
-            print(f"你与{friend}无聊天图片,未能保存任何图片!")
+            print(f"你与{friend}无聊天图片与视频,未能保存!")
         if saved_num<number and saved_num!=0:
-            print(f"你与{friend}的聊天图片不足{number},已为你保存全部的{saved_num}张图片")
+            print(f"你与{friend}的聊天图片与视频不足{number},已为你保存全部的{saved_num}张图片与视频")
   
     @staticmethod
     def accept_group_invitation(friend:str,number:int,max_num:int=100,is_maximize:bool=None,close_weixin:bool=None,search_pages:int=None)->None:
@@ -3545,8 +3710,15 @@ class Monitor():
         files=[]
         texts=[]
         memberEvents=[]
-        friend=dialog_window.window_text()
+        link_label=Special_Labels.Link
+        image_labal=Special_Labels.Image
+        video_label=Special_Labels.Video
+        file_label=Special_Labels.File
         file_pattern=Regex_Patterns.File_pattern
+        friend=dialog_window.window_text()
+        chatName=dialog_window.child_window(**Texts.CurrentChatNameText)
+        if chatName.exists(timeout=0.2):
+            friend=chatName.window_text()
         timestamp=time.strftime('%Y-%m')
         chatfile_folder=Tools.where_chatfile_folder()
         chatList=dialog_window.child_window(**Lists.FriendChatList)#聊天界面内存储所有信息的容器
@@ -3569,13 +3741,13 @@ class Monitor():
                         texts.append(newMessage.window_text())
                     if newMessage.class_name()=='mmui::ChatItemView' and not timestamp_pattern.search(newMessage.window_text()):
                         memberEvents.append(newMessage.window_text())
-                    if newMessage.class_name()=='mmui::ChatBubbleItemView' and newMessage.window_text()[:2]=='[链接]':#
+                    if newMessage.class_name()=='mmui::ChatBubbleItemView' and newMessage.window_text()[:2]==link_label:#
                         link_count+=1
-                    if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and newMessage.window_text()=='图片':
+                    if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and newMessage.window_text()==image_labal:
                         image_count+=1
-                    if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and '视频' in newMessage.window_text():
+                    if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and video_label in newMessage.window_text():
                         video_count+=1#视频需要下载直接右键复制不行,需要先点击,如果时间长,要等半天，不太方便
-                    if newMessage.class_name()=='mmui::ChatBubbleItemView' and '文件' in newMessage.window_text():
+                    if newMessage.class_name()=='mmui::ChatBubbleItemView' and file_label in newMessage.window_text():
                         filename=file_pattern.search(newMessage.window_text()).group(1)
                         filepath=os.path.join(chatfile_folder,timestamp,filename)
                         files.append(filepath)
@@ -3641,45 +3813,3 @@ class Monitor():
         SystemSettings.close_listening_mode()
         if close_dialog_window:dialog_window.close()
         return details
-    
-    @staticmethod
-    def grab_red_packet(dialog_window:WindowSpecification,duration:str,close_dialog_window:bool=True)->int:
-        '''
-        该函数用来点击领取好友发送的红包,群聊中的红包微信的设定是电脑端无法打开,因此无法使用
-        Args:
-            dialog_window:好友单独的聊天窗口,可使用Navigator内的方法打开
-            duraiton:监听持续时长,监听消息持续时长,格式:'s','min','h'单位:s/秒,min/分,h/小时
-            close_dialog_window:是否关闭dialog_window
-        Returns:
-            red_packet_count:该聊天窗口内抢到红包个数
-        '''
-        def open_redpacket(red_packet):
-            red_packet.click_input()
-            open_button=red_envelop_view.child_window(control_type='Button',title='拆开')
-            open_button.click_input()
-            red_envelop_detail.close()
-        
-        duration=Tools.match_duration(duration)#将's','min','h'转换为秒
-        if not duration:#不按照指定的时间格式输入,需要提前中断退出
-            raise TimeNotCorrectError
-        red_packet_count=0
-        chatList=dialog_window.child_window(**Lists.FriendChatList)#聊天界面内存储所有信息的容器
-        chatList.type_keys('{END}')
-        red_envelop_view=dialog_window.child_window(class_name='mmui::PayRedEnvelopeInfoView',title='',control_type='Group')#微信红包点击后弹出的界面
-        red_envelop_detail=desktop.window(class_name='mmui::PayRedEnvelopDetailWindow',control_type='Window',title='微信')
-        initial_message=chatList.children(control_type='ListItem')[-1]#刚打开聊天界面时的最后一条消息的listitem
-        initial_runtime_id=initial_message.element_info.runtime_id
-        end_timestamp=time.time()+duration#根据秒数计算截止时间
-        SystemSettings.open_listening_mode(volume=False)
-        while time.time()<end_timestamp:
-            newMessage=chatList.children(control_type='ListItem')[-1]
-            text=newMessage.window_text()
-            class_name=newMessage.class_name()
-            runtime_id=newMessage.element_info.runtime_id
-            if runtime_id!=initial_runtime_id and '微信红包' in text  and class_name=='mmui::ChatBubbleItemView': 
-                open_redpacket(newMessage)
-                red_packet_count+=1
-                initial_runtime_id=runtime_id
-        SystemSettings.close_listening_mode()
-        if close_dialog_window:dialog_window.close()
-        return red_packet_count
