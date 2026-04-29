@@ -717,7 +717,7 @@ class Navigator():
             return 
         login_window.restore()
         switch_text=login_window.child_window(**Login_window.SwitchText)
-        if switch_text.exists(timeout=0.2):
+        if switch_text.exists(timeout=1):
             switch_text.click_input()
             time.sleep(3)#等待切换到扫码界面
         code_image=login_window.capture_as_image()

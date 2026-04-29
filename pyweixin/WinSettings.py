@@ -36,7 +36,7 @@ import ctypes
 from ctypes import cast, POINTER
 from comtypes import CLSCTX_ALL
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
-import sounddevice as sd
+import sounddevice as sd 
 #常量
 ES_DISPLAY_REQUIRED=0x00000002
 ES_CONTINUOUS=0x80000000

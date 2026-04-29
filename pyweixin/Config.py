@@ -168,7 +168,7 @@ class globalConfig:
         if not isinstance(value,str):
             raise TypeError(f"language必须是str类型,但传入了{type(value)}:{value}")
         if value not in {'简体中文','English','繁體中文'}:
-            raise ValueError(f'language的取值为{'简体中文','English','繁體中文'}!')
+            raise ValueError(f"language的取值为{'简体中文','English','繁體中文'}!")
         self._language=value
     
     @property

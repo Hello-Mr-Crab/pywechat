@@ -72,7 +72,7 @@ from packaging import version#字符串版本比较,4.1.9>4.1.8>4.1.7
 #####################################################################################
 #内部依赖
 from .Config import GlobalConfig
-from .utils import scan_for_new_messages,get_new_message_num,process_audios
+from .utils import scan_for_new_messages,get_new_message_num,process_audios,ContentSender
 from .utils import At,At_all,ColorMatch,Regex_Patterns,Special_Labels,TimeStamps
 from .Warnings import LongTextWarning,NoChatHistoryWarning
 from .WeChatTools import Tools,Navigator,mouse,Desktop
@@ -186,6 +186,8 @@ class AutoReply():
                             if reply_content is not None:
                                 input_edit.set_text(reply_content)
                                 pyautogui.hotkey('alt','s')
+                            if reply_content is not None and os.path.exists(reply_content):
+                                ContentSender.send_audios_to_friend(dialog_window,[reply_content])
                     if newMessage.class_name()=='mmui::ChatBubbleItemView' and newMessage.window_text()[:2]==link_label:
                         link_count+=1 
                     if newMessage.class_name()=='mmui::ChatBubbleReferItemView' and newMessage.window_text()==image_labal:
@@ -2886,7 +2888,7 @@ class Messages():
             clear=GlobalConfig.clear
         current_version=GlobalConfig.Version
         if version.parse(current_version)>=version.parse('4.1.9'):
-            audios=process_audios(audios=audios,audio_length=audio_length)
+            audios=process_audios(audios=audios,audio_length=audio_length)#处理音频片段
             if audios:
                 sd.default.device=SystemSettings.get_default_output()
                 main_window=Navigator.open_dialog_window(friend=friend,search_pages=search_pages,is_maximize=is_maximize)
@@ -2909,7 +2911,7 @@ class Messages():
                     sd.wait()
                     mouse.click(coords=(button_center.x,button_center.y))
                     time.sleep(send_delay)
-            if close_weixin:main_window.close()
+                if close_weixin:main_window.close()
         else:
             print(f'当前微信版本不支持发送语音!')
 
