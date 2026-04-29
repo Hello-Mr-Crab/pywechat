@@ -36,7 +36,7 @@ import ctypes
 from ctypes import cast, POINTER
 from comtypes import CLSCTX_ALL
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
-
+import sounddevice as sd
 #常量
 ES_DISPLAY_REQUIRED=0x00000002
 ES_CONTINUOUS=0x80000000
@@ -64,6 +64,17 @@ class SystemSettings():
         if mute==1:volume.SetMute(False,None)
         #设置音量
         volume.SetMasterVolumeLevelScalar(volume_level/100,None)
+
+    @staticmethod
+    def get_default_output()->int:
+        output_devives=sd.default.device#可能有多个
+        default_output=output_devives[0]#默认第一个
+        for device in output_devives:
+            query=sd.query_devices(device)
+            #需要保证是cable input
+            if query.get('name') is not None and 'cable input' in query.get('name').lower():
+                default_output=device
+        return default_output
 
     @staticmethod
     def open_listening_mode(volume:bool=True):

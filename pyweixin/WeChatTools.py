@@ -95,6 +95,7 @@ import win32gui
 import win32con
 import win32com.client
 from typing import Literal
+from packaging import version
 from pywinauto import mouse,Desktop
 from pywinauto.controls.uia_controls import ListViewWrapper,ListItemWrapper,EditWrapper #TypeHint要用到
 from pywinauto import WindowSpecification
@@ -102,11 +103,11 @@ from pywinauto import WindowSpecification
 from .Config import GlobalConfig
 #所有可能出现的异常
 from .Errors import NetWorkError
-from .Errors import NoSuchFriendError
+from .Errors import NoSuchFriendError,NotFolderError
 from .Errors import NotFriendError,NotStartError,NotLoginError
 from .Errors import NoResultsError,NotInstalledError,NotFoundError
 from pyweixin.Uielements import (Main_window,SideBar,Independent_window,ListItems,
-Buttons,Texts,TabItems,Lists,Edits,Windows,Panes,MenuItems)#导入的是自动判断语言后的实例化对象,如果自行使用需要导入xxx_Control
+Buttons,Texts,TabItems,Lists,Edits,Windows,Panes,MenuItems,Login_window)#导入的是自动判断语言后的实例化对象,如果自行使用需要导入xxx_Control
 from pyweixin.WinSettings import SystemSettings 
 ##########################################################################################
 desktop=Desktop(backend='uia')#Window桌面
@@ -154,7 +155,7 @@ class Tools():
         userlib_folder=Tools.where_userlib_folder()
         wxid_folder=Tools.where_wxid_folder()
         wxid=Tools.get_current_wxid()
-        version=GlobalConfig.version
+        version=GlobalConfig.Version
         language=GlobalConfig.language
         chatfiles_folder=Tools.where_chatfile_folder()
         return {'exe路径':exe_path,'版本':version,'语言':language,'wxid':wxid,'wxid目录':wxid_folder,'用户配置目录':userlib_folder,'聊天文件目录':chatfiles_folder}
@@ -300,7 +301,7 @@ class Tools():
         '''
         video_folder=''
         msg_folder=Tools.where_msg_folder(open_folder=False)
-        if msg_folder:video_folder=os.path.join(msg_folder,'video')
+        if msg_folder:video_folder=os.path.Wjoin(msg_folder,'video')
         if open_folder:os.startfile(video_folder)
         return video_folder
 
@@ -417,8 +418,7 @@ class Tools():
             scrollable:是否可以竖直方向滚动
         '''
         #List内一个元素也没有必然无法滚动
-        if len(list_control.children())==0:
-            return False
+        if len(list_control.children())==0:return False
         list_control.set_focus()
         list_control.type_keys("{HOME}")
         first_children=list_control.children()[0]
@@ -478,7 +478,6 @@ class Tools():
         mouse.move(coords=(rectangle.mid_point().x,rectangle.mid_point().y))
         chat_history_list.type_keys('{PGUP}')
         
-
     @staticmethod
     def get_next_item(listview:ListViewWrapper,listitem:ListItemWrapper)->(ListItemWrapper|None):
         '''获取当前listview中给定的listitem的下一个,如果该listitem是最后一个或不在该listview则返回None
@@ -507,7 +506,7 @@ class Tools():
             searh_content_label={'Recent used','Contacts','Groups','Service Accounts','Official Accounts','Most used'}
             xtable_label={'Features','Recent used','Most used'}
         if language=='繁體中文':
-            searh_content_label={'最近使用','联系人','群聊','服务号','公众号','最常使用'}
+            searh_content_label={'最近使用','聯絡人','群組','服務賬號','官方賬號','最常使用'}
             xtable_label={'功能','最近使用','最常使用'}
         texts=[listitem.window_text() for listitem in search_result.children(control_type="ListItem")]
         listitems=search_result.children(control_type='ListItem')
@@ -618,7 +617,7 @@ class Tools():
             next_item=get_next_item(contact_item)
             if next_item is not None and next_item.class_name()!="mmui::ContactsCellGroupView":
                 contact_item.click_input()
-
+    @staticmethod
     def match_duration(duration:str)->float:
         '''
         该函数用来将字符串类型的时间段转换为秒
@@ -700,6 +699,32 @@ class Navigator():
             main_window.close()
             raise NetWorkError('当前网络不可用,无法进行UI自动化!')
         return main_window
+    
+    @staticmethod
+    def capture_Login_QRCode(target_folder:str=None):
+        if target_folder is not None and not os.path.isdir(target_folder):
+            raise NotFolderError(f'所选路径不是文件夹!无法保存登录二维码,请重新选择!')
+        if target_folder is None:
+            target_folder=os.getcwd()
+        is_running=Tools.is_weixin_running()
+        if not is_running:#微信不在运行,主界面看不到窗口，需要先启动
+            exe_path=Tools.where_weixin()
+            os.startfile(exe_path)
+            time.sleep(5)
+        login_window=desktop.window(**Login_window.LoginWindow)
+        if not login_window.exists(timeout=2):
+            print('无法连接到登录窗口,可能是微信正在运行,请退出登录后重试!')
+            return 
+        login_window.restore()
+        switch_text=login_window.child_window(**Login_window.SwitchText)
+        if switch_text.exists(timeout=0.2):
+            switch_text.click_input()
+            time.sleep(3)#等待切换到扫码界面
+        code_image=login_window.capture_as_image()
+        image_path=os.path.join(target_folder,'Login_QRCode.png')
+        code_image.save(image_path)
+        print(f'二维码5分钟内有效,请尽快扫码登录,注意不要关闭登录窗口,否则需要重新获取！')
+        return image_path
 
     @staticmethod
     def find_friend_in_SessionList(friend:str,is_maximize:bool=None,search_pages:int=None)->tuple[bool,WindowSpecification]:
@@ -824,25 +849,17 @@ class Navigator():
             search_pages=GlobalConfig.search_pages
         chatinfo_pane,main_window=Navigator.open_chatinfo(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         friend_button=chatinfo_pane.child_window(title=friend,control_type='Button')
+        old_version=version.parse(GlobalConfig.Version)<version.parse('4.1.9')#比4.1.9版本低
         try:
-            friend_button.wait(wait_for='ready',timeout=2)
+            friend_button.wait(wait_for='ready',timeout=3)
             friend_button.click_input()
-            profile_pane=desktop.window(**Windows.PopUpProfileWindow) if '4.1.9' in GlobalConfig.version else main_window.window(**Windows.PopUpProfileWindow)
+            profile_pane=desktop.window(**Windows.PopUpProfileWindow) if not old_version else main_window.window(**Windows.PopUpProfileWindow)
             return profile_pane,main_window
         except Exception:
             chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton)
             chatinfo_button.click_input()
             main_window.close()
             raise NotFriendError(f'此为群聊,非好友,无法打开个人简介界面!')
-        # if friend_button.exists(timeout=1):
-        #     friend_button.click_input()
-        #     profile_pane=main_window.window(**Windows.PopUpProfileWindow)
-        #     return profile_pane,main_window
-        # else:
-        #     chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton)
-        #     chatinfo_button.click_input()
-        #     main_window.close()
-        #     raise NotFriendError(f'此为群聊,非好友,无法打开个人简介界面!')
         
     @staticmethod
     def open_friend_moments(friend:str,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->WindowSpecification:
@@ -1162,35 +1179,51 @@ class Navigator():
         Returns:
             dialog_window:与好友的聊天窗口
         '''
-
         def get_search_result(friend:str,search_result:ListViewWrapper)->(ListItemWrapper|None):
-            '''查看顶部搜索列表里有没有名为friend的listitem,只能用来查找联系人,群聊,服务号,公众号'''
-            is_contact=True
+            '''查看顶部搜索列表里有没有名为friend的listitem,只能用来查找联系人,群聊,服务号,公众号
+            Args:
+                friend:搜索的内容,好友或群聊的备注,公众号服务号名称等
+                search_result:微信主界面搜索内容后的结果列表,即Uielements内的Lists.SearchResult
+            '''
             texts=[listitem.window_text() for listitem in search_result.children(control_type="ListItem")]
             listitems=search_result.children(control_type='ListItem')
-            contact_label={'最近使用','联系人','群聊','最常使用'}
-            if contact_label.intersection(texts):
+            #正常好友群聊服务号公众号的class_name是mmui::SearchContentCellView
+            if contact_label.intersection(texts):#交集
                 listitems=[listitem for listitem in listitems if listitem.class_name()=="mmui::SearchContentCellView"]
                 listitems=[listitem for listitem in listitems if listitem.window_text()==friend]
                 if listitems:
-                    return listitems[0],is_contact
-            if  ('服务号' in texts) or ('公众号' in texts):
-                is_contact=False
+                    return listitems[0],True
+            
+            if not_contact_label.intersection(texts):#交集
                 listitems=[listitem for listitem in listitems if listitem.class_name()=="mmui::SearchContentCellView"]
                 listitems=[listitem for listitem in listitems if listitem.window_text()==friend]
                 if listitems:
-                    return listitems[0],is_contact
-            if '功能' in texts:
+                    return listitems[0],False
+                
+            if xtable_label.intersection(texts):#功能比如文件传输助手,微信支付的class_name是mmui::XTableCell
                 listitems=search_result.children(control_type='ListItem',class_name="mmui::XTableCell")
                 listitems=[listitem for listitem in listitems if listitem.window_text()==friend]
                 if listitems:
-                    return listitems[0],is_contact
-            return None,is_contact
-    
+                    return listitems[0],True
+            return None   
+
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
+        language=GlobalConfig.language
+        if language=='简体中文':
+            contact_label={'最近使用','联系人','群聊','最常使用'}
+            not_contact_label={'服务号','公众号'}
+            xtable_label={'功能'}
+        if language=='English':
+            contact_label={'Recent used','Contacts','Groups','Most used'}
+            not_contact_label={'Service Accounts','Official Accounts'}
+            xtable_label={'Features'}
+        if language=='繁體中文':
+            contact_label={'最近使用','聯絡人','群組','最常使用'}
+            not_contact_label={'服務賬號','官方賬號'}
+            xtable_label={'功能'}
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
         chat_button=main_window.child_window(**SideBar.Weixin)
         chat_button.click_input()
@@ -1278,18 +1311,18 @@ class Navigator():
             close_weixin=GlobalConfig.close_weixin
         if search_pages is None:
             search_pages=GlobalConfig.search_pages
+        #增加窗口名称,避免出现打开多个聊天窗口时出现ElementAmbigousError
+        ChatHistoryWindow=Independent_window.ChatHistoryWindow
+        if GlobalConfig.language=='简体中文':title_re=rf'与“{friend}”'
+        if GlobalConfig.language=='English':title_re=rf'Chat History with "{friend}"'
+        if GlobalConfig.language=='繁體中文':title_re=rf'與「{friend}」'
+        ChatHistoryWindow['title_re']=title_re
         main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         chat_history_button=main_window.child_window(**Buttons.ChatHistoryButton)
         if not chat_history_button.exists(timeout=0.3):
             main_window.close()
             raise NotFriendError(f'非正常好友或群聊！无法打开该好友或群聊的聊天记录界面')
-        chat_history_button.click_input()
-        #增加窗口名称,避免出现打开多个聊天窗口时出现ElementAmbigousError
-        if GlobalConfig.language=='简体中文':title=f'与{friend}的聊天记录窗口' 
-        if GlobalConfig.language=='English':title=f'Chat History with "{friend}"' 
-        if GlobalConfig.language=='繁體中文':title=f'與「{friend}」的聊天記錄' 
-        ChatHistoryWindow=Independent_window.ChatHistoryWindow
-        ChatHistoryWindow['title']=title
+        chat_history_button.click_input()       
         chat_history_window=Tools.move_window_to_center(ChatHistoryWindow)
         tab_button=chat_history_window.child_window(control_type='Button',class_name="mmui::XMouseEventView")
         if tab_button.exists(timeout=0.2):

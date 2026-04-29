@@ -60,9 +60,11 @@ import json
 import pyautogui
 import win32clipboard
 import win32gui,win32con
-from collections import Counter
+import sounddevice as sd
 from typing import Literal
-from warnings import warn
+from warnings import warn,filterwarnings
+filterwarnings('ignore',category=UserWarning)
+from collections import Counter
 from pywinauto import WindowSpecification
 from pywinauto.controls.uia_controls import ListItemWrapper,ListViewWrapper#TypeHint要用到
 from typing import Callable
@@ -70,8 +72,8 @@ from packaging import version#字符串版本比较,4.1.9>4.1.8>4.1.7
 #####################################################################################
 #内部依赖
 from .Config import GlobalConfig
-from .utils import scan_for_new_messages,get_new_message_num
-from .utils import At,At_all,ColorMatch,Regex_Patterns,Special_Labels
+from .utils import scan_for_new_messages,get_new_message_num,process_audios
+from .utils import At,At_all,ColorMatch,Regex_Patterns,Special_Labels,TimeStamps
 from .Warnings import LongTextWarning,NoChatHistoryWarning
 from .WeChatTools import Tools,Navigator,mouse,Desktop
 from .WinSettings import SystemSettings
@@ -84,9 +86,7 @@ Edits,Texts,Lists,Panes,Windows,CheckBoxes,MenuItems,Groups,Customs,ListItems)#�
 #######################################################################################
 desktop=Desktop(backend='uia')#pywinauto的windows桌面对象(WindowSpecification)实例化
 pyautogui.FAILSAFE=False#防止鼠标在屏幕边缘处造成的误触
-
 class AutoReply():
-    
     @staticmethod
     def auto_reply_to_friend(dialog_window:WindowSpecification,duration:str,callback:Callable[[str,list[str]],str],contexts:list[str]=[],save_file:bool=False,save_media:bool=False,target_folder:str=None,close_dialog_window:bool=True)->dict:
         '''
@@ -2302,10 +2302,10 @@ class Settings():
 class Moments():
 
     @staticmethod
-    def post_moments(texts:str='',medias:list[str]=[],is_maximize:bool=None,close_weixin:bool=None):
+    def post_moments(text:str='',medias:list[str]=[],is_maximize:bool=None,close_weixin:bool=None):
         '''该方法用来发布朋友圈
         Args:
-            texts:朋友圈文本内容
+            text:朋友圈文本内容
             medias:mp4,jpg,png等多个图像或视频的路径列表
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
@@ -2322,7 +2322,7 @@ class Moments():
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
-        if not texts and not medias:
+        if not text and not medias:
             raise ValueError(f'文本与图片视频至少要有一个!')
         if medias:
             paths=build_path(medias)
@@ -2337,14 +2337,14 @@ class Moments():
             edit=native_window.child_window(**Edits.NativeFileSaveEdit)
             edit.set_text(paths)
             pyautogui.hotkey('alt','o')
-        if texts and not medias:
+        if text and not medias:
             pyautogui.press('down',presses=1)
             pyautogui.press('enter')
         publish_panel=moments.child_window(**Groups.SnsPublishGroup)
-        if texts:
+        if text:
             text_input=publish_panel.child_window(**Edits.SnsEdit)
             text_input.click_input()
-            text_input.set_text(texts)
+            text_input.set_text(text)
         post_button=publish_panel.child_window(**Buttons.PostButton)
         post_button.click_input()
 
@@ -2592,7 +2592,7 @@ class Moments():
                     if copy_item.exists(timeout=0.5):
                         is_download=True 
                     time.sleep(1)       
-                pyautogui.press('down',presses=2)
+                pyautogui.press('down',presses=video_pressed_num)
                 pyautogui.press('enter')
                 time.sleep(3)#缓存到剪贴板
                 SystemSettings.save_pasted_video(video_path)
@@ -2657,6 +2657,8 @@ class Moments():
             os.makedirs(friend_folder,exist_ok=True)
         posts=[]
         recorded_num=0
+        old_version=version.parse(GlobalConfig.Version)<version.parse('4.1.9')
+        video_pressed_num=2 if old_version else 1
         sns_detail_pattern=Regex_Patterns.Snsdetail_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳pattern
         contain_image_pattern=Regex_Patterns.Contain_Images_pattern#朋友圈包含1~9张图片
         not_contents=['mmui::AlbumBaseCell','mmui::AlbumTopCell']#置顶内容不需要
@@ -2852,6 +2854,64 @@ class Messages():
                 warn(message=f"微信消息字数上限为2000,超过2000字部分将被省略,该条长文本消息已为你转换为txt发送",category=LongTextWarning)
         if close_weixin:
             main_window.close()
+    
+    @staticmethod
+    def send_audios_to_friend(friend,audios:list[str],audio_length:int=None,at_members:list[str]=[],
+        at_all:bool=False,clear:bool=None,send_delay:int=None,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None):
+        '''
+        该方法用于给单个好友或群聊发送语音
+        Args:
+            friend:好友或群聊备注。格式:friend="好友或群聊备注"
+            audios:所有待发送消息列表。格式:audios=[r'录音.wav',r"音乐.mp3",r"音乐.ogg"]
+            audio_length:语音长度,按照微信语音的限制,默认是60s,也可以自行设定,必须在1~60之间
+            at_members:群聊内所有需要@的群成员昵称列表(注意必须是群昵称)
+            at_all:群聊内@所有人,默认为False
+            search_pages:在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
+            send_delay:发送单条消息延迟,单位:秒/s,默认0.2s(0.1-0.2之间是极限)。
+            clear:是否删除编辑区域已有的内容,默认删除
+            is_maximize:微信界面是否全屏,默认不全屏。
+            close_weixin:任务结束后是否关闭微信,默认关闭
+        '''
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if send_delay is None:
+            send_delay=GlobalConfig.send_delay
+        if audio_length is None:
+            audio_length=GlobalConfig.audio_length
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+        if search_pages is None:
+            search_pages=GlobalConfig.search_pages
+        if clear is None:
+            clear=GlobalConfig.clear
+        current_version=GlobalConfig.Version
+        if version.parse(current_version)>=version.parse('4.1.9'):
+            audios=process_audios(audios=audios,audio_length=audio_length)
+            if audios:
+                sd.default.device=SystemSettings.get_default_output()
+                main_window=Navigator.open_dialog_window(friend=friend,search_pages=search_pages,is_maximize=is_maximize)
+                edit_area=main_window.child_window(**Edits.CurrentChatEdit)
+                if not edit_area.exists(timeout=0.1):
+                    raise NotFriendError(f'非正常好友,无法发送消息')
+                if clear:
+                    edit_area.set_text('')
+                if at_all:
+                    At_all(main_window)
+                if at_members:
+                    At(main_window,at_members)
+                send_audio_button=main_window.child_window(**Buttons.SendAudioButon)
+                window_center=main_window.rectangle().mid_point()
+                button_center=send_audio_button.rectangle().mid_point()
+                for samplerate,audio in audios:
+                    send_audio_button.click_input() 
+                    mouse.move(coords=(window_center.x,window_center.y))
+                    sd.play(audio,samplerate)
+                    sd.wait()
+                    mouse.click(coords=(button_center.x,button_center.y))
+                    time.sleep(send_delay)
+            if close_weixin:main_window.close()
+        else:
+            print(f'当前微信版本不支持发送语音!')
 
     @staticmethod
     def message_chain(group:str,content:str=None,theme:str=None,example:str=None,description:str=None,search_pages:bool=None,
@@ -3363,8 +3423,9 @@ class Messages():
         image_label=Special_Labels.Image
         video_label=Special_Labels.Video
         download_label=Special_Labels.Download
-        image_pressed_num=1 if '4.1.9' in GlobalConfig.version else 2
-        video_pressed_num=2 if '4.1.9' in GlobalConfig.version else 3
+        old_version=version.parse(GlobalConfig.Version)<version.parse('4.1.9')#4.1.9之前的版本右键目录不一样
+        image_pressed_num=2 if old_version else 1
+        video_pressed_num=3 if old_version else 2
         timestamp_pattern=Regex_Patterns.Chathistory_Timestamp_pattern
         chat_history_window=Navigator.open_chat_history(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin,search_pages=search_pages)
         chat_history_list=chat_history_window.child_window(**Lists.ChatHistoryList)
@@ -3415,6 +3476,167 @@ class Messages():
         timestamps=[timestamp_pattern.search(message).group(0) if timestamp_pattern.search(message) else '系统消息或为红包与转账(无法获取时间戳)' for message in messages]
         messages=[timestamp_pattern.sub('',message) for message in messages]
         return messages,timestamps
+
+    @staticmethod
+    def dump_recent_chat_history(friend:str,recent:Literal['Today','Week','Month']='Today',number:int=1000,search_content:str=None,capture_alia:bool=False,alias_folder:str=None,
+        save_media:bool=False,media_folder:str=None,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->tuple[list,list]:
+        '''
+        该函数用来获取一定数量的聊天记录
+        Args:  
+            friend:好友备注
+            recent:获取最近聊天记录的时间节点,可选值为'Today','Week','Month'分别获取当天,昨天,本周,本月
+            number:获取的消息数量,如果传入达到指定数量结束,默认1000
+            search_content:搜索关键字,传入后会先在顶部搜索关键字然后向下遍历
+            capture_alia:是否截取聊天记录中聊天对象的昵称
+            alias_folder:保存聊天对象昵称截图的文件夹
+            save_media:是否保存聊天记录中的图片视频文件
+            media_folder:保存聊天对象发送图片视频的文件夹
+            search_pages:打开好友聊天窗口时在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息
+            is_maximize:微信界面是否全屏，默认不全屏
+            close_weixin:任务结束后是否关闭微信，默认关闭
+        Returns:
+            (messages,timestamps):发送的消息(时间顺序从晚到早),每条消息对应的发送时间
+        '''
+        def save(listitem:ListItemWrapper,media_type:int):
+            rec=listitem.rectangle()
+            right_click_position=rec.left+120,rec.mid_point().y
+            video_path=os.path.join(media_folder,f'{video_count}.mp4')
+            image_path=os.path.join(media_folder,f'{image_count}.png')
+            #保存视频
+            if media_type==0:
+                is_download=not download_label in listitem.window_text() 
+                if not is_download:
+                    mouse.click(coords=right_click_position)
+                    while not is_download:
+                        mouse.right_click(coords=right_click_position)
+                        if copy_item.exists(timeout=0.2):
+                            is_download=True 
+                        time.sleep(0.2)     
+                mouse.right_click(coords=right_click_position)     
+                pyautogui.press('down',presses=video_pressed_num)
+                pyautogui.press('enter')
+                time.sleep(2)#2s时间延迟让视频保存到剪贴板
+                SystemSettings.save_pasted_video(video_path)
+            #保存图片
+            if media_type==1:
+                mouse.right_click(coords=right_click_position)
+                pyautogui.press('down',image_pressed_num)
+                pyautogui.press('enter')
+                time.sleep(0.5)#0.5s延迟让图片缓存到剪贴板时间
+                SystemSettings.save_pasted_image(image_path)
+        
+        def is_finished_by_time(cleaned_timestamp):
+            if cleaned_timestamp is None:
+                return False
+            if recent=='Today' and Today_label not in cleaned_timestamp:
+                return True
+            if recent=='Week' and cleaned_timestamp not in Week_days:
+                return True
+            if recent=='Month' and Month_label not in cleaned_timestamp:
+                return True
+            return False
+
+        def extract_info(text):
+            if timestamp_pattern.search(text) is not None:
+                timestamp=timestamp_pattern.search(text).group(0)  
+            else:
+                timestamp='系统消息、红包、转账无法获取时间戳' 
+            content=timestamp_pattern.sub('',text)
+            return timestamp,content
+    
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+        if search_pages is None:
+            search_pages=GlobalConfig.search_pages
+        if version.parse(GlobalConfig.Version)<=version.parse('4.1.6.46'):
+            print(f'4.1.6.46及以下版本不支持dump_recent_chat_history,时间戳结构不支持')
+            return [],[]
+        if capture_alia and alias_folder is None:
+            alias_folder=os.path.join(os.getcwd(),f'dump_chat_history好友昵称截图',f'{friend}')
+            print(f'未传入文件夹路径,好友昵称截图将分别保存到{alias_folder}内')
+            os.makedirs(alias_folder,exist_ok=True)
+        if save_media:
+            if media_folder is None:
+                media_folder=os.path.join(os.getcwd(),f'dump_recent_chat_history图片视频保存',f'{friend}')
+                print(f'未传入文件夹路径,好友发送的图片和视频将保存到{media_folder}内')
+            media_folder=os.path.join(media_folder,friend)
+            os.makedirs(media_folder,exist_ok=True)
+
+        timestamps=[]
+        contents=[]
+        runtime_ids=[]
+        image_count=0
+        video_count=0
+        image_label=Special_Labels.Image
+        video_label=Special_Labels.Video
+        download_label=Special_Labels.Download
+        timestamp_pattern=Regex_Patterns.Chathistory_Timestamp_pattern
+        Today_label=TimeStamps.get_today_label()#2026-4-xx
+        Month_label=TimeStamps.get_month_label()#2026-4
+        Week_days=TimeStamps.get_current_week_dates()#[2026-4-xx,2026-4-xx+7]
+        old_version=version.parse(GlobalConfig.Version)<version.parse('4.1.9')#4.1.9之前的版本右键目录不一样
+        image_pressed_num=2 if old_version else 1
+        video_pressed_num=3 if old_version else 2
+        chat_history_window=Navigator.open_chat_history(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin,search_pages=search_pages)
+        chat_history_list=chat_history_window.child_window(**Lists.ChatHistoryList)
+        copy_item=chat_history_window.child_window(**MenuItems.CopyMenuItem)
+        if isinstance(search_content,str):
+            search_bar=chat_history_window.descendants(**Edits.SearchEdit)[0]
+            search_bar.set_text(search_content)
+        if not chat_history_list.exists(timeout=1):
+            warn(message=f"你与{friend}的聊天记录为空,无法获取聊天记录",category=NoChatHistoryWarning)
+            chat_history_window.close()
+            return [],[]
+        Tools.activate_chatHistoryList(chat_history_list)#激活滑块
+        #因为要先按down向下遍历,第一个被selected的实际是第二条，所以第一项内容直接记录
+        first_item=chat_history_list.children(control_type='ListItem')[0]
+        timestamp,content=extract_info(first_item.window_text())
+        timestamps.append(timestamp)
+        contents.append(content)
+        runtime_ids.append(first_item.element_info.runtime_id)
+        if capture_alia:
+            path=os.path.join(alias_folder,f'与{friend}聊天记录_1.png')
+            alia_image=Tools.capture_alias(first_item)
+            alia_image.save(path)
+        if first_item.class_name()=='mmui::ChatBubbleReferItemView' and save_media:
+            if video_label in first_item.window_text():save_media(listitem=first_item,media_type=0)
+            if image_label in first_item.window_text():save_media(listitem=first_item,media_type=1)
+        while True:
+            pyautogui.press('down',presses=1,_pause=False)
+            selected=[listitem for listitem in chat_history_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
+            if selected:
+                runtime_ids.append(selected[0].element_info.runtime_id)
+                timestamp,content=extract_info(selected[0].window_text())
+                cleaned_timestamp=re.sub(r'\s\d{1,2}:\d{1,2}','',timestamp) if timestamp!='系统消息、红包、转账无法获取时间戳' else None
+                #同一个runtime_id挨着重复出现就说明到底部了无法继续下滑
+                if runtime_ids[-1]==runtime_ids[-2]:
+                    break
+                #按照时间筛选
+                is_finished=is_finished_by_time(cleaned_timestamp)
+                if is_finished:
+                    break
+                #传入数量按照数量判断
+                if  len(contents)>=number:
+                    break
+                timestamps.append(timestamp)
+                contents.append(content)
+                if capture_alia:
+                    time.sleep(0.1)#必须等待0.1s以上才能截出指定数量的图，不然过快来不及截图
+                    path=os.path.join(alias_folder,f'与{friend}聊天记录_{len(contents)}.png')
+                    alia_image=Tools.capture_alias(selected[0])
+                    alia_image.save(path)
+                if selected[0].class_name()=='mmui::ChatBubbleReferItemView' and save_media:
+                    if video_label in selected[0].window_text():
+                        video_count+=1
+                        save(listitem=selected[0],media_type=0)
+                    if image_label in selected[0].window_text():
+                        image_count+=1
+                        save(listitem=selected[0],media_type=1)
+        chat_history_list.type_keys('{HOME}')
+        chat_history_window.close()
+        return contents,timestamps
 
     @staticmethod
     def search_chat_history(keyword:str,is_maximize:bool=None,close_weixin:bool=None)->dict[str,list[str]]:
@@ -3496,7 +3718,7 @@ class Messages():
             ```
             from pywechat import Messages
             target_folder=r'E:\\新建文件夹'
-            save_media(friend='测试群',number=20,ftarget_folder=target_folder)
+            Messages.save_media(friend='测试群',number=20,ftarget_folder=target_folder)
             ```
         '''
         if is_maximize is None:
@@ -3512,7 +3734,7 @@ class Messages():
             os.makedirs(name=target_folder,exist_ok=True)
             print(f'未传入文件夹路径,聊天图片或视频将保存至 {target_folder}')
         saved_num=0
-        presses_num=1 if '4.1.9' in GlobalConfig.version else 2
+        presses_num=1 if '4.1.9' in GlobalConfig.Version else 2
         chat_history_window=Navigator.open_chat_history(friend=friend,TabItem='图片与视频',search_pages=search_pages,is_maximize=is_maximize,close_weixin=close_weixin)
         image_container=chat_history_window.child_window(control_type='Group',class_name="QFWidget")
         if not image_container.exists():#看一下是否存在聊天记录列表，如果不存在说明没有聊天记录    
@@ -3551,9 +3773,9 @@ class Messages():
                 while not is_download:
                     image_preview_window.right_click_input()
                     copy_item=image_preview_window.child_window(**MenuItems.CopyMenuItem)
-                    if copy_item.exists(timeout=0.3):
+                    if copy_item.exists(timeout=0.2):
                         is_download=True 
-                    time.sleep(0.3)       
+                    time.sleep(0.2)       
                 pyautogui.press('down',presses=presses_num)
                 pyautogui.press('enter')
                 time.sleep(2)

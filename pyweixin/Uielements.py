@@ -31,14 +31,15 @@ Examples
 '''
 from.Config import GlobalConfig
 language=GlobalConfig.language
-version=GlobalConfig.version
+Version=GlobalConfig.Version
 class Button_Control():
     '''
     微信主界面内所有类型为Button的UI控件
     '''
-    def __init__(self,language=language,version=version):
+    def __init__(self,language=language,Version=Version):
         self.language=language
-        self.version=version
+        self.Version=Version
+        self.SendAudioButon={'title_re':'发语音','control_type':'Button'}#微信底部发送语音按钮
         self.WeixinButton={'control_type':'Button','found_index':0}#主界面下的第一个按钮,侧边栏的微信按钮
         self.SubScribeButton={'title':'关注','control_type':'Button'}#公众号窗口内的关注按钮
         self.HomePageButton={'title':'公众号主页','control_type':'Button'}#公众号主页内右上角的公众号主页按钮
@@ -155,7 +156,7 @@ class Button_Control():
             self.AddPhoneNumButon={'control_type':'Button','title':'新增電話號碼'}#修改好友备注内的添加电话按钮
             self.ClearPhoneNumButton={'control_type':'Button','title':'刪除电话'}#修改好友备注内的删除电话按钮
             self.QuickActionsButton={'control_type':'Button','title':'快捷操作'}#主界面+号按钮
-            self.OffLineButton={'title':'当前网络不可用','control_type':'Button'}#网络不好时,微信顶部的按钮
+            self.OffLineButton={'title':'目前網路不可用','control_type':'Button'}#网络不好时,微信顶部的按钮
             self.SendButton={'control_type':'Button','title':'傳送'}#发送按钮
             self.EmptyButton={'control_type':'Button','title':'刪除'}#清空按钮
             self.ChatInfoButton={'control_type':'Button','title':'聊天資訊'}#群聊/好友聊天主界面右上角的三个点
@@ -204,16 +205,16 @@ class Button_Control():
             self.VerifyNowButton={'title':'前往驗證','control_type':'Button'}#通讯录新朋友界面中前往验证按钮
             self.SolitaireButton={'title':'發起接龍','control_type':'Button'}#接龙窗口内的发起接龙按钮
             self.MomentsButton={'title':'朋友圈','control_type':'Button','auto_id':'button'}#好友个人简介界面内的朋友圈按钮(不是主页左侧的)
-        if '4.1.9' in self.version:
+        if '4.1.9' in self.Version:
             self.MomentsButton={'control_type':'Button','auto_id':
             "content_v_view.ProfileResizeVBoxView.detail_scroll_view.gradient_mask_stacked_view.default_scroll_area.qt_scrollarea_viewport.detail_content_host.detail_center_v_view.detail_derived_content_view.sns_container_view.wx_friend_sns.value_sns_view"}
             self.SendAudioButon={'title_re':'发语音','control_type':'Button'}      
        
        
 class CheckBox_Control():
-    def __init__(self,language=language,version=version):
+    def __init__(self,language=language,Version=Version):
         self.language=language
-        self.version=version
+        self.Version=Version
         if self.language=='简体中文':
             self.DontShowOthersCheckBox={'control_type':'CheckBox','title':'不让他（她）看'}#不让他看
             self.DontSeeOthersCheckBox={'control_type':'CheckBox','title':'不看他（她）'}#不看他
@@ -252,21 +253,21 @@ class CheckBox_Control():
             self.InteractionOnlyCheckBox={'title':'僅提醒朋友與我的互動','control_type':'CheckBox'}#微信设置/通知界面内的仅提醒朋友与我的互动
 
 class Custom_Control():
-    def __init__(self,language=language,version=version):
+    def __init__(self,language=language,Version=Version):
         self.language=language
         #版本
-        self.version=version
+        self.Version=Version
         self.ContactCustom={'control_type':'Custom','auto_id':'MainView.main_window_main_splitter_view','class_name':'mmui::XSplitterView'}#微信切换到通讯录后通讯录整个界面
         self.ContactDetailCustom={'control_type':'Custom','class_name':'mmui::XSplitterView','found_index':1}#微信切换到通讯录界面后的右侧好友信息面板的上一级自定义
-        if '4.1.9' in self.version:
+        if '4.1.9' in self.Version:
              self.ContactDetailCustom={'control_type':'Custom','class_name':'mmui::XSplitterView','auto_id':'MainView.main_window_corner_view.MainView.main_window_main_splitter_view'}#微信切换到通讯录界面后的右侧好友信息面板的上一级自定义
 
 
 class Edit_Control():
     '''微信主界面内所有类型为Edit(不包含独立窗口)的UI控件'''
-    def __init__(self,language=language,version=version):
+    def __init__(self,language=language,Version=Version):
         self.language=language
-        self.version=version
+        self.Version=Version
         self.CurrentChatEdit={'control_type':'Edit','auto_id':'chat_input_field'}#微信主界面下当前的聊天窗口
         self.InputEdit={'control_type':'Edit','auto_id':'chat_input_field'}#好友独立聊天窗口内的文本编辑框
         self.SnsEdit={'title':'','control_type':'Edit','class_name':"mmui::XValidatorTextEdit"}#朋友圈发布界面内的文本编辑框
@@ -292,14 +293,14 @@ class Edit_Control():
             self.ChangeRemarkEdit={'title':'修改備註','control_type':'Edit'}#添加好友界面内的修改备注 
 
 class Group_Control():
-    def __init__(self,language=language,version=version):
+    def __init__(self,language=language,Version=Version):
         self.language=language
         #版本
-        self.version=version
+        self.Version=Version
         self.ContactProfileGroup={'class_name':'mmui::XView','auto_id':"profile_view",'control_type':'Group'}#通讯录的好友详细信息所处面板
         self.SnsPublishGroup={'auto_id':'SnsPublishPanel','control_type':'Group'}#微信朋友圈后发布按钮点击后的面板
         self.ContactProfileViewGroup={'title':'','control_type':'Group','class_name':'mmui::ContactProfileView'}#添加好友界面内搜索微信号后弹出的好友信息(带有添加到通讯录按钮)组
-        if '4.1.9' in self.version:
+        if '4.1.9' in self.Version:
              self.ContactProfileViewGroup={'title':'','control_type':'Group','class_name':'mmui::ProfileView'}#添加好友界面内搜索微信号后弹出的好友信息(带有添加到通讯录按钮)组
         if self.language=='简体中文':
             self.AtGroup={'title':'提醒谁看','class_name':'mmui::PublishComponent','control_type':'Group'}#发布微信朋友圈内的提醒谁看
@@ -320,9 +321,9 @@ class Group_Control():
 
 class Independent_window_Control():
     '''独立于微信主界面,将微信主界面关闭后仍能在桌面显示的窗口Ui'''
-    def __init__(self,language=language,version=version):
+    def __init__(self,language=language,Version=Version):
         self.language=language
-        self.version=version
+        self.Version=Version
         self.ChatHistoryWindow={'control_type':'Window','class_name':'mmui::SearchMsgUniqueChatWindow','framework_id':'Qt'}#聊天记录窗口
         if self.language=='简体中文':
             self.AddFriendWindow={'title':'添加朋友','class_name':"mmui::AddFriendWindow",'control_type':'Window'}#添加朋友窗口
@@ -362,9 +363,9 @@ class Independent_window_Control():
             self.VoipCallWindow={'title':'微信語音/視訊通話 ','class_name':'mmui::VOIPWindow'}#接通语音或视频电话后的通话窗口
 
 class ListItem_Control():
-    def __init__(self,language=language,version=version):
+    def __init__(self,language=language,Version=Version):
         self.language=language
-        self.version=version
+        self.Version=Version
         '''微信主界面内所有类型为ListItem的UI控件'''
         self.SessionListItem={'control_type':'ListItem','class_name':'mmui::ChatSessionCell'}#微信会话列表中的聊天对象
         self.SnsContentListItem={'control_type':'ListItem','class_name':'mmui::TimeLineContentCell'}#朋友圈内容ListItem
@@ -424,9 +425,9 @@ class ListItem_Control():
             self.MobileSearchListItem={'title':'網路搜尋手機/QQ 號碼：','control_type':'ListItem'}#在顶部搜索的是数字组合时出现的查找手机号qq好
 
 class List_Control():
-    def __init__(self,language=language,version=version):
+    def __init__(self,language=language,Version=Version):
         self.language=language
-        self.version=version
+        self.Version=Version
         self.ContactsList={'auto_id':'primary_table_.contact_list','control_type':'List'}#通讯录中的通讯录列表
         self.SideList={'control_type':'List','class_name':'mmui::ContactsManagerControlView'}#通讯录管理界面左侧侧边栏
         self.ContactsManageList={'control_type':'List','class_name':'mmui::ContactsManagerControlView'}#通讯录管理界面左侧列表
@@ -455,24 +456,26 @@ class List_Control():
 
 class Login_window_Control():
     '''登录界面内的第一级ui'''
-    def __init__(self,language=language,version=version):
+    def __init__(self,language=language,Version=Version):
         self.language=language
-        self.version=version
+        self.Version=Version
         if self.language=='简体中文':
             self.LoginWindow={'title':'微信','class_name':'mmui::LoginWindow'}#登录微信界面
             self.LoginButton={'control_type':'Button','title':'进入微信'}#进入微信按钮
+            self.SwitchText={'control_type':'Text','title':'切换账号'}#切换账号按钮
         if self.language=='English':
             self.LoginWindow={'title':'Weixin','class_name':'mmui::LoginWindow'}#登录微信界面
             self.LoginButton={'control_type':'Button','title':'Enter Weixin'}#进入微信按钮
+            self.SwitchText={'control_type':'Text','title':'Switch Account'}#切换账号按钮
         if self.language=='繁體中文':
             self.LoginWindow={'title':'微信','class_name':'mmui::LoginWindow'}#登录微信界面
             self.LoginButton={'control_type':'Button','title':'進入微信'}#进入微信按钮
-
+            self.SwitchText={'control_type':'Text','title':'切換賬號'}#进入微信按钮{'control_type':'Button','title':'切换账号'}#进入微信按钮
 class Main_window_Control():
     '''主界面下所有的第一级Ui'''
-    def __init__(self,language=language,version=version):
+    def __init__(self,language=language,Version=Version):
         self.language=language
-        self.version=version
+        self.Version=Version
         self.CurrentChatWindow={'control_type':'Edit','title':'Edit'}#主界面右侧的聊天窗口
         self.EditArea={'control_type':'Edit','class_name':"mmui::ChatInputField"}#好友主界面的聊天编辑区域
         self.SearchResult={'title':'','control_type':'List','auto_id':'search_list'}#主界面顶部搜索栏搜索内容的结果列表
@@ -499,9 +502,9 @@ class Main_window_Control():
             self.FriendChatList={'title':'訊息','control_type':'List'}#主界面右侧聊天区域内与好友的消息列表
 
 class MenuItem_Control():
-    def __init__(self,language=language,version=version):
+    def __init__(self,language=language,Version=Version):
         self.language=language
-        self.version=version
+        self.Version=Version
         if self.language=='简体中文':
             self.ForwardMenuItem={'title':'转发...','control_type':'MenuItem'}#右键后的转发消息MenuItem
             self.CopyMenuItem={'title':'复制','control_type':'MenuItem'}#右键菜单里的复制消息
@@ -546,24 +549,24 @@ class MenuItem_Control():
             self.CopyLinkMenuItem={'title':'複製連結','auto_id':'XMenuItem','control_type':'MenuItem'}#在收藏界面右键菜单里的复制链接选项目
 
 class Menu_Control():
-    def __init__(self,language=language,version=version):
-        self.version=version
+    def __init__(self,language=language,Version=Version):
+        self.Version=Version
         self.language=language
         self.RightClickMenu={'title':'','control_type':'Menu','class_name':'CMenuWnd','framework_id':'Win32'}#微信界面内右键后弹出的菜单
 
 class Pane_Control():
-    def __init__(self,language=language,version=version):
+    def __init__(self,language=language,Version=Version):
         self.language=language
-        self.version=version
+        self.Version=Version
         self.ConfirmPane={'title':'','class_name':'WeUIDialog','control_type':'Pane'}#通用的确认框
         self.GroupInvitationPane={'control_type':'Pane','class_name':'Chrome_WidgetWin_0','title':''}#群聊邀请卡片链接(40人以上群聊拉人时触发)点击后弹出的pane
         self.OfficialAccountPane={'title':'公众号','control_type':'Pane','class_name':'Chrome_WidgetWin_0','framework_id':'Win32'}#公众号窗口
 
 class SideBar_Control():
     '''主界面侧导航栏下的所有Ui'''
-    def __init__(self,language=language,version=version):
+    def __init__(self,language=language,Version=Version):
         self.language=language
-        self.version=version
+        self.Version=Version
         if self.language=='简体中文':
             self.Weixin={'title':'微信','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的微信按钮
             self.Contacts={'title':'通讯录','control_type':'Button'}#主界面左侧的通讯录按钮
@@ -597,9 +600,9 @@ class SideBar_Control():
 
 class Text_Control():
     '''微信主界面以及设置界面内所有类型为Text的UI控件'''
-    def __init__(self,language=language,version=version):
+    def __init__(self,language=language,Version=Version):
         self.language=language
-        self.version=version
+        self.Version=Version
         self.CurrentChatNameText={'auto_id':"content_view.top_content_view.title_h_view.left_v_view.left_content_v_view.left_ui_.big_title_line_h_view.current_chat_name_label",
         'control_type':"Text"}#当前
         self.GroupLabelText={'auto_id':"content_view.top_content_view.title_h_view.left_v_view.left_content_v_view.left_ui_.big_title_line_h_view.current_chat_count_label",'control_type':'Text'}#聊天界面是群聊时顶部才会出现的文本
@@ -642,9 +645,9 @@ class Text_Control():
             
 
 class TabItem_Control():
-    def __init__(self,language=language,version=version):
+    def __init__(self,language=language,Version=Version):
         self.language=language
-        self.version=version
+        self.Version=Version
         if self.language=='简体中文':
             self.GeneralTabItem={'title':'通用设置','control_type':'TabItem'}#微信设置界面里左侧的通用设置Tabitem
             self.MyAccountTabItem={'title':'账号设置','control_type':'TabItem'}#微信设置界面里左侧的账号设置Tabitem
@@ -680,9 +683,9 @@ class TabItem_Control():
             self.DateTabItem={'title':'日期','control_type':'TabItem'}#微信聊天记录界面里顶部的日期Tabitem
 
 class Window_Control():
-    def __init__(self,language=language,version=version):
+    def __init__(self,language=language,Version=Version):
         self.language=language
-        self.version=version
+        self.Version=Version
         self.ChatHistoryWindow={'control_type':'Window','class_name':'mmui::SearchMsgUniqueChatWindow','framework_id':'Qt'}#聊天记录窗口
         self.SettingsMenu={'class_name':'SetMenuWnd','control_type':'Window'}#设置与其他按钮按下后的菜单栏
         self.PopUpProfileWindow={'title':'Weixin','control_type':'Window','class_name':'mmui::ProfileUniquePop'}#好友设置界面点击头像后弹出的个人简介窗口
@@ -747,19 +750,20 @@ class Window_Control():
             self.VoipCallWindow={'title':'微信語音/視訊通話 ','class_name':'mmui::VOIPWindow'}#接通语音或视频电话后的通话窗口
             self.PrivacyWindow={'title':'朋友權限','class_name':'mmui::ProfileUniquePop'}#好友权限窗口,4.1.9点击好友权限后弹出的窗口独立于桌面了
 
-Main_window=Main_window_Control(language=language,version=version)#主界面UI
-SideBar=SideBar_Control(language=language,version=version)#侧边栏UI
-Independent_window=Independent_window_Control(language=language,version=version)#独立主界面UI
-Buttons=Button_Control(language=language,version=version)#所有Button类型UI
-Edits=Edit_Control(language=language,version=version)#所有Edit类型UI
-Texts=Text_Control(language=language,version=version)#所有Text类型UI
-TabItems=TabItem_Control(language=language,version=version)#所有TabIem类型UI
-Lists=List_Control(language=language,version=version)#所有列表类型UI
-Panes=Pane_Control(language=language,version=version)#所有Pane类型UI
-Windows=Window_Control(language=language,version=version)#所有Window类型UI
-CheckBoxes=CheckBox_Control(language=language,version=version)#所有CheckBox类型UI
-MenuItems=MenuItem_Control(language=language,version=version)#所有MenuItem类型UI
-Menus=Menu_Control(language=language,version=version)#所有Menu类型UI
-Groups=Group_Control(language=language,version=version)#所有Group类型UI
-Customs=Custom_Control(language=language,version=version)#所有Custom类型UI
-ListItems=ListItem_Control(language=language,version=version)#所有ListItems类型UI
+Main_window=Main_window_Control(language=language,Version=Version)#主界面UI
+Login_window=Login_window_Control(language=language,Version=ValueError)#登录界面UI
+Independent_window=Independent_window_Control(language=language,Version=Version)#独立主界面UI
+SideBar=SideBar_Control(language=language,Version=Version)#侧边栏UI
+Buttons=Button_Control(language=language,Version=Version)#所有Button类型UI
+Edits=Edit_Control(language=language,Version=Version)#所有Edit类型UI
+Texts=Text_Control(language=language,Version=Version)#所有Text类型UI
+TabItems=TabItem_Control(language=language,Version=Version)#所有TabIem类型UI
+Lists=List_Control(language=language,Version=Version)#所有列表类型UI
+Panes=Pane_Control(language=language,Version=Version)#所有Pane类型UI
+Windows=Window_Control(language=language,Version=Version)#所有Window类型UI
+CheckBoxes=CheckBox_Control(language=language,Version=Version)#所有CheckBox类型UI
+MenuItems=MenuItem_Control(language=language,Version=Version)#所有MenuItem类型UI
+Menus=Menu_Control(language=language,Version=Version)#所有Menu类型UI
+Groups=Group_Control(language=language,Version=Version)#所有Group类型UI
+Customs=Custom_Control(language=language,Version=Version)#所有Custom类型UI
+ListItems=ListItem_Control(language=language,Version=Version)#所有ListItems类型UI

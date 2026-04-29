@@ -53,10 +53,11 @@ class globalConfig:
             cls._instance._search_pages=5
             cls._instance._window_maximize=False
             cls._instance._send_delay=0.2
+            cls._instance._audio_length=60
             cls._instance._clear=True
             cls._window_size=(1000,1000)
             cls._language='简体中文'
-            cls._version='4.1.8.107'
+            cls._Version='4.1.8.107'
         return cls._instance
     
     @property
@@ -135,6 +136,16 @@ class globalConfig:
         if not isinstance(value,float):
             raise TypeError(f"send_delay必须是float类型,但传入了{type(value)}:{value}")
         self._send_delay=value
+    @property
+    def audio_length(self):
+        '''微信当前的版本(4.1.9之后有变动)'''
+        return self._audio_length
+    
+    @audio_length.setter
+    def audio_length(self,value):
+        if not isinstance(value,int):
+            raise TypeError(f"audio_length必须是int类型,但传入了{type(value)}:{value}")
+        self._audio_length=value
     
     @property
     def clear(self):
@@ -156,20 +167,20 @@ class globalConfig:
     def language(self,value):
         if not isinstance(value,str):
             raise TypeError(f"language必须是str类型,但传入了{type(value)}:{value}")
-        if self.language not in {'简体中文','English','繁体中文'}:
+        if value not in {'简体中文','English','繁體中文'}:
             raise ValueError(f'language的取值为{'简体中文','English','繁體中文'}!')
         self._language=value
     
     @property
-    def version(self):
+    def Version(self):
         '''微信当前的版本(4.1.9之后有变动)'''
-        return self._version
+        return self._Version
     
-    @version.setter
-    def version(self,value):
+    @Version.setter
+    def Version(self,value):
         if not isinstance(value,str):
-            raise TypeError(f"version须是str类型,但传入了{type(value)}:{value}")
-        self._version=value
+            raise TypeError(f"Version必须是str类型,但传入了{type(value)}:{value}")
+        self._Version=value
 #全局实例
 GlobalConfig=globalConfig()
 #微信语言检测
@@ -209,7 +220,7 @@ def get_weixin_version():
         raise NotInstalledError
 #检测不到只有可能是WechatAppex.exe没有被初始化过(需要打开一次小程序面板或视频号)或微信没有启动
 language=language_detector()
-version=get_weixin_version()
-GlobalConfig.version=version
-if language is None:warn(message=f"无法探查到微信当前语言,已默认设定当前微信语言为简体中文,若需自动检测，请手打打开一次视频号或小程序面板,亦可自行设定",category=LanguageDetectionFailedWarning)
+Version=get_weixin_version()
+GlobalConfig.Version=Version
+if language is None:warn(message=f"无法探查到微信当前语言,若需自动检测，请手打打开一次视频号或小程序面板,亦可自行设定",category=LanguageDetectionFailedWarning)
 if language is not None:GlobalConfig.language=language

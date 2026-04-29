@@ -3,10 +3,10 @@ import os
 import time
 import emoji
 import pyautogui
-from functools import wraps
+import soundfile as sf
+import sounddevice as sd
+from packaging import version
 from pywinauto import WindowSpecification,Desktop,mouse
-from pywinauto.controls.uia_controls import ListItemWrapper#TypeHint要用到
-from .Errors import TimeNotCorrectError
 from .Config import GlobalConfig
 from .WeChatTools import Navigator,Tools
 from .WinSettings import SystemSettings
@@ -15,7 +15,7 @@ from .Uielements import Main_window,SideBar,Buttons,Edits,Lists,Windows,Texts
 pyautogui.FAILSAFE=False#防止鼠标在屏幕边缘处造成的误触
 desktop=Desktop(backend='uia')#windows桌面WindowSpecification示例
 language=GlobalConfig.language#微信语言
-
+Version=GlobalConfig.Version#微信版本
 class Regex_Pattern():
     '''微信内常用正则pattern,适配多语言'''
     def __init__(self,language=language):
@@ -339,191 +339,63 @@ class ColorMatch():
             mouse.click(coords=(fallback_x, fallback_y))
             return False
 
+class TimeStamp():
+    '关于微信内的一些时间戳'
+    def __init__(self,language=language,Version=Version):
+        self.language=language
+        self.Version=Version
 
-def send_messages_to_friend(main_window:WindowSpecification,messages:list[str],at_members:list[str]=[],at_all:bool=False,send_delay:float=None):
-    '''
-    该函数用于给当前微信界面内所在的好友发送信息
-    Args:
-        main_window:已切换到某个好友聊天框后的微信主界面或者是单独的聊天窗口
-        messages:所有待发送消息列表。格式:message=["消息1","消息2"]
-        at_members:群聊内所有需要@的群成员昵称列表(注意必须是群昵称)
-        at_all:群聊内@所有人,默认为False
-        send_delay:发送单条消息延迟,单位:秒/s,默认0.2s(0.1-0.2之间是极限)。
-        clear:是否删除编辑区域已有的内容,默认删除
-    '''
-    if send_delay is None:
-        send_delay=GlobalConfig.send_delay
-    edit_area=main_window.child_window(**Edits.CurrentChatEdit)
-    if not edit_area.exists(timeout=0.1):
-        print('非正常好友,无法发送消息!')
-        return 
-    if at_all:
-        At_all(main_window)
-    if at_members:
-        At(main_window,at_members)
-    for message in messages:
-        if 0<len(message)<2000:
-            edit_area.click_input()
-            edit_area.set_text(message)
-            time.sleep(send_delay)
-            pyautogui.hotkey('alt','s',_pause=False)
-        elif len(message)>2000:#字数超过200字发送txt文件
-            SystemSettings.convert_long_text_to_txt(message)
-            pyautogui.hotkey('ctrl','v',_pause=False)
-            time.sleep(send_delay)
-            pyautogui.hotkey('alt','s',_pause=False)
-
-def message_chain(main_window:WindowSpecification,content:str=None,theme:str=None,example:str=None,description:str=None):
-    '''
-    该函数用来在当前微信界面所在的群聊发起接龙
-    Args:
-        main_window:已切换到某个群聊后的微信主界面或者是单独的聊天窗口
-        content:发起接龙时自己所填的内容
-        theme:接龙的主题
-        example:接龙的例子
-        description:接龙详细描述
-        search_pages:在会话列表中查找群聊时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面 
-        is_maximize:微信界面是否全屏,默认不全屏。
-        close_weixin:任务结束后是否关闭微信,默认关闭
-    '''
-    edit_area=main_window.child_window(**Edits.CurrentChatEdit)
-    if not edit_area.exists(timeout=0.1):
-        print(f'非正常好友,无法发送消息')
-        return
-    if Tools.is_group_chat(main_window):
-        edit_area.set_text('#接龙')
-        pyautogui.press('down')
-        pyautogui.press('enter')
-        solitaire_window=main_window.child_window(**Windows.SolitaireWindow)
-        solitaire_button=solitaire_window.child_window(**Buttons.SolitaireButton)
-        solitaire_list=solitaire_window.child_window(**Lists.SolitaireList)
-        if content is not None:
-            SystemSettings.copy_text_to_clipboard(content)
-            solitaire_list.click_input()#自己填写的内容正好在接龙列表的中间,所以直接click_input()
-            pyautogui.hotkey('ctrl','a')#全选删除然后复制content
-            pyautogui.press('backspace')
-            pyautogui.hotkey('ctrl','v')
-        if isinstance(theme,str):
-            solitaire_window.child_window(control_type='Edit',found_index=0).set_text(theme)
-        if isinstance(example,str):
-            solitaire_window.child_window(control_type='Edit',found_index=1).set_text(example)
-        if isinstance(description,str):
-            text=solitaire_window.child_window(**Texts.AddContentText)
-            rec=text.rectangle()
-            position=rec.left+2,rec.mid_point().y
-            mouse.click(coords=position)
-            solitaire_window.child_window(control_type='Edit',found_index=2).set_text(description)
-        solitaire_button.click_input()
-
-
-def send_files_to_friend(main_window:WindowSpecification,files:list[str],with_messages:bool=False,messages:list=[str],messages_first:bool=False,
-    send_delay:float=None)->None:
-    '''
-    该函数用于给单个好友或群聊发送多个文件
-    Args:
-        main_window:已切换到某个聊天后的微信主界面或者是单独的聊天窗口
-        files:所有待发送文件所路径列表。
-        with_messages:发送文件时是否给好友发消息。True发送消息,默认为False。
-        messages:与文件一同发送的消息。格式:message=["消息1","消息2","消息3"]
-        send_delay:发送单条信息或文件的延迟,单位:秒/s,默认0.2s。
-        messages_first:默认先发送文件后发送消息,messages_first设置为True,先发送消息,后发送文件,
-    '''
-    #发送消息逻辑
-    def send_messages(messages):
-        for message in messages:
-            if 0<len(message)<2000:
-                edit_area.set_text(message)
-                pyautogui.hotkey('ctrl','v',_pause=False)
-                time.sleep(send_delay)
-                pyautogui.hotkey('alt','s',_pause=False)
-            if len(message)>2000:
-                SystemSettings.convert_long_text_to_txt(message)
-                pyautogui.hotkey('ctrl','v',_pause=False)
-                time.sleep(send_delay)
-                pyautogui.hotkey('alt','s',_pause=False)
-    #发送文件逻辑
-    def send_files(files):
-        if len(files)<=9:
-            SystemSettings.copy_files_to_clipboard(filepaths_list=files)
-            pyautogui.hotkey("ctrl","v")
-            time.sleep(send_delay)
-            pyautogui.hotkey('alt','s',_pause=False)
-        else:
-            files_num=len(files)
-            rem=len(files)%9
-            for i in range(0,files_num,9):
-                if i+9<files_num:
-                    SystemSettings.copy_files_to_clipboard(filepaths_list=files[i:i+9])
-                    pyautogui.hotkey('ctrl','v')
-                    time.sleep(send_delay)
-                    pyautogui.hotkey('alt','s',_pause=False)
-            if rem:
-                SystemSettings.copy_files_to_clipboard(filepaths_list=files[files_num-rem:files_num])
-                pyautogui.hotkey('ctrl','v')
-                time.sleep(send_delay)
-                pyautogui.hotkey('alt','s',_pause=False)
-    
-    if send_delay is None:
-        send_delay=GlobalConfig.send_delay
-    #对发送文件校验
-    if files:            
-        files=[file for file in files if os.path.isfile(file)]
-        files=[file for file in files if 0<os.path.getsize(file)<1073741824]#0到1g之间的文件才可以发送
-    if not files:
-        return
-    edit_area=main_window.child_window(**Edits.CurrentChatEdit)
-    if not edit_area.exists(timeout=0.1):
-        print(f'非正常好友,无法发送文件!')
-        return 
-    if with_messages  and messages_first:
-        send_messages(messages)
-        send_files(files)
-    if with_messages and not messages_first:
-        send_files(files)
-        send_messages(messages)
-    if not with_messages:
-        send_files(files)       
-
-def get_new_message_num(main_window:WindowSpecification=None,is_maximize:bool=None,close_weixin:bool=None):
-    '''
-    该函数用来获取侧边栏左侧微信按钮上的红色新消息总数
-    Args:
-        main_window:微信主界面,可以不传入,不传入时自动打开微信
-        is_maximize:微信界面是否全屏，默认不全屏
-        close_weixin:任务结束后是否关闭微信，默认关闭
-    Returns:
-        new_message_num:新消息总数
-    '''
-    if is_maximize is None:
-        is_maximize=GlobalConfig.is_maximize
-    if close_weixin is None:
-        close_weixin=GlobalConfig.close_weixin
-    if main_window is None:
-        main_window=Navigator.open_weixin(is_maximize=is_maximize)
-    weixin_button=main_window.child_window(auto_id="MainView.main_tabbar", control_type="ToolBar").children()[0]
-    #左上角微信按钮的红色消息提示(\d+条新消息)在FullDescription属性中,
-    #只能通过id来获取,id是30159，之前是30007,可能是qt组件映射关系不一样
-    full_desc=weixin_button.element_info.element.GetCurrentPropertyValue(30159)
-    new_message_num=re.search(r'\d+',full_desc)#正则提取数量
-    if close_weixin:
-        main_window.close()
-    return int(new_message_num.group(0)) if new_message_num  else 0
-
-
-def At_all(main_window:WindowSpecification):
-    '''在群里@所有人'''
-    if Tools.is_group_chat(main_window):
-        edit_area=main_window.child_window(**Edits.CurrentChatEdit)
-        mention_popover=main_window.child_window(**Windows.MentionPopOverWindow)
-        edit_area.type_keys(f'@')
-        if mention_popover.exists(timeout=0.1):
-            mention_list=mention_popover.child_window(control_type='List',title='')
-            first_item=mention_list.children()[0].window_text()#弹出列表后的第一个人
-            if first_item!='所有人':
-                pyautogui.press('backspace',presses=1)
-                print(f'你不是该群群主或管理员,无权@所有人')
+    def get_current_week_dates(self)->list[str]:
+        '''按照获取当前周的所有日期
+        Returns:
+            week_dates:['2026-04-xx',...,'2026-04-xx+7']
+        '''
+        now=time.localtime()
+        current_weekday=now.tm_wday
+        current_timestamp=time.mktime(now)
+        monday_timestamp=current_timestamp-current_weekday*24*3600
+        week_dates=[]
+        for i in range(7):
+            day_timestamp=monday_timestamp+i*24*3600
+            if self.language=='English':
+                date_str=time.strftime("%Y-%m-%d",time.localtime(day_timestamp))
+                date_str=re.sub('-0','-',date_str)
             else:
-                edit_area.type_keys('{ENTER}')
+                date_str=time.strftime("%Y年%m月%d日",time.localtime(day_timestamp))
+                date_str=re.sub('年0','年',date_str)
+            week_dates.append(date_str)
+        return week_dates
+    
+    def get_yesterday_label(self)->str:
+        '''获取昨天日期'''
+        now=time.time()
+        if self.language=='English':
+            yesterday=time.strftime("%Y-%m-%d",time.localtime(now-86400))
+            yesterday=re.sub(r'-0','-',yesterday)
+        else:
+            yesterday=time.strftime("%Y年%m月%d日",time.localtime(now-86400))
+            yesterday=re.sub(r'年0','年',yesterday) 
+        return yesterday
+    
+    def get_today_label(self)->str:
+        '''获取今天日期'''
+        if self.language=='English':
+            today_label=time.strftime("%Y-%m-%d")
+            today_label=re.sub(r'-0','-',today_label)
+        else:
+            today_label=time.strftime("%Y年%m月%d日")
+            today_label=re.sub(r'年0','年',today_label)
+        return today_label
+
+    def get_month_label(self)->str:
+        '''获取本月日期'''
+        if self.language=='English':
+            month_label=time.strftime("%Y-%m")
+            month_label=re.sub(r'-0','-',month_label)
+        else:
+            month_label=time.strftime("%Y年%m月")
+            month_label=re.sub(r'年0','年',month_label)
+        return month_label
 
 def At(main_window:WindowSpecification,at_members:list[str]):
     '''
@@ -565,7 +437,187 @@ def At(main_window:WindowSpecification,at_members:list[str]):
                     pyautogui.press('backspace',presses=len(cleaned_member)+1)
             else:
                 edit_area.set_text('')
+
+def At_all(main_window:WindowSpecification):
+    '''在群里@所有人'''
+    if Tools.is_group_chat(main_window):
+        edit_area=main_window.child_window(**Edits.CurrentChatEdit)
+        mention_popover=main_window.child_window(**Windows.MentionPopOverWindow)
+        edit_area.type_keys(f'@')
+        if mention_popover.exists(timeout=0.1):
+            mention_list=mention_popover.child_window(control_type='List',title='')
+            first_item=mention_list.children()[0].window_text()#弹出列表后的第一个人
+            if first_item!='所有人':
+                pyautogui.press('backspace',presses=1)
+                print(f'你不是该群群主或管理员,无权@所有人')
+            else:
+                edit_area.type_keys('{ENTER}')
+class ContentSender():
+    '''发送消息的一些操作,传入的参数是main_window(微信),且不涉及关闭微信窗口,便于个人二次开发'''
+    @staticmethod
+    def send_messages_to_friend(main_window:WindowSpecification,messages:list[str],send_delay:float=None):
+        '''
+        该函数用于给当前微信界面内所在的好友发送信息
+        Args:
+            main_window:已切换到某个好友聊天框后的微信主界面或者是单独的聊天窗口
+            messages:所有待发送消息列表。格式:message=["消息1","消息2"]
+            send_delay:发送单条消息延迟,单位:秒/s,默认0.2s(0.1-0.2之间是极限)。
+        '''
+        if send_delay is None:send_delay=GlobalConfig.send_delay
+        edit_area=main_window.child_window(**Edits.CurrentChatEdit)
+        if not edit_area.exists(timeout=0.1):
+            print('非正常好友,无法发送消息!')
+            return 
+        for message in messages:
+            if 0<len(message)<2000:
+                edit_area.click_input()
+                edit_area.set_text(message)
+                time.sleep(send_delay)
+                pyautogui.hotkey('alt','s',_pause=False)
+            elif len(message)>2000:#字数超过200字发送txt文件
+                SystemSettings.convert_long_text_to_txt(message)
+                pyautogui.hotkey('ctrl','v',_pause=False)
+                time.sleep(send_delay)
+                pyautogui.hotkey('alt','s',_pause=False)
+    @staticmethod
+    def send_files_to_friend(main_window:WindowSpecification,files:list[str],send_delay:float=None)->None:
+        '''
+        该函数用于给当前聊天界面内的好友或群聊发送多个文件
+        Args:
+            main_window:已切换到某个聊天后的微信主界面或者是单独的聊天窗口
+            files:所有待发送文件所路径列表。
+            send_delay:发送单条信息或文件的延迟,单位:秒/s,默认0.2s。
+        '''
+        #发送文件逻辑
+        def send_files(files):
+            if len(files)<=9:
+                SystemSettings.copy_files_to_clipboard(filepaths_list=files)
+                pyautogui.hotkey("ctrl","v")
+                time.sleep(send_delay)
+                pyautogui.hotkey('alt','s',_pause=False)
+            else:
+                files_num=len(files)
+                rem=len(files)%9
+                for i in range(0,files_num,9):
+                    if i+9<files_num:
+                        SystemSettings.copy_files_to_clipboard(filepaths_list=files[i:i+9])
+                        pyautogui.hotkey('ctrl','v')
+                        time.sleep(send_delay)
+                        pyautogui.hotkey('alt','s',_pause=False)
+                if rem:
+                    SystemSettings.copy_files_to_clipboard(filepaths_list=files[files_num-rem:files_num])
+                    pyautogui.hotkey('ctrl','v')
+                    time.sleep(send_delay)
+                    pyautogui.hotkey('alt','s',_pause=False)
+        
+        if send_delay is None:send_delay=GlobalConfig.send_delay
+        #对发送文件校验
+        if files:            
+            files=[file for file in files if os.path.isfile(file)]
+            files=[file for file in files if 0<os.path.getsize(file)<1073741824]#0到1g之间的文件才可以发送
+        if not files:return
+        edit_area=main_window.child_window(**Edits.CurrentChatEdit)
+        if not edit_area.exists(timeout=0.1):
+            print(f'非正常好友,无法发送文件!')
+            return 
+        send_files(files)
+
+    @staticmethod
+    def send_audios_to_friend(main_window:WindowSpecification,audios:list[str],audio_length:int=60,send_delay:int=None):
+        '''
+        该方法用于给当前聊天界面内的好友或群聊发送语音
+        Args:
+            friend:好友或群聊备注。格式:friend="好友或群聊备注"
+            audios:所有待发送消息列表。格式:message=["消息1","消息2"]
+            audio_length:语音长度,按照微信语音
+            send_delay:发送单条信息的延迟,单位:秒/s,默认0.2s。
+        '''
+        if send_delay is None:send_delay=GlobalConfig.send_delay
+        current_version=GlobalConfig.Version
+        if version.parse(current_version)>=version.parse('4.1.9'):
+            audios=process_audios(audios=audios,audio_length=audio_length)
+            if audios:
+                sd.default.device=SystemSettings.get_default_output()
+                edit_area=main_window.child_window(**Edits.CurrentChatEdit)
+                if not edit_area.exists(timeout=0.1):
+                    return 
+                send_audio_button=main_window.child_window(**Buttons.SendAudioButon)
+                window_center=main_window.rectangle().mid_point()
+                button_center=send_audio_button.rectangle().mid_point()
+                for samplerate,audio in audios:
+                    send_audio_button.click_input() 
+                    mouse.move(coords=(window_center.x,window_center.y))
+                    sd.play(audio,samplerate)
+                    sd.wait()
+                    mouse.click(coords=(button_center.x,button_center.y))
+                    time.sleep(send_delay)
+        else:
+            print(f'当前微信版本不支持发送语音!')
     
+    @staticmethod
+    def message_chain(main_window:WindowSpecification,content:str=None,theme:str=None,example:str=None,description:str=None):
+        '''
+        该函数用来在当前微信界面所在的群聊发起接龙
+        Args:
+            main_window:已切换到某个群聊后的微信主界面或者是单独的聊天窗口
+            content:发起接龙时自己所填的内容
+            theme:接龙的主题
+            example:接龙的例子
+            description:接龙详细描述
+        '''
+        edit_area=main_window.child_window(**Edits.CurrentChatEdit)
+        if not edit_area.exists(timeout=0.1):
+            print(f'非正常好友,无法发送消息')
+            return
+        if Tools.is_group_chat(main_window):
+            edit_area.set_text('#接龙')
+            pyautogui.press('down')
+            pyautogui.press('enter')
+            solitaire_window=main_window.child_window(**Windows.SolitaireWindow)
+            solitaire_button=solitaire_window.child_window(**Buttons.SolitaireButton)
+            solitaire_list=solitaire_window.child_window(**Lists.SolitaireList)
+            if content is not None:
+                SystemSettings.copy_text_to_clipboard(content)
+                solitaire_list.click_input()#自己填写的内容正好在接龙列表的中间,所以直接click_input()
+                pyautogui.hotkey('ctrl','a')#全选删除然后复制content
+                pyautogui.press('backspace')
+                pyautogui.hotkey('ctrl','v')
+            if isinstance(theme,str):
+                solitaire_window.child_window(control_type='Edit',found_index=0).set_text(theme)
+            if isinstance(example,str):
+                solitaire_window.child_window(control_type='Edit',found_index=1).set_text(example)
+            if isinstance(description,str):
+                text=solitaire_window.child_window(**Texts.AddContentText)
+                rec=text.rectangle()
+                position=rec.left+2,rec.mid_point().y
+                mouse.click(coords=position)
+                solitaire_window.child_window(control_type='Edit',found_index=2).set_text(description)
+            solitaire_button.click_input()
+def get_new_message_num(main_window:WindowSpecification=None,is_maximize:bool=None,close_weixin:bool=None):
+    '''
+    该函数用来获取侧边栏左侧微信按钮上的红色新消息总数
+    Args:
+        main_window:微信主界面,可以不传入,不传入时自动打开微信
+        is_maximize:微信界面是否全屏，默认不全屏
+        close_weixin:任务结束后是否关闭微信，默认关闭
+    Returns:
+        new_message_num:新消息总数
+    '''
+    if is_maximize is None:
+        is_maximize=GlobalConfig.is_maximize
+    if close_weixin is None:
+        close_weixin=GlobalConfig.close_weixin
+    if main_window is None:
+        main_window=Navigator.open_weixin(is_maximize=is_maximize)
+    weixin_button=main_window.child_window(auto_id="MainView.main_tabbar", control_type="ToolBar").children()[0]
+    #左上角微信按钮的红色消息提示(\d+条新消息)在FullDescription属性中,
+    #只能通过id来获取,id是30159，之前是30007,可能是qt组件映射关系不一样
+    full_desc=weixin_button.element_info.element.GetCurrentPropertyValue(30159)
+    new_message_num=re.search(r'\d+',full_desc)#正则提取数量
+    if close_weixin:
+        main_window.close()
+    return int(new_message_num.group(0)) if new_message_num  else 0
+
 def scan_for_new_messages(main_window:WindowSpecification=None,delay:float=0.3,is_maximize:bool=None,close_weixin:bool=None)->dict:
     '''
     该函数用来扫描检查一遍会话列表中的所有新消息,返回发送对象以及新消息数量(不包括免打扰)
@@ -608,9 +660,7 @@ def scan_for_new_messages(main_window:WindowSpecification=None,delay:float=0.3,i
     new_message_num=re.search(r'\d+',full_desc)#正则提取数量
     #微信会话列表内ListItem标准格式:备注\s(已置顶)\s(\d+)条未读\s最后一条消息内容\s时间
     new_message_pattern=Regex_Patterns.newMessage_pattern#只给数量分组.group(1)获取
-    if not new_message_num:
-        print(f'没有新消息')
-        return {}
+    if not new_message_num:return {}
     if new_message_num:
         new_message_num=int(new_message_num.group(0))
         session_list=main_window.child_window(**Main_window.SessionList)
@@ -636,5 +686,27 @@ def scan_for_new_messages(main_window:WindowSpecification=None,delay:float=0.3,i
         main_window.close()
     return newMessages_dict
 
+def process_audios(audios:list[str],audio_length:int=60):
+    '''
+    Args:
+        audios:所有音频路径列表
+        audio_length:音频长度限制,按照微信语音的限制默认只获取前60s
+    '''
+    #soundfile库支持的格式
+    supported_formats={'.WAV', '.AIFF', '.AU', '.RAW', '.PAF', '.SVX', '.NIST', '.VOC', '.IRCAM', '.W64', '.MAT4', '.MAT5', '.PVF', '.XI', 
+    '.HTK', '.SDS', '.AVR', '.WAVEX', '.SD2', '.FLAC', '.CAF', '.WVE', '.OGG', '.MPC2K', '.RF64', '.MP3'}
+    processed_audios=[]
+    for audio_file in audios: 
+        #路径存在且文件后缀在支持的音频格式内
+        if os.path.exists(audio_file) and os.path.splitext(audio_file)[1].upper() in supported_formats:      
+            audio,samplerate=sf.read(audio_file)
+            duration=len(audio)//samplerate
+            if duration>audio_length:
+                samples_to_play=min(audio_length*samplerate,len(audio))
+                audio=audio[:samples_to_play]
+            processed_audios.append((samplerate,audio))#[(48000,ndarray),(32000,ndarray)...]
+    return processed_audios
+
 Special_Labels=Special_Label(language=language)#所有特殊符号或文本
 Regex_Patterns=Regex_Pattern(language=language)#所有正则表达式
+TimeStamps=TimeStamp(language=language,Version=Version)#所有常用的时间戳
