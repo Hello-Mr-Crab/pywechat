@@ -360,18 +360,19 @@ class Tools():
         Returns:
             lang:简体中文,繁體中文,English
         '''
-        cmdline=''
         lang=None
+        cmdline=''
+        cmdlines=[]
         for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
             if proc.info['name'] and 'wechatappex' in proc.info['name'].lower():
-                cmdline=proc.info['cmdline']
-                if not cmdline:
-                    continue
-        cmd_str=' '.join(cmdline).lower()
-        if '--lang=zh-cn' in cmd_str:lang='简体中文'
-        if '--lang=zh-tw' in cmd_str:lang='繁體中文'
-        if '--lang=en' in cmd_str:lang='English'
+                cmdlines.append(proc.info['cmdline'])#wechatappex.exr不止一个！所以把所有的exe命令行参数都保留
+        for cmdline in cmdlines:
+            cmd_str=' '.join(cmdline).lower()
+            if '--lang=zh-cn' in cmd_str:lang='简体中文'
+            if '--lang=zh-tw' in cmd_str:lang='繁體中文'
+            if '--lang=en' in cmd_str:lang='English'
         return lang
+
 
     @staticmethod
     def cancel_pin(main_window:WindowSpecification):
@@ -803,6 +804,28 @@ class Navigator():
         collections_button=main_window.child_window(**SideBar.Collections)
         collections_button.click_input()
         return main_window
+    
+    @staticmethod
+    def open_note(is_maximize:bool=None)->WindowSpecification:
+        '''
+        该方法用于打开新建笔记界面
+        Args:
+            is_maximize:微信界面是否全屏,默认不全屏。
+        '''
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        NoteWindow=desktop.window(**Windows.NoteWindow)
+        if NoteWindow.exists(timeout=1):#避免多开,微信的笔记窗口竟然可以多开
+            NoteWindow.restore()
+            NoteWindow=Tools.move_window_to_center(Window=Windows.NoteWindow)
+        else:
+            main_window=Navigator.open_weixin(is_maximize=is_maximize)
+            collections_button=main_window.child_window(**SideBar.Collections)
+            collections_button.click_input()
+            side_list=main_window.child_window(**Lists.CollectionList)
+            side_list.children(control_type='ListItem')[0].click_input()
+            NoteWindow=Tools.move_window_to_center(Window=Windows.NoteWindow)
+        return NoteWindow
     
     @staticmethod
     def open_chatinfo(friend:str,is_maximize:bool=None,search_pages:int=None)->tuple[WindowSpecification,WindowSpecification]:

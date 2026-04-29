@@ -190,18 +190,19 @@ def language_detector()->(str|None):
     Returns:
         lang:简体中文,繁體中文,English
     '''
-    cmdline=''
     lang=None
+    cmdline=''
+    cmdlines=[]
     for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
         if proc.info['name'] and 'wechatappex' in proc.info['name'].lower():
-            cmdline=proc.info['cmdline']
-            if not cmdline:
-                continue
-    cmd_str=' '.join(cmdline).lower()
-    if '--lang=zh-cn' in cmd_str:lang='简体中文'
-    if '--lang=zh-tw' in cmd_str:lang='繁體中文'
-    if '--lang=en' in cmd_str:lang='English'
+            cmdlines.append(proc.info['cmdline'])#wechatappex.exr不止一个！所以把所有的exe命令行参数都保留
+    for cmdline in cmdlines:
+        cmd_str=' '.join(cmdline).lower()
+        if '--lang=zh-cn' in cmd_str:lang='简体中文'
+        if '--lang=zh-tw' in cmd_str:lang='繁體中文'
+        if '--lang=en' in cmd_str:lang='English'
     return lang
+language_detector()
 
 def get_weixin_version():
     '''通过查询注册表来获取微信版本

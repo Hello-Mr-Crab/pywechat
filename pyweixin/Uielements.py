@@ -58,7 +58,7 @@ class Button_Control():
             self.OfficialAcountButton={'title':'公众号','control_type':'Button'}#搜一搜内公众号按钮                                                                                                                                
             self.SettingsAndOthersButton={'title':'设置','control_type':'Button'}#设置按钮
             self.ConfirmQuitGroupButton={'title':'退出','control_type':'Button'}#确认退出群聊按钮
-            self.CerateNewNote={'title':'新建笔记','control_type':'Button'}#创建一个新笔记按钮
+            self.CerateNewNoteButton={'title':'新建笔记','control_type':'Button'}#创建一个新笔记按钮
             self.CerateGroupChatButton={'title':"发起群聊",'control_type':"Button"}#创建新群聊按钮
             self.AddNewFriendButon={'title':'添加朋友','control_type':'Button'}#添加新朋友按钮
             self.AddToContactsButton={'control_type':'Button','title':'添加到通讯录'}#添加新朋友时的添加至通讯录内按钮
@@ -110,7 +110,7 @@ class Button_Control():
             self.GeneralButton={'control_type':'Button','title':'General'}#设置界面内的通用按钮
             self.CheckMoreMessagesButton={'title':'View more messages','control_type':'Button','found_index':1}#好友聊天界面内的查看更多消息按钮
             self.OfficialAcountButton={'title':'Official Accounts','control_type':'Button'}#搜一搜内公众号按钮                                                                                                                                
-            self.CerateNewNote={'title':'New Note','control_type':'Button'}#创建一个新笔记按钮
+            self.CerateNewNoteButton={'title':'New Note','control_type':'Button'}#创建一个新笔记按钮
             self.CerateGroupChatButton={'title':"Start Group Chat",'control_type':"Button"}#创建新群聊按钮
             self.AddNewFriendButon={'title':'Add Contacts','control_type':'Button'}#添加新朋友按钮
             self.AddToContactsButton={'control_type':'Button','title':'Add to Contacts'}#添加新朋友时的添加至通讯录内按钮
@@ -164,7 +164,7 @@ class Button_Control():
             self.CheckMoreMessagesButton={'title':'查看更多訊息','control_type':'Button','found_index':1}#好友聊天界面内的查看更多消息按钮
             self.OfficialAcountButton={'title':'官方賬號','control_type':'Button'}#搜一搜内公众号按钮                                                                                                                                
             self.ConfirmQuitGroupButton={'title':'確定','control_type':'Button'}#确认退出群聊按钮
-            self.CerateNewNote={'title':'新進筆記','control_type':'Button'}#创建一个新笔记按钮
+            self.CerateNewNoteButton={'title':'新進筆記','control_type':'Button'}#创建一个新笔记按钮
             self.CerateGroupChatButton={'title':"建立群組",'control_type':"Button"}#创建新群聊按钮
             self.AddNewFriendButon={'title':'新增朋友','control_type':'Button'}#添加新朋友按钮
             self.AddToContactsButton={'control_type':'Button','title':'新增到通訊錄'}#添加新朋友时的添加至通讯录内按钮
@@ -437,6 +437,7 @@ class List_Control():
         self.SolitaireList={'control_type':'List','auto_id':'solitaire_list'}#群聊接龙界面内的接龙列表
         self.CommonGroupList={'control_type':'List','auto_id':'same_chat_room_contact_list'}#共同群聊列表
         self.SearchResult={'title':'','control_type':'List','auto_id':'search_list'}#主界面顶部搜索栏搜索内容的结果列表
+        self.CollectionList={'auto_id':'fav_category_list','control_type':'List'}#收藏界面左侧的列表
         self.LinkList={'auto_id':'fav_detail_list','control_type':'List'}#收藏界面内的链接列表
         if self.language=='简体中文':
             self.QuickActionsList={'title':'快捷操作','control_type':'List'}#主界面点击+号后弹出的快捷操作列表
@@ -580,7 +581,7 @@ class SideBar_Control():
         if self.language=='English':
             self.Weixin={'title':'Weixin','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的微信按钮
             self.Contacts={'title':'Contacts','control_type':'Button'}#主界面左侧的通讯录按钮
-            self.Collections={'title':'Collections','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的收藏按钮
+            self.Collections={'title':'Favorites','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的收藏按钮
             self.Moments={'title':'Moments','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的朋友圈按钮
             self.Search={'title':'Search','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的搜一搜按钮
             self.Channels={'title':'Channels','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的视频号按钮
@@ -710,7 +711,7 @@ class Window_Control():
             self.MiniProgramWindow={'title':'微信','control_type':'Pane','class_name':'Chrome_WidgetWin_0'}#小程序面板窗口
             self.SearchWindow={'title':'微信','class_name':'Chrome_WidgetWin_0','control_type':'Pane'}#搜一搜窗口
             self.ChannelsWindow={'title':'微信','class_name':'Chrome_WidgetWin_0','control_type':'Pane'}#视频号窗口
-            self.NoteWindow={'title':'笔记','class_name':'FavNoteWnd','framework_id':"Win32"}#笔记窗口
+            self.NoteWindow={'title':'笔记','class_name':'Chrome_WidgetWin_0','framework_id':"Win32"}#笔记窗口
             self.IncomingCallWindow={'title':'微信','class_name':'mmui::VOIPTrayWindow'}#微信来电(视频或语音)桌面右下角的托盘窗口
             self.VoipCallWindow={'title':'微信音视频通话','class_name':'mmui::VOIPWindow'}#接通语音或视频电话后的通话窗口
             self.PrivacyWindow={'title':'朋友权限','class_name':'mmui::ProfileUniquePop'}#好友权限窗口,4.1.9点击好友权限后弹出的窗口独立于桌面了
@@ -728,7 +729,7 @@ class Window_Control():
             self.MiniProgramWindow={'title':'WeChat','control_type':'Pane','class_name':'Chrome_WidgetWin_0'}#小程序面板窗口
             self.SearchWindow={'title':'WeChat','class_name':'Chrome_WidgetWin_0','control_type':'Pane'}#搜一搜窗口
             self.ChannelsWindow={'title':'WeChat','class_name':'Chrome_WidgetWin_0','control_type':'Pane'}#视频号窗口
-            self.NoteWindow={'title':'Note','class_name':'FavNoteWnd','framework_id':"Win32"}#笔记窗口
+            self.NoteWindow={'title':'Note','class_name':'Chrome_WidgetWin_0','framework_id':"Win32"}#笔记窗口
             self.IncomingCallWindow={'title':'Weixin','class_name':'mmui::VOIPTrayWindow'}#微信来电(视频或语音)桌面右下角的托盘窗口
             self.VoipCallWindow={'title':'Weixin Voice & Video Calls','class_name':'mmui::VOIPWindow'}#接通语音或视频电话后的通话窗口
         if self.language=='繁體中文':
@@ -745,7 +746,7 @@ class Window_Control():
             self.MiniProgramWindow={'title':'WeChat','control_type':'Pane','class_name':'Chrome_WidgetWin_0'}#小程序面板窗口
             self.SearchWindow={'title':'WeChat','class_name':'Chrome_WidgetWin_0','control_type':'Pane'}#搜一搜窗口
             self.ChannelsWindow={'title':'WeChat','class_name':'Chrome_WidgetWin_0','control_type':'Pane'}#视频号窗口
-            self.NoteWindow={'title':'筆記','class_name':'FavNoteWnd','framework_id':"Win32"}#笔记窗口
+            self.NoteWindow={'title':'筆記','class_name':'Chrome_WidgetWin_0','framework_id':"Win32"}#笔记窗口
             self.IncomingCallWindow={'title':'微信','class_name':'mmui::VOIPTrayWindow'}#微信来电(视频或语音)桌面右下角的托盘窗口
             self.VoipCallWindow={'title':'微信語音/視訊通話 ','class_name':'mmui::VOIPWindow'}#接通语音或视频电话后的通话窗口
             self.PrivacyWindow={'title':'朋友權限','class_name':'mmui::ProfileUniquePop'}#好友权限窗口,4.1.9点击好友权限后弹出的窗口独立于桌面了
