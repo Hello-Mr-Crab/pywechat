@@ -806,7 +806,7 @@ class Navigator():
         return main_window
     
     @staticmethod
-    def open_note(is_maximize:bool=None)->WindowSpecification:
+    def open_note(is_maximize:bool=None,close_weixin:bool=None)->WindowSpecification:
         '''
         该方法用于打开新建笔记界面
         Args:
@@ -814,8 +814,10 @@ class Navigator():
         '''
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
         NoteWindow=desktop.window(**Windows.NoteWindow)
-        if NoteWindow.exists(timeout=1):#避免多开,微信的笔记窗口竟然可以多开
+        if NoteWindow.exists(timeout=3):#看看是不是已经有在桌面上打开的避免多开,微信的笔记窗口竟然可以多开
             NoteWindow.restore()
             NoteWindow=Tools.move_window_to_center(Window=Windows.NoteWindow)
         else:
@@ -825,6 +827,8 @@ class Navigator():
             side_list=main_window.child_window(**Lists.CollectionList)
             side_list.children(control_type='ListItem')[0].click_input()
             NoteWindow=Tools.move_window_to_center(Window=Windows.NoteWindow)
+            if close_weixin:
+                main_window.close()
         return NoteWindow
     
     @staticmethod

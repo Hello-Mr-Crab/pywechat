@@ -94,7 +94,7 @@ xxx.yy
 #### 发送语音消息给好友
 ```
 '''
-微信版本>=4.1.9,且配置过虚拟驱动,具体可见
+微信版本>=4.1.9,且配置过虚拟驱动,并且安装sounddevice与soundfile库,具体可见
 https://mrcrab.blog.csdn.net/article/details/160481307?fromshare=blogdetail&sharetype=blogdetail&sharerId=160481307&sharerefer=PC&sharesource=weixin_73953650&sharefrom=from_link
 '''
 from pyweixin import Messages

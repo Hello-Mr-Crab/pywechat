@@ -279,12 +279,10 @@ class Collections():
     
 
     @staticmethod
-    def make_note(is_maximize:bool=None,close_weixin:bool=None):
+    def make_note(text:str,files:list[str]=[],is_maximize:bool=None,close_weixin:bool=None):
         '''该函数用来获取收藏界面内指定数量卡片链接的url
         Args:
-            number:卡片链接的数量
-            delete:复制链接后是否将该条卡片链接移除掉
-            delay:复制链接后的等待时间,默认为0.5s,不要设置太低
+            text:笔记内的文本
             is_maximize:微信界面是否全屏,默认全屏
             close_weixin:任务结束后是否关闭微信,默认关闭
         '''
@@ -292,7 +290,9 @@ class Collections():
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
-        Note=Navigator
+        note_window=Navigator.open_note(is_maximize=is_maximize,close_weixin=close_weixin)
+        
+
 
     @staticmethod
     def cardLink_to_url(number:int,delete:bool=False,delay:float=0.5,is_maximize:bool=None,close_weixin:bool=None)->dict[str,str]:

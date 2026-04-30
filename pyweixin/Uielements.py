@@ -39,11 +39,11 @@ class Button_Control():
     def __init__(self,language=language,Version=Version):
         self.language=language
         self.Version=Version
-        self.SendAudioButon={'title_re':'发语音','control_type':'Button'}#微信底部发送语音按钮
         self.WeixinButton={'control_type':'Button','found_index':0}#主界面下的第一个按钮,侧边栏的微信按钮
         self.SubScribeButton={'title':'关注','control_type':'Button'}#公众号窗口内的关注按钮
         self.HomePageButton={'title':'公众号主页','control_type':'Button'}#公众号主页内右上角的公众号主页按钮
         if self.language=='简体中文':
+            self.SendAudioButon={'title_re':'发语音','control_type':'Button'}#微信底部发送语音按钮
             self.AddButton={'title':'添加','control_type':'Button'}#通讯录管理点击新建标签后右侧的添加按钮
             self.AddRemarkButton={'control_type':'Button','title':'添加备注名'}#通讯录好友详情面板没有备注时的添加备注名按钮
             self.AddPhoneNumButon={'control_type':'Button','title':'添加电话'}#修改好友备注内的添加电话按钮
@@ -98,6 +98,7 @@ class Button_Control():
             self.VerifyNowButton={'title':'前往验证','control_type':'Button'}#通讯录新朋友界面中前往验证按钮
             self.MomentsButton={'title':'朋友圈','control_type':'Button','auto_id':'button'}#好友个人简介界面内的朋友圈按钮(不是主页左侧的)
         if self.language=='English':
+            self.SendAudioButon={'title_re':'Send Voice','control_type':'Button'}#微信底部发送语音按钮
             self.AddButton={'title':'Add','control_type':'Button'}#通讯录管理点击新建标签后右侧的添加按钮
             self.AddRemarkButton={'control_type':'Button','title':'添加备注名'}#通讯录好友详情面板没有备注时的添加备注名按钮
             self.AddPhoneNumButon={'control_type':'Button','title':'Add Mobile'}#修改好友备注内的添加电话按钮
@@ -152,6 +153,7 @@ class Button_Control():
             self.SolitaireButton={'title':'Create Group Note','control_type':'Button'}#接龙窗口内的发起接龙按钮
             self.MomentsButton={'title':'Moments','control_type':'Button','auto_id':'button'}#好友个人简介界面内的朋友圈按钮(不是主页左侧的)
         if self.language=='繁體中文':
+            self.SendAudioButon={'title_re':'傳送語音','control_type':'Button'}#微信底部发送语音按钮
             self.AddRemarkButton={'control_type':'Button','title':'新增備註名'}#通讯录好友详情面板没有备注时的添加备注名按钮
             self.AddPhoneNumButon={'control_type':'Button','title':'新增電話號碼'}#修改好友备注内的添加电话按钮
             self.ClearPhoneNumButton={'control_type':'Button','title':'刪除电话'}#修改好友备注内的删除电话按钮
@@ -207,9 +209,9 @@ class Button_Control():
             self.MomentsButton={'title':'朋友圈','control_type':'Button','auto_id':'button'}#好友个人简介界面内的朋友圈按钮(不是主页左侧的)
         if '4.1.9' in self.Version:
             self.MomentsButton={'control_type':'Button','auto_id':
-            "content_v_view.ProfileResizeVBoxView.detail_scroll_view.gradient_mask_stacked_view.default_scroll_area.qt_scrollarea_viewport.detail_content_host.detail_center_v_view.detail_derived_content_view.sns_container_view.wx_friend_sns.value_sns_view"}
-            self.SendAudioButon={'title_re':'发语音','control_type':'Button'}      
-       
+            "content_v_view.ProfileResizeVBoxView.detail_scroll_view.gradient_mask_stacked_view.default_scroll_area.qt_scrollarea_viewport.detail_content_host.detail_center_v_view.detail_derived_content_view.sns_container_view.wx_friend_sns.value_sns_view"}     
+        if self.Version=='4.1.9.23':
+            self.SendAudioButon={'title_re':'发语音','control_type':'Button'}#微信底部发送语音按钮
        
 class CheckBox_Control():
     def __init__(self,language=language,Version=Version):
