@@ -279,10 +279,11 @@ class Collections():
     
 
     @staticmethod
-    def make_note(text:str,files:list[str]=[],is_maximize:bool=None,close_weixin:bool=None):
-        '''该函数用来获取收藏界面内指定数量卡片链接的url
+    def take_notes(text:str,files:list[str]=[],share_moments:bool=False,is_maximize:bool=None,close_weixin:bool=None):
+        '''该方法用来新建一个微信笔记
         Args:
             text:笔记内的文本
+            files:需要在单条笔记内保存的文件,单个不超过100MB
             is_maximize:微信界面是否全屏,默认全屏
             close_weixin:任务结束后是否关闭微信,默认关闭
         '''
@@ -290,8 +291,23 @@ class Collections():
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
+        if files:            
+            files=[file for file in files if os.path.isfile(file)]
+            files=[file for file in files if 0<os.path.getsize(file)<104857600]#0到100MB之间的文件才可以发送
         note_window=Navigator.open_note(is_maximize=is_maximize,close_weixin=close_weixin)
-        
+        edit_area=note_window.child_window(auto_id='xeditorInputId')
+        if text:
+            edit_area.set_text(text)
+        if files:
+            SystemSettings.copy_files_to_clipboard(files)
+            pyautogui.hotkey('ctrl','v')
+        pyautogui.hotkey('ctrl','s')
+        if share_moments:
+            more_button=note_window.child_window(**Buttons.MoreButton)
+            more_button.click_input()
+            pyautogui.press('up',presses=2)
+            pyautogui.press('enter')
+        note_window.close()
 
 
     @staticmethod
@@ -2136,6 +2152,26 @@ class Files():
 class Settings():
 
     @staticmethod
+    def Log_out(is_maximize:bool=None,close_weixin:bool=None):
+        '''
+        该方法用来退出登录当前登录的微信账号
+        Args:
+            is_maximize:微信界面是否全屏，默认不全屏
+            close_weixin:任务结束后是否关闭微信，默认关闭
+        '''
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+        settings_window=Navigator.open_settings(is_maximize=is_maximize,close_weixin=close_weixin)
+        account_button=settings_window.child_window(**Buttons.AccountSettingsButton)
+        account_button.click_input()
+        logout_button=settings_window.child_window(**Buttons.LogOutButton)
+        logout_button.click_input()
+        confirm_button=settings_window.child_window(**Buttons.ConfirmButton)
+        confirm_button.click_input()
+
+    @staticmethod
     def change_style(style:int,is_maximize:bool=None,close_weixin:bool=None):
         '''
         该方法用来修改微信的主题样式
@@ -2360,6 +2396,49 @@ class Moments():
             pyautogui.press('down',presses=1)
             pyautogui.press('enter')
         publish_panel=moments.child_window(**Groups.SnsPublishGroup)
+        if text:
+            text_input=publish_panel.child_window(**Edits.SnsEdit)
+            text_input.click_input()
+            text_input.set_text(text)
+        post_button=publish_panel.child_window(**Buttons.PostButton)
+        post_button.click_input()
+    
+    @staticmethod
+    def post_notes(content:str=None,text:str=None,files:list[str]=[],is_maximize:bool=None,close_weixin:bool=None):
+        '''该方法用来新建笔记然后将笔记发布到朋友圈
+        Args:
+            note_text:笔记内容文本内容
+            files:任何类型文件的路径列表,注意单个文件大小不要超过100MB,否则无法粘贴到笔记中
+            is_maximize:微信界面是否全屏，默认不全屏
+            close_weixin:任务结束后是否关闭微信，默认关闭
+        '''
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+        if files:            
+            files=[file for file in files if os.path.isfile(file)]
+            files=[file for file in files if 0<os.path.getsize(file)<104857600]#0到100mb之间的文件才可以粘贴到笔记中
+        if content is None and not files:
+            raise ValueError(f'笔记中文本或文件至少要有一个!')
+        note_window=Navigator.open_note(is_maximize=is_maximize,close_weixin=close_weixin)
+        Tools.cancel_pin(note_window)#取消指定
+        edit_area=note_window.child_window(auto_id='xeditorInputId')
+        edit_area.set_text('')
+        if isinstance(content,str):
+            edit_area.set_text(content)
+        if files:
+            SystemSettings.copy_files_to_clipboard(files)
+            pyautogui.hotkey('ctrl','v')
+        pyautogui.hotkey('ctrl','s')
+        container=note_window.child_window(auto_id='mainContainer')
+        more_button_area=container.rectangle().right-60,container.rectangle().top+60
+        mouse.click(coords=more_button_area)
+        pyautogui.press('up',presses=2)
+        pyautogui.press('enter')
+        time.sleep(2)
+        publish_panel=note_window.child_window(**Windows.SnsPublishWindow)
+        publish_panel.restore()
         if text:
             text_input=publish_panel.child_window(**Edits.SnsEdit)
             text_input.click_input()

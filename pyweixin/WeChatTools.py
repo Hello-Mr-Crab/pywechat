@@ -702,7 +702,10 @@ class Navigator():
         return main_window
     
     @staticmethod
-    def capture_Login_QRCode(target_folder:str=None):
+    def capture_Login_QRCode(target_folder:str=None,language:str=None):
+        '''
+        该方法用来保存微信登录二维码
+        '''
         if target_folder is not None and not os.path.isdir(target_folder):
             raise NotFolderError(f'所选路径不是文件夹!无法保存登录二维码,请重新选择!')
         if target_folder is None:
@@ -711,16 +714,18 @@ class Navigator():
         if not is_running:#微信不在运行,主界面看不到窗口，需要先启动
             exe_path=Tools.where_weixin()
             os.startfile(exe_path)
-            time.sleep(5)
+            time.sleep(3)
         login_window=desktop.window(**Login_window.LoginWindow)
-        if not login_window.exists(timeout=2):
-            print('无法连接到登录窗口,可能是微信正在运行,请退出登录后重试!')
+        if not login_window.exists(timeout=4):
+            print('无法连接到登录窗口,可能是微信正在运行也可能是语言未设定,请退出登录重试!')
             return 
         login_window.restore()
-        switch_text=login_window.child_window(**Login_window.SwitchText)
-        if switch_text.exists(timeout=1):
-            switch_text.click_input()
-            time.sleep(3)#等待切换到扫码界面
+        switch_texts=[{'control_type':'Text','title':'切换账号'},{'control_type':'Text','title':'Switch Account'},{'control_type':'Text','title':'切換賬號'}]
+        for element in switch_texts:#挨个试一遍
+            switch_text=login_window.child_window(**element)
+            if switch_text.exists(timeout=0.2):
+                switch_text.click_input()
+        time.sleep(2)#等待切换到扫码界面
         code_image=login_window.capture_as_image()
         image_path=os.path.join(target_folder,'Login_QRCode.png')
         code_image.save(image_path)
@@ -816,19 +821,14 @@ class Navigator():
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
-        NoteWindow=desktop.window(**Windows.NoteWindow)
-        if NoteWindow.exists(timeout=3):#看看是不是已经有在桌面上打开的避免多开,微信的笔记窗口竟然可以多开
-            NoteWindow.restore()
-            NoteWindow=Tools.move_window_to_center(Window=Windows.NoteWindow)
-        else:
-            main_window=Navigator.open_weixin(is_maximize=is_maximize)
-            collections_button=main_window.child_window(**SideBar.Collections)
-            collections_button.click_input()
-            side_list=main_window.child_window(**Lists.CollectionList)
-            side_list.children(control_type='ListItem')[0].click_input()
-            NoteWindow=Tools.move_window_to_center(Window=Windows.NoteWindow)
-            if close_weixin:
-                main_window.close()
+        main_window=Navigator.open_weixin(is_maximize=is_maximize)
+        collections_button=main_window.child_window(**SideBar.Collections)
+        collections_button.click_input()
+        side_list=main_window.child_window(**Lists.CollectionList)
+        side_list.children(control_type='ListItem')[0].click_input()
+        NoteWindow=Tools.move_window_to_center(Window=Windows.NoteWindow)
+        if close_weixin:
+            main_window.close()
         return NoteWindow
     
     @staticmethod
@@ -1023,6 +1023,7 @@ class Navigator():
         more.click_input()
         settings_button=main_window.child_window(**Buttons.SettingsButton)
         settings_button.click_input()
+        time.sleep(1.5)
         settings_window=Tools.move_window_to_center(Independent_window.SettingsWindow)        
         if close_weixin:
             main_window.close() 
@@ -1061,6 +1062,7 @@ class Navigator():
             close_weixin=GlobalConfig.close_weixin
         contact_list,main_window=Navigator.open_contacts(is_maximize=is_maximize)
         contact_list.children()[0].click_input()
+        time.sleep(1.5)
         contact_manager=Tools.move_window_to_center(Independent_window.ContactManagerWindow)
         if window_maximize:
             win32gui.SendMessage(contact_manager.handle, win32con.WM_SYSCOMMAND, win32con.SC_MAXIMIZE, 0)
@@ -1088,6 +1090,7 @@ class Navigator():
         more.click_input()
         chatfiles_button=main_window.child_window(**Buttons.ChatFilesButton)
         chatfiles_button.click_input()
+        time.sleep(1.5)
         chatfiles_window=Tools.move_window_to_center(Independent_window.ChatFilesWindow)
         if window_maximize:
             win32gui.SendMessage(chatfiles_window.handle, win32con.WM_SYSCOMMAND, win32con.SC_MAXIMIZE, 0)

@@ -25,8 +25,13 @@ Examples
 使用时只需要:
     
     >>> from pyweixin.Uielements import Edits
-    >>> #返回值为kwargs字典,可以直接使用**解包传入到descendants,children,window,child_window内
+    #返回值为kwargs字典,可以直接使用**解包传入到descendants,children,window,child_window内
     >>> searchbar=main_window.child_window(**Edits.SearchEdit)
+    #或者,导入xx_control自行输入版本与语言然后使用
+    >>> from pyweixin.Uielements import Button_Control
+    >>> Buttons=Button_Control(Version='4.1.9.30',language='简体中文')
+    >>> GlobalConfig.language='English'
+    >>> print(Buttons.SendMessageButton)
     
 '''
 from.Config import GlobalConfig
@@ -43,6 +48,7 @@ class Button_Control():
         self.SubScribeButton={'title':'关注','control_type':'Button'}#公众号窗口内的关注按钮
         self.HomePageButton={'title':'公众号主页','control_type':'Button'}#公众号主页内右上角的公众号主页按钮
         if self.language=='简体中文':
+            self.AccountSettingsButton={'title':'账号设置','control_type':'Button'}#微信设置界面里左侧的账号设置
             self.SendAudioButon={'title_re':'发语音','control_type':'Button'}#微信底部发送语音按钮
             self.AddButton={'title':'添加','control_type':'Button'}#通讯录管理点击新建标签后右侧的添加按钮
             self.AddRemarkButton={'control_type':'Button','title':'添加备注名'}#通讯录好友详情面板没有备注时的添加备注名按钮
@@ -82,7 +88,7 @@ class Button_Control():
             self.ContactsManageButton={'title':'通讯录管理','control_type':'Button'}#通讯录管理按钮
             self.ConfirmEmptyChatHistoryButon={'title':'清空','control_type':'Button'}#点击清空聊天记录后弹出的query界面内的清空按钮
             self.MoreButton={'title':'更多','control_type':'Button'}#打开微信好友设置界面更多按钮
-            self.LogoutButton={'title':'退出登录','control_type':'Button'}#设置界面里退出登录按钮
+            self.LogOutButton={'title':'退出登录','control_type':'Button'}#设置界面里退出登录按钮
             self.RefreshButton={'title':'刷新','control_type':'Button'}#朋友圈的刷新按钮
             self.RectentGroupButton={'title':'最近群聊','control_type':'Button'}#通讯录设置界面里的最近群聊按钮
             self.PostButton={'title':'发表','control_type':'Button'}#微信朋友圈界面里的发表按钮
@@ -98,6 +104,7 @@ class Button_Control():
             self.VerifyNowButton={'title':'前往验证','control_type':'Button'}#通讯录新朋友界面中前往验证按钮
             self.MomentsButton={'title':'朋友圈','control_type':'Button','auto_id':'button'}#好友个人简介界面内的朋友圈按钮(不是主页左侧的)
         if self.language=='English':
+            self.AccountSettingsButton={'title':'My Account','control_type':'Button'}#微信设置界面里左侧的账号设置
             self.SendAudioButon={'title_re':'Send Voice','control_type':'Button'}#微信底部发送语音按钮
             self.AddButton={'title':'Add','control_type':'Button'}#通讯录管理点击新建标签后右侧的添加按钮
             self.AddRemarkButton={'control_type':'Button','title':'添加备注名'}#通讯录好友详情面板没有备注时的添加备注名按钮
@@ -135,7 +142,7 @@ class Button_Control():
             self.ContactsManageButton={'title':'Manage Contacts','control_type':'Button'}#通讯录管理按钮
             self.ConfirmEmptyChatHistoryButon={'title':'Clear','control_type':'Button'}#点击清空聊天记录后弹出的query界面内的清空按钮
             self.MoreButton={'title':'More','control_type':'Button'}#打开微信好友设置界面更多按钮
-            self.LogoutButton={'title':'Log Out','control_type':'Button'}#设置界面里退出登录按钮
+            self.LogOutButton={'title':'Log Out','control_type':'Button'}#设置界面里退出登录按钮
             self.RefreshButton={'title':'Refresh','control_type':'Button'}#朋友圈的刷新按钮
             self.RectentGroupButton={'title':'Recent Group Chats','control_type':'Button'}#通讯录设置界面里的最近群聊按钮
             self.PostButton={'title':'Post','control_type':'Button'}#微信朋友圈界面里的发表按钮
@@ -153,6 +160,7 @@ class Button_Control():
             self.SolitaireButton={'title':'Create Group Note','control_type':'Button'}#接龙窗口内的发起接龙按钮
             self.MomentsButton={'title':'Moments','control_type':'Button','auto_id':'button'}#好友个人简介界面内的朋友圈按钮(不是主页左侧的)
         if self.language=='繁體中文':
+            self.AccountSettingsButton={'title':'賬號與儲存','control_type':'Button'}#微信设置界面里左侧的账号设置
             self.SendAudioButon={'title_re':'傳送語音','control_type':'Button'}#微信底部发送语音按钮
             self.AddRemarkButton={'control_type':'Button','title':'新增備註名'}#通讯录好友详情面板没有备注时的添加备注名按钮
             self.AddPhoneNumButon={'control_type':'Button','title':'新增電話號碼'}#修改好友备注内的添加电话按钮
@@ -190,7 +198,7 @@ class Button_Control():
             self.ContactsManageButton={'title':'通訊錄管理','control_type':'Button'}#通讯录管理按钮
             self.ConfirmEmptyChatHistoryButon={'title':'刪除','control_type':'Button'}#点击清空聊天记录后弹出的query界面内的清空按钮
             self.MoreButton={'title':'更多','control_type':'Button'}#打开微信好友设置界面更多按钮
-            self.LogoutButton={'title':'登出','control_type':'Button'}#设置界面里退出登录按钮
+            self.LogOutButton={'title':'登出','control_type':'Button'}#设置界面里退出登录按钮
             self.RefreshButton={'title':'重新整理','control_type':'Button'}#朋友圈的刷新按钮
             self.RectentGroupButton={'title':'最近群組','control_type':'Button'}#通讯录设置界面里的最近群聊按钮
             self.PostButton={'title':'發佈','control_type':'Button'}#微信朋友圈界面里的发表按钮
@@ -462,18 +470,16 @@ class Login_window_Control():
     def __init__(self,language=language,Version=Version):
         self.language=language
         self.Version=Version
+        self.LoginWindow={'class_name':'mmui::LoginWindow'}#登录微信界面
         if self.language=='简体中文':
-            self.LoginWindow={'title':'微信','class_name':'mmui::LoginWindow'}#登录微信界面
             self.LoginButton={'control_type':'Button','title':'进入微信'}#进入微信按钮
             self.SwitchText={'control_type':'Text','title':'切换账号'}#切换账号按钮
         if self.language=='English':
-            self.LoginWindow={'title':'Weixin','class_name':'mmui::LoginWindow'}#登录微信界面
             self.LoginButton={'control_type':'Button','title':'Enter Weixin'}#进入微信按钮
             self.SwitchText={'control_type':'Text','title':'Switch Account'}#切换账号按钮
         if self.language=='繁體中文':
-            self.LoginWindow={'title':'微信','class_name':'mmui::LoginWindow'}#登录微信界面
             self.LoginButton={'control_type':'Button','title':'進入微信'}#进入微信按钮
-            self.SwitchText={'control_type':'Text','title':'切換賬號'}#进入微信按钮{'control_type':'Button','title':'切换账号'}#进入微信按钮
+            self.SwitchText={'control_type':'Text','title':'切換賬號'}#切换账号按钮
 class Main_window_Control():
     '''主界面下所有的第一级Ui'''
     def __init__(self,language=language,Version=Version):
@@ -699,6 +705,7 @@ class Window_Control():
         self.ImagePreviewWindow={'control_type':'Window','class_name':'mmui::PreviewWindow'}#微信点击图片或视频后桌面弹出的图片与视频窗口
         self.AddfriendWindow={'control_type':'Window','class_name':'mmui::AddFriendWindow'}#添加好友窗口
         self.SearchChatHistoryWindow={'control_type':'Window','auto_id':'GlobalSearchMsgWindow'}#聊天记录搜索窗口
+        self.SnsPublishWindow={'auto_id':'SnsPublishPanel','control_type':'Window'}#微信朋友圈后发布按钮点击后的面板
         if self.language=='简体中文':
             self.MomentsWindow={'title':'朋友圈','control_type':'Window','class_name':'mmui::SNSWindow'}#好友朋友圈窗口
             self.SessionPickerWindow={'control_type':'Window','title':'微信发送给','class_name':'mmui::SessionPickerWindow'}#转发消息的session_picker_window
@@ -713,7 +720,7 @@ class Window_Control():
             self.MiniProgramWindow={'title':'微信','control_type':'Pane','class_name':'Chrome_WidgetWin_0'}#小程序面板窗口
             self.SearchWindow={'title':'微信','class_name':'Chrome_WidgetWin_0','control_type':'Pane'}#搜一搜窗口
             self.ChannelsWindow={'title':'微信','class_name':'Chrome_WidgetWin_0','control_type':'Pane'}#视频号窗口
-            self.NoteWindow={'title':'笔记','class_name':'Chrome_WidgetWin_0','framework_id':"Win32"}#笔记窗口
+            self.NoteWindow={'title':'笔记','framework_id':"Win32"}#笔记窗口
             self.IncomingCallWindow={'title':'微信','class_name':'mmui::VOIPTrayWindow'}#微信来电(视频或语音)桌面右下角的托盘窗口
             self.VoipCallWindow={'title':'微信音视频通话','class_name':'mmui::VOIPWindow'}#接通语音或视频电话后的通话窗口
             self.PrivacyWindow={'title':'朋友权限','class_name':'mmui::ProfileUniquePop'}#好友权限窗口,4.1.9点击好友权限后弹出的窗口独立于桌面了
@@ -731,7 +738,7 @@ class Window_Control():
             self.MiniProgramWindow={'title':'WeChat','control_type':'Pane','class_name':'Chrome_WidgetWin_0'}#小程序面板窗口
             self.SearchWindow={'title':'WeChat','class_name':'Chrome_WidgetWin_0','control_type':'Pane'}#搜一搜窗口
             self.ChannelsWindow={'title':'WeChat','class_name':'Chrome_WidgetWin_0','control_type':'Pane'}#视频号窗口
-            self.NoteWindow={'title':'Note','class_name':'Chrome_WidgetWin_0','framework_id':"Win32"}#笔记窗口
+            self.NoteWindow={'title':'Note','framework_id':"Win32"}#笔记窗口
             self.IncomingCallWindow={'title':'Weixin','class_name':'mmui::VOIPTrayWindow'}#微信来电(视频或语音)桌面右下角的托盘窗口
             self.VoipCallWindow={'title':'Weixin Voice & Video Calls','class_name':'mmui::VOIPWindow'}#接通语音或视频电话后的通话窗口
         if self.language=='繁體中文':
@@ -748,7 +755,7 @@ class Window_Control():
             self.MiniProgramWindow={'title':'WeChat','control_type':'Pane','class_name':'Chrome_WidgetWin_0'}#小程序面板窗口
             self.SearchWindow={'title':'WeChat','class_name':'Chrome_WidgetWin_0','control_type':'Pane'}#搜一搜窗口
             self.ChannelsWindow={'title':'WeChat','class_name':'Chrome_WidgetWin_0','control_type':'Pane'}#视频号窗口
-            self.NoteWindow={'title':'筆記','class_name':'Chrome_WidgetWin_0','framework_id':"Win32"}#笔记窗口
+            self.NoteWindow={'title':'筆記','framework_id':"Win32"}#笔记窗口
             self.IncomingCallWindow={'title':'微信','class_name':'mmui::VOIPTrayWindow'}#微信来电(视频或语音)桌面右下角的托盘窗口
             self.VoipCallWindow={'title':'微信語音/視訊通話 ','class_name':'mmui::VOIPWindow'}#接通语音或视频电话后的通话窗口
             self.PrivacyWindow={'title':'朋友權限','class_name':'mmui::ProfileUniquePop'}#好友权限窗口,4.1.9点击好友权限后弹出的窗口独立于桌面了
