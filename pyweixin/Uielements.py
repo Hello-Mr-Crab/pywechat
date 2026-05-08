@@ -400,6 +400,7 @@ class ListItem_Control():
             self.LinkListItem={'control_type':'ListItem','title':'链接'}#微信收藏界面组边链接分组
             self.CreateLabelListItem={'control_type':'ListItem','title':'新建标签','class_name':'mmui::ContactsManagerControlCreateLabelCell'}#通讯录管理界面中的新建标签
             self.MobileSearchListItem={'title':'网络查找手机/QQ号：','control_type':'ListItem'}#在顶部搜索的是数字组合时出现的查找手机号qq好
+            self.SenderListItem={'title':'发送人','control_type':'ListItem'}#聊天文件窗口左侧的发送人选项
         if self.language=='English':
             self.GroupLabelListItem={'title':'Group Chats','control_type':'ListItem','class_name':'mmui::XTableCell'}#微信顶部搜索内容后搜索结果中的群聊标签(分隔符)
             self.NewFriendListItem={'control_type':'ListItem','title':r'New Friends','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的新的朋友项目
@@ -418,6 +419,7 @@ class ListItem_Control():
             self.LinkListItem={'control_type':'ListItem','title':'Links'}#微信收藏界面组边链接分组
             self.CreateLabelListItem={'title':'Add Tag','control_type':'ListItem','class_name':'mmui::ContactsManagerControlCreateLabelCell'}#通讯录管理界面中的新建标签
             self.MobileSearchListItem={'title':'Search mobile/QQ ID:','control_type':'ListItem'}#在顶部搜索的是数字组合时出现的查找手机号qq好
+            self.SenderListItem={'title':'Sender','control_type':'ListItem'}#聊天文件窗口左侧的发送人选项
         if self.language=='繁體中文':
             self.GroupLabelListItem={'title':'群組','control_type':'ListItem','class_name':'mmui::XTableCell'}#微信顶部搜索内容后搜索结果中的群聊标签(分隔符)
             self.NewFriendListItem={'control_type':'ListItem','title':r'新的朋友','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的新的朋友项目
@@ -436,7 +438,7 @@ class ListItem_Control():
             self.LinkListItem={'control_type':'ListItem','title':'連結'}#微信收藏界面组边链接分组
             self.CreateLabelListItem={'control_type':'ListItem','title':'建立標簽','class_name':'mmui::ContactsManagerControlCreateLabelCell'}#通讯录管理界面中的新建标签
             self.MobileSearchListItem={'title':'網路搜尋手機/QQ 號碼：','control_type':'ListItem'}#在顶部搜索的是数字组合时出现的查找手机号qq好
-
+            self.SenderListItem={'title':'傳送人','control_type':'ListItem'}#聊天文件窗口左侧的发送人选项
 class List_Control():
     def __init__(self,language=language,Version=Version):
         self.language=language
@@ -706,7 +708,7 @@ class Window_Control():
         self.Version=Version
         self.ChatHistoryWindow={'control_type':'Window','class_name':'mmui::SearchMsgUniqueChatWindow','framework_id':'Qt'}#聊天记录窗口
         self.SettingsMenu={'class_name':'SetMenuWnd','control_type':'Window'}#设置与其他按钮按下后的菜单栏
-        self.PopUpProfileWindow={'title':'Weixin','control_type':'Window','class_name':'mmui::ProfileUniquePop'}#好友设置界面点击头像后弹出的个人简介窗口
+        self.PopUpProfileWindow={'title':'Weixin','control_type':'Window','class_name':'mmui::ProfileUniquePop','top_level_only':False}#好友设置界面点击头像后弹出的个人简介窗口
         self.NativeChooseFileWindow={'control_type':'Window','framework_id':'Win32','top_level_only':False,'found_index':0}#windows本地选择文件夹窗口
         self.MentionPopOverWindow={'control_type':'Window','auto_id':'MentionPopover','found_index':0}#群聊输入@后弹出的群成员选择界面
         self.PopOverWindow={'control_type':'Window','class_name':'mmui::XPopover'}#聊天记录界面内点击群成员弹出的窗口

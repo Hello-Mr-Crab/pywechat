@@ -198,8 +198,8 @@ class Special_Label():
             self.YearSep='年'
             self.MonthSep='月'
             self.DaysAgo='天前'
-            self.NotDownloaded='未下载'
-            self.Expired='已过期'
+            self.NotDownloaded='未下載'
+            self.Expired='已逾期'
             self.SendInterrupt='发送中断'
             self.Yesterday='昨天'
             self.Moments='朋友圈'
@@ -571,7 +571,7 @@ def At(main_window:WindowSpecification,at_members:list[str]):
         for member in at_members:
             cleaned_member=emoji.replace_emoji(member,'')#去掉emoji
             cleaned_member=cleaned_member.split(' ')[0]#找到第一个空格字段之前内容
-            edit_area.type_keys(f'@{cleaned_member}')
+            edit_area.type_keys(f'@{cleaned_member}',pause=0.1)
             if mention_popover.exists(timeout=0.1):
                 is_find=select(mention_popover,member)
                 if is_find:
@@ -586,7 +586,7 @@ def At_all(main_window:WindowSpecification):
     if Tools.is_group_chat(main_window):
         edit_area=main_window.child_window(**Edits.CurrentChatEdit)
         mention_popover=main_window.child_window(**Windows.MentionPopOverWindow)
-        edit_area.type_keys(f'@')
+        edit_area.type_keys(f'@',pause=0.1)
         if mention_popover.exists(timeout=0.1):
             mention_list=mention_popover.child_window(control_type='List',title='')
             first_item=mention_list.children()[0].window_text()#弹出列表后的第一个人

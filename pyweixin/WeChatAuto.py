@@ -60,10 +60,9 @@ import json
 import pyautogui
 import win32clipboard
 import win32gui,win32con
-import sounddevice as sd
 from typing import Literal
 from warnings import warn,filterwarnings
-filterwarnings('ignore',category=UserWarning)
+# filterwarnings('ignore',category=UserWarning)
 from collections import Counter
 from pywinauto import WindowSpecification
 from pywinauto.controls.uia_controls import ListItemWrapper,ListViewWrapper#TypeHint要用到
@@ -74,7 +73,7 @@ from packaging import version#字符串版本比较,4.1.9>4.1.8>4.1.7
 from .Config import GlobalConfig
 from .utils import traverse_chat_history_list,traverse_chatList
 from .utils import parse_chat_history,parse_group_chat_history
-from .utils import parse_messages,parse_group_messages
+from .utils import parse_messages,parse_group_messages,NativeChooseFolder
 from .utils import scan_for_new_messages,get_new_message_num,process_audios
 from .utils import At,At_all,ColorMatch,Regex_Patterns,Special_Labels,TimeStamps
 from .Warnings import LongTextWarning,NoChatHistoryWarning
@@ -229,7 +228,7 @@ class Call():
         main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize)  
         is_group=Tools.is_group_chat(main_window)
         voice_call_button=main_window.child_window(**Buttons.VoiceCallButton)
-        current_version=version.parse(GlobalConfig.version)
+        current_version=version.parse(GlobalConfig.Version)
         old_version=version.parse('4.1.7')#4.1.8开始微信把语言和视频电话合并在顶部
         if not is_group:
             if current_version>old_version:
@@ -521,7 +520,7 @@ class Contacts():
             mouse.move(coords=(rectangle.mid_point().x,rectangle.mid_point().y))
             time.sleep(1)#必须等待,不然ui的文本属性加载不出来
             while len(groupMembers)<total_num:
-                selected=[listitem for listitem in groupMember_list.children(contorl_type='ListItem') if listitem.has_keyboard_focus()]
+                selected=[listitem for listitem in groupMember_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
                 if selected and selected[0].window_text()!='':
                     runtime_ids.append(selected[0].element_info.runtime_id)
                     #同一个runtime_id挨着重复出现就说明到底部了无法继续下滑
@@ -1436,7 +1435,10 @@ class FriendSettings():
         more_button.click_input()
         pyautogui.press('down',presses=2)
         pyautogui.press('enter')
-        privacy_window=desktop.window(**Windows.PrivacyWindow) if '4.1.9' in GlobalConfig.version else profile_pane
+        if version.parse(GlobalConfig.Version)>=version.parse('4.1.9'):
+            privacy_window=Tools.move_window_to_center(Windows.PrivacyWindow)
+        else:
+            privacy_window=profile_pane
         open_privacy_group=privacy_window.child_window(**Groups.OpenPrivacyGroup)
         chat_only_group=privacy_window.child_window(**Groups.ChatOnlyGroup)
         check_box1=privacy_window.child_window(**CheckBoxes.DontShowOthersCheckBox)
@@ -1457,8 +1459,8 @@ class FriendSettings():
             if sns_privacy==2:
                 if not check_box2.get_toggle_state():
                     check_box2.click_input()
-        complete_button=profile_pane.child_window(**Buttons.FinishButton)
-        if complete_button.exists():
+        complete_button=privacy_window.child_window(**Buttons.FinishButton)
+        if complete_button.exists(timeout=0.2):
             complete_button.click_input()
         chatinfo_button.click_input()
         if close_weixin:
@@ -1592,7 +1594,10 @@ class FriendSettings():
         more_button.click_input()
         pyautogui.press('down',presses=1)
         pyautogui.press('enter')
-        remarkAndtag_window=desktop.window(**Windows.EditContactWindow) if '4.1.9' in GlobalConfig.version else main_window.window(**Windows.EditContactWindow)
+        if version.parse(GlobalConfig.Version)>=version.parse('4.1.9'):
+            remarkAndtag_window=Tools.move_window_to_center(Windows.EditContactWindow)
+        else:
+            remarkAndtag_window=main_window.window(**Windows.EditContactWindow)
         remark_edit=remarkAndtag_window.child_window(control_type='Edit',found_index=0)
         clearPhoneNum_buttons=remarkAndtag_window.descendants(**Buttons.ClearPhoneNumButton)
         if clearPhoneNum_buttons and clear_phoneNum:
@@ -1928,7 +1933,7 @@ class Files():
         Args:
             friend:好友或群聊的名称
             target_folder:导出文件存放的文件夹路径,不传入会自动在本地新建一个
-            number:导出的文件数量
+            number:导出的文件数量限制,默认是所有
             is_maximize:微信界面是否全屏,默认不全屏。
             close_weixin:任务结束后是否关闭微信,默认关闭
         Returns:
@@ -1938,17 +1943,6 @@ class Files():
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
-
-        def is_duplicate_filename(original,filename):
-            '''用来判断两个文件是否属于副本,比如test.csv与text(1).csv
-            '''
-            #os.path.splittext可以快速提取一个basename中的文件名称和后缀名
-            #'简历.docx'使用os.path.splittext后得到‘简历’与'.docx'
-            original_stem,original_extension=os.path.splitext(original)
-            #pattern:主干相同+(n)+相同扩展名
-            #简历.docx与简历(1).docx为副本
-            pattern=re.compile(rf'^{re.escape(original_stem)}\(\d+\){re.escape(original_extension)}$') 
-            return bool(pattern.match(filename))
         
         def extract_info(text:str):
             texts=text.split('|')
@@ -1976,8 +1970,9 @@ class Files():
             os.makedirs(name=target_folder,exist_ok=True)
             print(f'未传入文件夹路径,聊天文件将保存至 {target_folder}')
 
-        filepaths=[]
         filenames=[]
+        timestamps=[]
+        runtime_ids=[]
         year_sep=Special_Labels.YearSep
         month_sep=Special_Labels.MonthSep
         not_download=Special_Labels.NotDownloaded
@@ -1985,66 +1980,55 @@ class Files():
         send_interrupt=Special_Labels.SendInterrupt
         filename_pattern=Regex_Patterns.Filename_pattern
         timestamp_pattern=Regex_Patterns.Chafile_Timestamp_pattern
-        chatfile_folder=Tools.where_chatfile_folder()
         filename_pattern=Regex_Patterns.Filename_pattern
         timestamp_pattern=Regex_Patterns.Chafile_Timestamp_pattern
         chatfile_window=Navigator.open_chatfiles(is_maximize=is_maximize,close_weixin=close_weixin)
         empty_button=chatfile_window.child_window(**Buttons.EmptyButton)
-        if empty_button.exists(timeout=0.1):
-            empty_button.click_input()
-        all_item=chatfile_window.child_window(**ListItems.AllListItem)
-        all_item.click_input()
+        multiselect_item=chatfile_window.child_window(**MenuItems.SelectMenuItem)
+        if empty_button.exists(timeout=0.1):empty_button.click_input()
+        sender_item=chatfile_window.child_window(**ListItems.SenderListItem)
+        sender_item.click_input()
         search_button=chatfile_window.child_window(title='',control_type='Button',class_name='mmui::XButton')
         search_button.click_input()
         SystemSettings.copy_text_to_clipboard(friend)
         pyautogui.hotkey('ctrl','v')
         fileList=chatfile_window.child_window(**Lists.FileList)
-        search_result=chatfile_window.descendants(control_type='Text')[-1]
-        total_num=int(re.search(r'\d+',search_result.window_text()).group(0))
-        fileList.type_keys('{END}'*100)
-        last_file=fileList.children(control_type='ListItem',class_name='mmui::FileListCell')[-1].window_text()
-        fileList.type_keys('{HOME}')
-        labels=[listitem.window_text() for listitem in fileList.children(control_type='ListItem',class_name='mmui::FileListCell')]
-        labels=[label for label in labels if (not_download not in label) or (expired not in label) or (send_interrupt not in label)]
-        while len(labels)<number:
-            fileList.type_keys('{PGDN}')
-            last=fileList.children(control_type='ListItem',class_name='mmui::FileListCell')[-1].window_text()
-            texts=[listitem.window_text() for listitem in fileList.children(control_type='ListItem',class_name='mmui::FileListCell')]
-            texts=[file for file in texts if file not in labels]
-            labels.extend(texts)
-            if len(labels)>=total_num:#大于等于总数
-                break
-            if last==last_file:#到达底部
-                break
-        labels=[label for label in labels if (not_download not in label) or (expired not in label) or (send_interrupt not in label)]
-        for label in labels:
-            filename,timestamp=extract_info(label)
-            filepath=os.path.join(chatfile_folder,timestamp,filename)
-            if os.path.exists(filepath):
+        if fileList.exists(timeout=0.2):
+            first_item=fileList.children(control_type='ListItem')[0]
+            rect=first_item.rectangle()
+            right_clik_pos=rect.mid_point().x,rect.mid_point().y
+            mouse.right_click(coords=right_clik_pos)
+            multiselect_item.click_input()
+            runtime_ids.append(first_item.element_info.runtime_id)
+            fileList.type_keys('{END}')
+            fileList.type_keys('{HOME}')
+            recorded_num=1
+            label=first_item.window_text()
+            if (not_download in label) or (expired in label) or (send_interrupt in label):
+                pyautogui.press('enter')
+            else:
+                filename,timestamp=extract_info(label)
                 filenames.append(filename)
-                filepaths.append(filepath)
-        filepaths=filepaths[:number]
-        fileList.type_keys('{HOME}')
-        #微信聊天记录中的文件名存在n个文件共用一个名字的情况
-        ##比如;给文件传输助手同时发6次'简历.docx',那么在聊天记录页面中显示的是六个名为简历.docx的文件
-        #但,实际上这些名字相同的文件,在widnows系统下的微信聊天文件夹内
-        #会按照: 文件名(1).docx,文件名(2).docx...文件名(n-1).docx,文件名.docx的格式来存储
-        #因此,这里使用内置Counter函数,来统计每个路径重复出现的次数,如果没有重复那么count是1
-        repeat_counts=Counter(filepaths)#filepaths是刚刚遍历聊天记录列表按照基址+文件名组合而成的路径列表
-        #如果有重复的就找到这个月份的文件夹内的所有重复文件全部移动
-        for filepath,count in repeat_counts.items():
-            if count>1:#重复次数大于1
-                #从filepath中得到文件名与上一级目录
-                folder,filename=os.path.split(filepath)#folder为同名文件的上一级文件夹
-                #os.listdir()列出上一级文件夹然后遍历,查找所有包含纯文件名的文件,然后使用os.path.join将其与folder结合
-                #samefilepaths中的是所有名字重复但实际上是:'文件(1).docx,文件名(2).docx,..文件名(n-1).docx,文件名.docx'格式的文件的路径
-                samefilepaths=[os.path.join(folder,file) for file in os.listdir(folder) if is_duplicate_filename(filename,file)]
-                SystemSettings.copy_files(samefilepaths,target_folder)
-            else:#没有重复的直接移动就行
-                #当然还得保证,folder_path里没有该文件
-                SystemSettings.copy_file(filepath,target_folder)
+                timestamps.append(timestamp)
+            fileList.type_keys('{DOWN}')
+            while recorded_num<number:
+                selected=[item for item in fileList.children(control_type='ListItem',class_name='mmui::FileListCell') if item.has_keyboard_focus()]
+                label=selected[0].window_text()
+                runtime_ids.append(selected[0].element_info.runtime_id)
+                if (not_download not in label) and (expired not in label) and (send_interrupt not in label):
+                    pyautogui.press('enter')
+                    filename,timestamp=extract_info(label)
+                    filenames.append(filename)
+                    timestamps.append(timestamp)
+                if len(runtime_ids)>2 and runtime_ids[-1]==runtime_ids[-2]:
+                    break
+                fileList.type_keys('{DOWN}')
+                recorded_num+=1
+        save_button=chatfile_window.child_window(**Buttons.SaveButton)
+        save_button.click_input()
+        NativeChooseFolder(target_folder)
         chatfile_window.close()
-        return filepaths
+        return filenames,timestamps
 
     @staticmethod
     def export_recent_files(target_folder:str=None,is_maximize:bool=None,close_weixin:bool=None):
@@ -3057,6 +3041,7 @@ class Messages():
         if version.parse(current_version)>=version.parse('4.1.9'):
             audios=process_audios(audios=audios,audio_length=audio_length)#处理音频片段
             if audios:
+                import sounddevice as sd
                 sd.default.device=SystemSettings.get_default_output()
                 main_window=Navigator.open_dialog_window(friend=friend,search_pages=search_pages,is_maximize=is_maximize)
                 edit_area=main_window.child_window(**Edits.CurrentChatEdit)
@@ -4294,9 +4279,9 @@ class Monitor():
         file_pattern=Regex_Patterns.File_pattern
         friend=dialog_window.window_text()
         chatName=dialog_window.child_window(**Texts.CurrentChatNameText)
-        is_group=Tools.is_group_chat(dialog_window)
-        if is_group:myName='本人(MySelf)'
         if chatName.exists(timeout=0.2):friend=chatName.window_text()
+        is_group=Tools.is_group_chat(dialog_window)
+        myName='本人(MySelf)'
         timestamp=time.strftime('%Y-%m')
         chatfile_folder=Tools.where_chatfile_folder()
         chatList=dialog_window.child_window(**Lists.FriendChatList)#聊天界面内存储所有信息的容器
@@ -4307,7 +4292,6 @@ class Monitor():
         if not chatList.children(control_type='CheckBox'):initial_runtime_id=0
         end_timestamp=time.time()+duration#根据秒数计算截止时间
         SystemSettings.open_listening_mode(volume=False)
-        print(end_timestamp)
         while time.time()<end_timestamp:
             newMessage=chatList.children(control_type='CheckBox')[-1]
             runtime_id=newMessage.element_info.runtime_id

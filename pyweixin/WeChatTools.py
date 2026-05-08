@@ -1196,6 +1196,9 @@ class Navigator():
             except Exception:
                 search_result=None
                 search_mobile=None
+            if search_result and search_mobile:#有搜索结果有网络查找qq号手机号选项，优先点击搜索结果
+                search_result.click_input()
+                return main_window
             if search_result and not search_mobile:#有搜索结果没有网络查找qq号手机号选项
                 search_result.click_input()
                 return main_window
