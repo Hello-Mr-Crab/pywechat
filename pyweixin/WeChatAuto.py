@@ -3747,7 +3747,7 @@ class Messages():
             mouse.move(coords=(rectangle.mid_point().x,rectangle.mid_point().y))
             time.sleep(1)#必须等待,不然ui的文本属性加载不出来
             while len(groupMembers)<total_num:
-                selected=[listitem for listitem in groupMember_list.children(contorl_type='ListItem') if listitem.has_keyboard_focus()]
+                selected=[listitem for listitem in groupMember_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
                 if selected and selected[0].window_text()!='':
                     runtime_ids.append(selected[0].element_info.runtime_id)
                     #同一个runtime_id挨着重复出现就说明到底部了无法继续下滑
