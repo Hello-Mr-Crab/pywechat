@@ -3787,10 +3787,10 @@ class Messages():
         if is_json:
             chat_history=json.dumps(chat_history,ensure_ascii=False,indent=2)
         if save_detail:
-            chat_history=json.dumps(chat_history,ensure_ascii=False,indent=2)
+            chat_history_json=json.dumps(chat_history,ensure_ascii=False,indent=2)
             json_path=os.path.join(target_folder,f'{friend}聊天记录信息.json')
             with open(json_path,'w',encoding='utf-8') as f:
-                f.write(chat_history)
+                f.write(chat_history_json)
         chat_history_window.close()
         return chat_history
 
