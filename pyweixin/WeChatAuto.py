@@ -4358,3 +4358,47 @@ class Monitor():
         SystemSettings.close_listening_mode()
         if close_dialog_window:dialog_window.close()
         return details
+
+    @staticmethod
+    def grab_red_packet(dialog_window:WindowSpecification,duration:str,close_dialog_window:bool=True)->int:
+        '''
+        该函数用来点击领取好友发送的红包,群聊中的红包微信的设定是电脑端无法打开,因此无法使用
+        Args:
+            dialog_window:好友单独的聊天窗口,可使用Navigator内的方法打开
+            duraiton:监听持续时长,监听消息持续时长,格式:'s','min','h'单位:s/秒,min/分,h/小时
+            close_dialog_window:是否关闭dialog_window
+        Returns:
+            red_packet_count:该聊天窗口内抢到红包个数
+        '''
+        def open_redpacket(red_packet):
+            red_packet.click_input()
+            open_button=red_envelop_view.child_window(**Buttons.OpenButton)
+            open_button.click_input()
+            time.sleep(1)
+            red_envelop_detail.close()
+        
+        duration=Tools.match_duration(duration)#将's','min','h'转换为秒
+        if not duration:#不按照指定的时间格式输入,需要提前中断退出
+            raise TimeNotCorrectError
+        red_packet_count=0
+        red_packet_label=Special_Labels.RedPacket
+        chatList=dialog_window.child_window(**Lists.FriendChatList)#聊天界面内存储所有信息的容器
+        chatList.type_keys('{END}')
+        red_envelop_view=dialog_window.child_window(class_name='mmui::PayRedEnvelopeInfoView',title='',control_type='Group')#微信红包点击后弹出的界面
+        red_envelop_detail=desktop.window(class_name='mmui::PayRedEnvelopDetailWindow',control_type='Window')
+        initial_message=chatList.children(control_type='ListItem')[-1]#刚打开聊天界面时的最后一条消息的listitem
+        initial_runtime_id=initial_message.element_info.runtime_id
+        end_timestamp=time.time()+duration#根据秒数计算截止时间
+        SystemSettings.open_listening_mode(volume=False)
+        while time.time()<end_timestamp:
+            newMessage=chatList.children(control_type='ListItem')[-1]
+            text=newMessage.window_text()
+            class_name=newMessage.class_name()
+            runtime_id=newMessage.element_info.runtime_id
+            if runtime_id!=initial_runtime_id and red_packet_label in text and class_name=='mmui::ChatBubbleItemView': 
+                open_redpacket(newMessage)
+                red_packet_count+=1
+                initial_runtime_id=runtime_id
+        SystemSettings.close_listening_mode()
+        if close_dialog_window:dialog_window.close()
+        return red_packet_count

@@ -48,6 +48,7 @@ class Button_Control():
         self.SubScribeButton={'title':'关注','control_type':'Button'}#公众号窗口内的关注按钮
         self.HomePageButton={'title':'公众号主页','control_type':'Button'}#公众号主页内右上角的公众号主页按钮
         if self.language=='简体中文':
+            self.OpenButton={'title':'拆开','control_type':'Button'}#微信红包拆开按钮
             self.SaveButton={'title':'保存','control_type':'Button'}#聊天记录界面内选中后的保存按钮
             self.AccountSettingsButton={'title':'账号设置','control_type':'Button'}#微信设置界面里左侧的账号设置
             self.SendAudioButon={'title_re':'发语音','control_type':'Button'}#微信底部发送语音按钮
@@ -105,6 +106,7 @@ class Button_Control():
             self.VerifyNowButton={'title':'前往验证','control_type':'Button'}#通讯录新朋友界面中前往验证按钮
             self.MomentsButton={'title':'朋友圈','control_type':'Button','auto_id':'button'}#好友个人简介界面内的朋友圈按钮(不是主页左侧的)
         if self.language=='English':
+            self.OpenButton={'title':'Open','control_type':'Button'}#微信红包拆开按钮
             self.SaveButton={'title':'Save','control_type':'Button'}#聊天记录界面内选中后的保存按钮
             self.AccountSettingsButton={'title':'My Account','control_type':'Button'}#微信设置界面里左侧的账号设置
             self.SendAudioButon={'title_re':'Send Voice','control_type':'Button'}#微信底部发送语音按钮
@@ -162,6 +164,7 @@ class Button_Control():
             self.SolitaireButton={'title':'Create Group Note','control_type':'Button'}#接龙窗口内的发起接龙按钮
             self.MomentsButton={'title':'Moments','control_type':'Button','auto_id':'button'}#好友个人简介界面内的朋友圈按钮(不是主页左侧的)
         if self.language=='繁體中文':
+            self.OpenButton={'title':'拆开','control_type':'Button'}#微信红包拆开按钮
             self.SaveButton={'title':'保存','control_type':'Button'}#聊天记录界面内选中后的保存按钮
             self.AccountSettingsButton={'title':'賬號與儲存','control_type':'Button'}#微信设置界面里左侧的账号设置
             self.SendAudioButon={'title_re':'傳送語音','control_type':'Button'}#微信底部发送语音按钮

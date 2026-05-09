@@ -112,6 +112,7 @@ class Special_Label():
             self.VoiceCall='语音聊天'
             self.VideoCall='视频聊天'
             self.Download='下载'
+            self.RedPacket='微信红包'
             self.NotCare={'session_item_服务号','session_item_公众号'}
             self.Minutes={f'{i}分钟前' for i in range(1,60)}
             self.Hours={f'{i}小时前' for i in range(1,24)}
@@ -160,6 +161,7 @@ class Special_Label():
             self.VoiceCall='Voice Call'
             self.VideoCall='Video Call'
             self.Download='Download'
+            self.RedPacket='Weixin Red Packet'
             self.NotCare={'session_item_Service Accounts','session_item_Official Accounts'}
             self.Minutes={f'{i} minute(s) ago' for i in range(1,60)}
             self.Hours={f'{i} hour(s) ago' for i in range(1,24)}
@@ -204,6 +206,7 @@ class Special_Label():
             self.Yesterday='昨天'
             self.Moments='朋友圈'
             self.Download='下載'
+            self.RedPacket='微信紅包'
             self.NotCare={'session_item_服務賬號','session_item_官方賬號'}
             self.Minutes={f'{i}分鐘前' for i in range(1,60)}
             self.Hours={f'{i}小時前' for i in range(1,24)}
@@ -539,6 +542,8 @@ class Messages():
                 mouse.click(coords=position)
                 solitaire_window.child_window(control_type='Edit',found_index=2).set_text(description)
             solitaire_button.click_input()
+
+
 
 def At(main_window:WindowSpecification,at_members:list[str]):
     '''
