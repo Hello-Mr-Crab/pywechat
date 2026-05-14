@@ -103,7 +103,7 @@ from pywinauto import WindowSpecification
 from .Config import GlobalConfig
 #所有可能出现的异常
 from .Errors import NetWorkError
-from .Errors import NoSuchFriendError,NotFolderError
+from .Errors import NoSuchFriendError
 from .Errors import NotFriendError,NotStartError,NotLoginError
 from .Errors import NoResultsError,NotInstalledError,NotFoundError
 from pyweixin.Uielements import (Main_window,SideBar,Independent_window,ListItems,
@@ -140,7 +140,6 @@ class WxWindowManage():
             if desktop.window(handle=self.hwnd).class_name()=='mmui::LoginWindow':
                 self.window_type=0#登录界面
         return self.hwnd
-
 wx=WxWindowManage()
 
 
@@ -175,40 +174,23 @@ class Tools():
     
     @staticmethod
     def where_weixin(copy_to_clipboard:bool=False)->str:
-        '''该方法用来查找微信的路径,无论微信是否运行都可以查找到(如果没安装那就找不到)
+        '''该方法用来查找微信的路径
         Args:
             copy_to_clipboard:是否将微信路径复制到剪贴板
         Returns:
             weixin_path:微信exe路径
-        '''
-        #执行顺序 正在运行->查询注册表
-        if Tools.is_weixin_running():
-            weixin_path=''
-            wmi=win32com.client.GetObject('winmgmts:')
-            processes=wmi.InstancesOf('Win32_Process')
-            for process in processes:
-                if process.Name.lower()=='Weixin.exe'.lower():
-                    weixin_path=process.ExecutablePath
-            if weixin_path:
-                #规范化路径并检查文件是否存在
-                weixin_path=os.path.abspath(weixin_path)
+        ''' 
+        try:
+            reg_path=r"Software\Tencent\Weixin"
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER,reg_path) as key:
+                Installdir=winreg.QueryValueEx(key,"InstallPath")[0]
+            weixin_path=os.path.join(Installdir,'Weixin.exe')
             if copy_to_clipboard:
                 SystemSettings.copy_text_to_clipboard(weixin_path)
                 print("已将微信路径复制到剪贴板")
             return weixin_path
-        else:
-           
-            try:
-                reg_path=r"Software\Tencent\Weixin"
-                with winreg.OpenKey(winreg.HKEY_CURRENT_USER,reg_path) as key:
-                    Installdir=winreg.QueryValueEx(key,"InstallPath")[0]
-                weixin_path=os.path.join(Installdir,'Weixin.exe')
-                if copy_to_clipboard:
-                    SystemSettings.copy_text_to_clipboard(weixin_path)
-                    print("已将微信路径复制到剪贴板")
-                return weixin_path
-            except FileNotFoundError:
-                raise NotInstalledError
+        except FileNotFoundError:
+            raise NotInstalledError
     
     @staticmethod
     def where_wxid_folder(open_folder:bool=False)->str:
@@ -257,7 +239,7 @@ class Tools():
         return msg_folder
 
     @staticmethod
-    def where_db_storage(open_folder:bool=False)->str:
+    def where_db_folder(open_folder:bool=False)->str:
         '''
         该方法用来获取微信db_storage文件夹路径
         使用时微信必须登录,否则无法获取到完整路径
@@ -368,9 +350,10 @@ class Tools():
                 cmdlines.append(proc.info['cmdline'])#wechatappex.exr不止一个！所以把所有的exe命令行参数都保留
         for cmdline in cmdlines:
             cmd_str=' '.join(cmdline).lower()
-            if '--lang=zh-cn' in cmd_str:lang='简体中文'
-            if '--lang=zh-tw' in cmd_str:lang='繁體中文'
-            if '--lang=en' in cmd_str:lang='English'
+            if '--type=renderer' in cmd_str:
+                if '--lang=zh-cn' in cmd_str:lang='简体中文'
+                if '--lang=zh-tw' in cmd_str:lang='繁體中文'
+                if '--lang=en' in cmd_str:lang='English'
         return lang
 
     @staticmethod
@@ -489,7 +472,7 @@ class Tools():
             listview:pywinauto中control_type为List的ListViewWrapper
             listitem:在该listview中的子元素
         '''
-        items=listview.children(control_type='ListItem')
+        items=listview.children()
         for i in range(len(items)):
             if items[i]==listitem and i<len(items)-1:
                 return items[i+1]
@@ -526,19 +509,6 @@ class Tools():
             if listitems:
                 return listitems[0]
         return None
-    
-    @staticmethod
-    def capture_alias(listitem:ListItemWrapper):
-        '''用来截取聊天记录中的聊天对象昵称,左上角灰白色文本
-        Args:
-            listitem:聊天记录列表中每个listitem
-        '''
-        rectangle=listitem.rectangle()
-        width=rectangle.right-rectangle.left
-        x=rectangle.left+85
-        y=rectangle.top+5
-        image=pyautogui.screenshot(region=(x,y,width-270,38))
-        return image
 
     @staticmethod
     def collapse_contact_manage(contacts_manage:WindowSpecification):
@@ -672,7 +642,7 @@ class Tools():
                     if len(runtime_ids)>2 and runtime_ids[-1]==runtime_ids[-2]:
                         break
                     rect=selected[0].rectangle()
-                    right_clik_pos=rect.left+120,rect.top+50
+                    right_clik_pos=rect.left+110,rect.top+60
                     mouse.right_click(coords=right_clik_pos)
                     multiselect_item.click_input()
                     mouse.click(coords=right_clik_pos)
@@ -968,7 +938,8 @@ class Navigator():
         if search_pages is None:
             search_pages=GlobalConfig.search_pages
         profile_pane,main_window=Navigator.open_friend_profile(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
-        moments_button=profile_pane.child_window(**Buttons.MomentsButton)
+        moments_text=profile_pane.child_window(**Texts.MomentsText)
+        moments_button=moments_text.parent().parent().descendants(control_type='Button')[0]
         moments_button.click_input()
         moments_window=Tools.move_window_to_center(Window=Windows.MomentsWindow)
         if close_weixin:

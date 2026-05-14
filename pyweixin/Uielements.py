@@ -638,6 +638,7 @@ class Text_Control():
             self.EarliestOneText={'title':'已是第一张','control_type':'Text'}#图片预览窗口里的这是最早的一张图片文本
             self.InvitationSentText={'title':'该群聊邀请已发送','control_type':'Text'}#群聊邀请窗口内的群聊邀请文本,如果出现,说明该群聊自己发出并且已加入
             self.InvitationExpiredText={'title':'该群聊邀请已过期','control_type':'Text'}#群聊邀请窗口内的群聊邀请过期文本
+            self.MomentsText={'title':'朋友圈','control_type':'Text'}#好友个人简介界面内的朋友圈文本
         if self.language=='English':
             self.SharedGroupsText={'title':'Shared Groups','control_type':'Text'}#好友profile内的共同群聊文本，可能没有
             self.OutLineText={'title':'Appearance','control_type':'Text'}#设置界面内的外观文本
@@ -650,6 +651,7 @@ class Text_Control():
             self.EarliestOneText={'title':'This is the first one','control_type':'Text'}#图片预览窗口里的这是最早的一张图片文本
             self.InvitationSentText={'title':'Group invitation sent','control_type':'Text'}#群聊邀请窗口内的群聊邀请文本,如果出现,说明该群聊自己发出并且已加入
             self.InvitationExpiredText={'title':'Group invitation expired','control_type':'Text'}#群聊邀请窗口内的群聊邀请过期文本
+            self.MomentsText={'title':'Moments','control_type':'Text'}#好友个人简介界面内的朋友圈文本
         if self.language=='繁體中文':
             self.SharedGroupsText={'title':'共同群組','control_type':'Text'}#好友profile内的共同群聊文本，可能没有
             self.OutLineText={'title':'外觀','control_type':'Text'}#设置界面内的外观文本
@@ -662,7 +664,7 @@ class Text_Control():
             self.EarliestOneText={'title':'已是第一張','control_type':'Text'}#图片预览窗口里的这是最早的一张图片文本
             self.InvitationSentText={'title':'此群組邀請已傳送','control_type':'Text'}#群聊邀请窗口内的群聊邀请文本,如果出现,说明该群聊自己发出并且已加入
             self.InvitationExpiredText={'title':'该群聊邀请已过期','control_type':'Text'}#群聊邀请窗口内的群聊邀请过期文本
-            
+            self.MomentsText={'title':'朋友圈','control_type':'Text'}#好友个人简介界面内的朋友圈文本
 
 class TabItem_Control():
     def __init__(self,language=language,Version=Version):

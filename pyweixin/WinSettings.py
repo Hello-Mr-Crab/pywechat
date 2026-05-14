@@ -212,7 +212,20 @@ class SystemSettings():
                 shutil.copy2(file_path, target_folder)
             except Exception:
                 pass
-    
+
+    @staticmethod
+    def get_copied_text()->str:
+        '''从剪贴板获取粘贴的文本
+        Returns:
+            copied_text:粘贴到剪贴板的文本,如果没有返回空字符串
+        '''
+        copied_text=''
+        win32clipboard.OpenClipboard()
+        if win32clipboard.IsClipboardFormatAvailable(win32clipboard.CF_UNICODETEXT):
+            copied_text=win32clipboard.GetClipboardData(win32clipboard.CF_UNICODETEXT)
+        win32clipboard.CloseClipboard()
+        return copied_text
+
     @staticmethod
     def save_pasted_image(image_path:str)->bool:
         '''

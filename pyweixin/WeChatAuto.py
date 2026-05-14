@@ -2484,61 +2484,123 @@ class Moments():
             text_input.set_text(text)
         post_button=publish_panel.child_window(**Buttons.PostButton)
         post_button.click_input()
-       
 
     @staticmethod
-    def dump_recent_posts(recent:Literal['Today','Yesterday','Week','Month']='Today',number:int=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
+    def dump_recent_posts(recent:Literal['Today','Yesterday','Week','Month']='Today',number:int=None,with_name:bool=False,save_detail:bool=False,target_folder:str=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
         '''
         该方法用来获取最近一月内微信朋友圈内好友发布过的具体内容
         Args:
             recent:最近的时间,取值为['Today','Yesterday','Week','Month']
             number:指定的数量(如果传入了该参数那么按照recent和数量返回内容,如果不传入那么只按照recent的时间节点返回内容)
+            with_name:是否连好友的名字一并获取,需要点击左侧好友头像获取(比较耗时),默认为False
+            save_detail:是否保存每条朋友圈的具体内容到本地(注意,该操作比较耗时!)
+            target_folder:save_detail为True时保存朋友圈内容的具体文件夹
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
-            posts:朋友圈具体内容,list[dict]的格式,具体为[{'内容':xx,'图片数量':xx,'视频数量':xx,'发布时间':xx}]
-
+            posts:朋友圈具体内容,list[dict]的格式,具体为[{'好友'xx,'内容':xx,'图片数量':xx,'视频数量':xx,'发布时间':xx}]
         '''
-        def save_media(listitem):
-            #后期点击保存图片或视频的逻辑
-            listitem.click_input()
-            pass
+        def save_media(content_listitem:ListItemWrapper,friend:str,content:str,photo_num:int,video_num:int):
+            post_history=[dic for dic in posts if dic.get('好友')==friend]
+            post_count=len(post_history)#用来保存同一个好友的多条朋友圈时,内部文件夹按照1,2,3...
+            friend=re.sub(illegal_chars, '', friend)#windows路径不能有非法字符！
+            detail_folder=os.path.join(target_folder,friend,str(post_count))
+            os.makedirs(detail_folder,exist_ok=True)
+            content_path=os.path.join(detail_folder,'内容.txt')
+            capture_path=os.path.join(detail_folder,'内容截图.png')
+            video_path=os.path.join(detail_folder,'朋友圈视频.mp4')
+            #保存截图
+            image_obj=content_listitem.capture_as_image()
+            if image_obj is not None:image_obj.save(capture_path)
+            with open(content_path,'w',encoding='utf-8') as f:
+                f.write(content) if content else f.write(f'无文本内容')
+            #保存视频
+            if video_num: 
+                rectangle=content_listitem.rectangle()
+                center_y=rectangle.mid_point().y
+                side_x=rectangle.left+150 
+                mouse.click(coords=(side_x,center_y))
+                image_preview_window.right_click_input()
+                is_download=moments_window.child_window(**MenuItems.CopyMenuItem).exists(timeout=0.1)
+                while not is_download:
+                    image_preview_window.right_click_input()
+                    copy_item=image_preview_window.child_window(**MenuItems.CopyMenuItem)
+                    if copy_item.exists(timeout=0.2):
+                        is_download=True 
+                    time.sleep(1)    
+                image_preview_window.child_window(**MenuItems.CopyMenuItem).click_input()
+                time.sleep(3)#缓存到剪贴板
+                SystemSettings.save_pasted_video(video_path)
+                pyautogui.press('esc')
+            #保存图片
+            if photo_num:
+                rec=content_listitem.rectangle()
+                x,y=rec.left+120,rec.mid_point().y
+                mouse.click(coords=(x,y))
+                pyautogui.press('left',presses=photo_num,interval=0.15)
+                rect=moments_window.rectangle()
+                right_click_pos=rect.mid_point().x+120,rect.mid_point().y-20
+                for i in range(photo_num):
+                    mouse.right_click(coords=right_click_pos)
+                    moments_window.child_window(**MenuItems.CopyMenuItem).click_input()
+                    path=os.path.join(detail_folder,f'{i}.png')
+                    time.sleep(0.5)#0.5s缓存到剪贴板时间
+                    SystemSettings.save_pasted_image(path)
+                    pyautogui.press('right',interval=0.05)
+                pyautogui.press('esc')
 
-        def parse_post(listitem:ListItemWrapper):
+        def parse_post(content_listitem:ListItemWrapper):
             '''获取朋友圈文本中的时间戳,图片数量,以及剩余内容'''
             video_num=0
             photo_num=0
-            text=listitem.window_text()
-            post_time=sns_timestamp_pattern.search(text).group(0)
+            friend=''
+            text=content_listitem.window_text()
+            if with_name:
+                rect=content_listitem.rectangle()
+                right_click_pos=rect.left+70,rect.top+70
+                mouse.double_click(coords=right_click_pos)
+                friend=profile_window.child_window(control_type='Button',found_index=0).window_text()
+                friend=friend.strip()
+                mouse.click(coords=right_click_pos)
+            text=text.replace(friend,'')
+            post_time=sns_timestamp_pattern.findall(text)[-1]
             if GlobalConfig.language=='简体中文':
-                contain_video_pattern=re.compile(rf'\s视频\s{post_time}')
-                content_pattern=re.compile(rf'((\s包含\d+张图片\s)|(\s视频\s)).*{post_time}')
+                contain_video_pattern=re.compile(rf'\s视频\s{re.escape(post_time)}')
+                content_pattern=re.compile(rf'((\s包含\d+张图片\s)|(\s视频\s)){re.escape(post_time)}')
             if GlobalConfig.language=='English':
-                contain_video_pattern=re.compile(rf'\sVideo\s{post_time}')
-                content_pattern=re.compile(rf'((\sContain\s(\d+)\simage\(s\)\s)|(\sVideo\s)).*{post_time}')
+                contain_video_pattern=re.compile(rf'\sVideo\s{re.escape(post_time)}')
+                content_pattern=re.compile(rf'((\sContain\s(\d+)\simage\(s\)\s)|(\sVideo\s)){re.escape(post_time)}')
             if GlobalConfig.language=='繁體中文':
-                contain_video_pattern=re.compile(rf'\s影片\s{post_time}')
-                content_pattern=re.compile(rf'((\s包含\s\d+\s張圖片\s)|(\s影片\s)).*{post_time}')
+                contain_video_pattern=re.compile(rf'\s影片\s{re.escape(post_time)}')
+                content_pattern=re.compile(rf'((\s包含\s\d+\s張圖片\s)|(\s影片\s)){re.escape(post_time)}')
             if contain_image_pattern.search(text):
                 photo_num=int(contain_image_pattern.search(text).group(1))
             if contain_video_pattern.search(text):
                 video_num=1
             content=content_pattern.sub('',text)
             content=re.sub(r'^\s+','',content)
-            return content,photo_num,video_num,post_time
+            return friend,content,photo_num,video_num,post_time
         
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
-
-        recorded_num=0
+        if save_detail  and target_folder is None:
+            target_folder=os.path.join(os.getcwd(),'dump_recents_posts朋友圈内容保存')
+            print(f'未传入文件夹图片和内容将保存到{target_folder}内')
+            os.makedirs(target_folder,exist_ok=True)
         posts=[]
+        recorded_num=0
+        if save_detail:with_name=True
+        illegal_chars=r'[\\/*?:"<>|]'#windows文件系统中的非法字符,好友名字中如果有需要替换
         sns_timestamp_pattern=Regex_Patterns.Sns_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳
         contain_image_pattern=Regex_Patterns.Contain_Images_pattern#朋友圈包含1~9张图片
         not_contents=['mmui::TimelineCommentCell','mmui::TimelineCell','mmui::TimelineAdGridImageCell']#评论区，余下x条,广告,这三种不需要
         moments_window=Navigator.open_moments(is_maximize=is_maximize,close_weixin=close_weixin)
         win32gui.SendMessage(moments_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MAXIMIZE,0)
+        Tools.cancel_pin(moments_window)
+        image_preview_window=desktop.window(**Windows.ImagePreviewWindow)
+        profile_window=desktop.window(**Windows.PopUpProfileWindow)
         moments_list=moments_window.child_window(**Lists.MomentsList)
         moments_list.type_keys('{HOME}')
         #微信朋友圈当天发布时间是xx分钟前,xx小时前,一周内的时间在7天内,且包含当天时间,同理一月内的时间在30天内,包含本周的时间
@@ -2552,12 +2614,14 @@ class Moments():
                 listitems=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.class_name() not in not_contents]
                 selected=[listitem for listitem in listitems if listitem.has_keyboard_focus()]
                 if selected:
-                    content,photo_num,video_num,post_time=parse_post(selected[0])
-                    posts.append({'内容':content,'图片数量':photo_num,'视频数量':video_num,'发布时间':post_time})
+                    friend,content,photo_num,video_num,post_time=parse_post(selected[0])
+                    post_detail={'好友':friend,'内容':content,'图片数量':photo_num,'视频数量':video_num,'发布时间':post_time}
+                    posts.append(post_detail)
+                    if save_detail:save_media(selected[0],friend,content,photo_num,video_num)
                     recorded_num+=1
                     if isinstance(number,int) and recorded_num>=number:
                         break
-                    if recent=='Today' and (yesterday in post_time or days_ago in post_time):#昨天或者x天前在时间戳里不属于今天了
+                    if recent=='Today' and ((yesterday in post_time ) or (days_ago in post_time)):#昨天或者x天前在时间戳里不属于今天了
                         break
                     if recent=='Yesterday' and days_ago in post_time:#当前的朋友圈内容发布时间没有天前,说明是当天和昨天
                         break
@@ -2578,24 +2642,33 @@ class Moments():
         return posts
     
     @staticmethod
-    def like_posts(recent:Literal['Today','Yesterday','Week','Month']='Today',number:int=None,callback:Callable[[str],str]=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
+    def like_posts(recent:Literal['Today','Yesterday','Week','Month']='Today',with_name:bool=False,number:int=None,callback:Callable[[str],str]=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
         '''
         该方法用来给朋友圈内最近发布的内容点赞和评论
         Args:
             recent:最近的时间,取值为['Today','Yesterday','Week','Month']
-            callback:评论回复函数,入参为字符串是好友朋友圈的内容,返回值为要评论的内容
             number:数量,如果指定了一定的数量,那么点赞数量超过number时结束,如果没有则在recent指定的范围内全部点赞
+            with_name:是否连好友的名字一并获取,需要点击左侧好友头像获取(比较耗时),默认为False
+            callback:评论回复函数,入参为字符串是好友朋友圈的内容,返回值为要评论的内容
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
-           posts:朋友圈内容,list[dict]的格式,具体为[{'内容':xx,'图片数量':xx,'视频数量':xx,'发布时间':xx}]
+           posts:朋友圈内容,list[dict]的格式,具体为[{'好友','内容':xx,'图片数量':xx,'视频数量':xx,'发布时间':xx}]
         '''
-        def parse_listitem(listitem:ListItemWrapper):
+        def parse_post(content_listitem:ListItemWrapper):
             '''获取朋友圈文本中的时间戳,图片数量,以及剩余内容'''
             video_num=0
             photo_num=0
-            text=listitem.window_text()
-            post_time=sns_timestamp_pattern.search(text).group(0)
+            text=content_listitem.window_text()
+            friend=''
+            if with_name:
+                rect=content_listitem.rectangle()
+                right_click_pos=rect.left+70,rect.top+70
+                mouse.double_click(coords=right_click_pos)
+                friend=profile_window.child_window(control_type='Button',found_index=0).window_text()
+                friend=friend.strip()
+                mouse.click(coords=right_click_pos)
+            post_time=sns_timestamp_pattern.findall(text)[-1]
             if GlobalConfig.language=='简体中文':
                 contain_video_pattern=re.compile(rf'\s视频\s{post_time}')
                 content_pattern=re.compile(rf'((\s包含\d+张图片\s)|(\s视频\s)).*{post_time}')
@@ -2611,11 +2684,11 @@ class Moments():
                 video_num=1
             content=content_pattern.sub('',text)
             content=re.sub(r'^\s+','',content)
-            return content,photo_num,video_num,post_time
+            return friend,content,photo_num,video_num,post_time
         
         def like(content_listitem:ListItemWrapper):
             #点赞操作
-            mouse.move(coords=center_point)
+            # mouse.move(coords=center_point)
             rectangle=content_listitem.rectangle()
             ColorMatch.click_gray_ellipsis_button(rectangle)
             if like_button.exists(timeout=0.1):
@@ -2623,7 +2696,7 @@ class Moments():
 
         def comment(content_listitem:ListItemWrapper,comment_listitem:ListItemWrapper,content:str):
             #评论操作
-            mouse.move(coords=center_point)
+            # mouse.move(coords=center_point)
             ellipsis_area=(content_listitem.rectangle().right-44,content_listitem.rectangle().bottom-15)#省略号按钮所处位置
             mouse.click(coords=ellipsis_area)
             reply=callback(content) 
@@ -2635,7 +2708,7 @@ class Moments():
                 pyautogui.hotkey('ctrl','v')
                 rectangle=comment_listitem.rectangle()
                 ColorMatch.click_green_send_button(rectangle,x_offset=70,y_offset=42)
-               
+
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
@@ -2651,6 +2724,8 @@ class Moments():
         contain_image_pattern=Regex_Patterns.Contain_Images_pattern#朋友圈包含1~9张图片
         not_contents=['mmui::TimelineCommentCell','mmui::TimelineCell','mmui::TimelineAdGridImageCell']#评论区，余下x条,广告,这三种不需要
         moments_window=Navigator.open_moments(is_maximize=is_maximize,close_weixin=close_weixin)
+        Tools.cancel_pin(moments_window)
+        profile_window=desktop.window(**Windows.PopUpProfileWindow)
         time.sleep(2)#等待刷新
         like_button=moments_window.child_window(**Buttons.LikeButton)
         comment_button=moments_window.child_window(**Buttons.CommentButton)
@@ -2662,8 +2737,8 @@ class Moments():
                 moments_list.type_keys('{DOWN}',pause=0.1)
                 selected=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
                 if selected and selected[0].class_name() not in not_contents:
-                    content,photo_num,video_num,post_time=parse_listitem(selected[0])
-                    posts.append({'内容':content,'图片数量':photo_num,'视频数量':video_num,'发布时间':post_time})
+                    friend,content,photo_num,video_num,post_time=parse_post(selected[0])
+                    posts.append({'好友':friend,'内容':content,'图片数量':photo_num,'视频数量':video_num,'发布时间':post_time})
                     like(selected[0])
                     liked_num+=1
                     if callback is not None:
@@ -2727,7 +2802,7 @@ class Moments():
                 while not is_download:
                     image_preview_window.right_click_input()
                     copy_item=image_preview_window.child_window(**MenuItems.CopyMenuItem)
-                    if copy_item.exists(timeout=0.5):
+                    if copy_item.exists(timeout=0.2):
                         is_download=True 
                     time.sleep(1)       
                 pyautogui.press('down',presses=video_pressed_num)
@@ -2760,7 +2835,7 @@ class Moments():
             photo_num=0
             text=listitem.window_text()
             text=text.replace(friend,'')#好友
-            post_time=sns_detail_pattern.search(text).group(0)
+            post_time=sns_detail_pattern.findall(text)[-1]
             if GlobalConfig.language=='简体中文':
                 contain_video_pattern=re.compile(rf'\s视频\s{post_time}')
                 content_pattern=re.compile(rf'((\s包含\d+张图片\s)|(\s视频\s)).*{post_time}')
@@ -2852,7 +2927,7 @@ class Moments():
             photo_num=0
             text=listitem.window_text()
             text=text.replace(friend,'')#先去掉头尾的空格去掉换行符
-            post_time=sns_detail_pattern.search(text).group(1)
+            post_time=sns_detail_pattern.findall(text)[-1]
             if GlobalConfig.language=='简体中文':
                 contain_video_pattern=re.compile(rf'\s视频\s{post_time}')
                 content_pattern=re.compile(rf'((\s包含\d+张图片\s)|(\s视频\s)).*{post_time}')
@@ -3689,7 +3764,7 @@ class Messages():
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
-            chat_history:[{'消息内容':xxx,'消息发送人':yyy}....]
+            chat_history:[{'消息内容':xxx,'消息发送人':yyy,'消息发送时间':xxx,'消息类型':yyy}....]
         '''
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
@@ -3755,27 +3830,27 @@ class Messages():
             chat_history_window.close()
             return [],[],[]
         win32gui.SendMessage(chat_history_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MAXIMIZE,0)
-        texts_with_name=traverse_chat_history_list(chat_history_window,select=True,number=number,save_detail=save_detail,target_folder=target_folder)
+        details_with_name=traverse_chat_history_list(chat_history_window,select=True,number=number,save_detail=save_detail,target_folder=target_folder)
         if not is_group_chat:
             myName=get_myName()
-            contents,senders,timestamps=parse_chat_history(friend,myName,texts_with_name)
+            contents,senders,timestamps,message_types=parse_chat_history(friend,myName,details_with_name)
         if is_group_chat:
             total_num=int(re.search(rf'\((\d+)\)',chat_history_window.window_text()).group(1))
             #要么获取群成员名称后按个查找确认sender，要么在不选择的情况下遍历一遍然后替换比较得到sender
             if total_num<number and total_num<100:#根据数量选择具体的一个,群聊人数比要获取的聊天记录少的多的情况下直接获取群成员信息
                 groupMembers=get_groupMembers_info()
-                contents,senders,timestamps=parse_group_chat_history(texts_with_name,[],groupMembers)
+                contents,senders,timestamps,message_types=parse_group_chat_history(details_with_name,[],groupMembers)
             else:
-                texts_without_name=traverse_chat_history_list(chat_history_window,select=False,number=number)
-                contents,senders,timestamps=parse_group_chat_history(texts_with_name,texts_without_name,[])
-        chat_history=[{'消息内容':chat[0],'消息发送人':chat[1],'消息发送时间':chat[2]} for chat in zip(contents,senders,timestamps)]
-        if is_json:
-            chat_history=json.dumps(chat_history,ensure_ascii=False,indent=2)
+                details_without_name=traverse_chat_history_list(chat_history_window,select=False,number=number)
+                contents,senders,timestamps,message_types=parse_group_chat_history(details_with_name,details_without_name,[])
+        chat_history=[{'消息发送人':chat[0],'消息内容':chat[1],'消息发送时间':chat[2],'消息类型':chat[3]} for chat in zip(senders,contents,timestamps,message_types)]
         if save_detail:
             chat_history_json=json.dumps(chat_history,ensure_ascii=False,indent=2)
             json_path=os.path.join(target_folder,f'{friend}聊天记录信息.json')
             with open(json_path,'w',encoding='utf-8') as f:
                 f.write(chat_history_json)
+        if is_json:
+            chat_history=json.dumps(chat_history,ensure_ascii=False,indent=2)
         chat_history_window.close()
         return chat_history
 
@@ -3941,11 +4016,12 @@ class Messages():
         return contents,timestamps
 
     @staticmethod
-    def search_chat_history(keyword:str,is_maximize:bool=None,close_weixin:bool=None)->dict[str,list[str]]:
+    def search_chat_history(keyword:str,number:int=None,is_maximize:bool=None,close_weixin:bool=None)->dict[str,list[str]]:
         '''
         该方法用来在微信顶部搜索关键字然后遍历查找聊天记录
         Args:
             keyword:聊天记录关键字
+            number:获取前number条相关的聊天记录,在数量达到number时结束(不传入该参数默认获取全部)
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
@@ -3990,6 +4066,8 @@ class Messages():
             while True:
                 Tools.activate_chatHistoryList(message_list)#激活滑块
                 chat_history_detail[current_item.window_text()]=traverse_message_list(message_list)
+                if isinstance(number,int) and len(chat_history_detail)>=number:
+                    break
                 next_item=Tools.get_next_item(search_list,current_item)
                 if next_item is None:
                     mouse.scroll(coords=scroll_position,wheel_dist=-12)
