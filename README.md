@@ -134,17 +134,27 @@ from pyweixin import Tools
 print(Tools.about_weixin())
 ```
 
-#### 监听消息
+#### 多线性监听多个聊天窗口消息
 
 ```python
-from pyweixin import Monitor,Navigator
-#select设置为True可以获取到消息发送人,window_minimize最小化不影响正常办公
-dialog_window=Navigator.open_seperate_dialog_window(friend='小号测试',select=True,window_minimize=True)
-result=Monitor.listen_on_chat(dialog_window=dialog_window,duration='1min',save_file=True)
-print(result)
+from concurrent.futures import ThreadPoolExecutor
+from pyweixin import Navigator,Monitor
+#先打开所有好友的独立窗口
+dialog_windows=[]
+friends=['Hello,Mr Crab','Pywechat测试群']
+durations=['1min']*len(friends)
+for friend in friends:
+    dialog_window=Navigator.open_seperate_dialog_window(friend=friend,window_minimize=True,close_weixin=True)
+    dialog_windows.append(dialog_window)
+with ThreadPoolExecutor() as pool:
+    results=pool.map(lambda args: Monitor.listen_on_chat(*args),list(zip(dialog_windows,durations)))
+for friend,result in zip(friends,results):
+    print(friend,result)
+#返回值 {'新消息总数':x,'文本数量':x,'文件数量':x,'图片数量':x,'视频数量':x,'链接数量':x,'文本内容':x,'消息发送人':x}
 ```
 
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/listen_on_chat多线程.png)
+</br>
 
 #### 多线程监听消息并自动回复
 
@@ -180,15 +190,6 @@ for friend,result in zip(friends,results):
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/自动回复.png)
 </br>
 
-#### 监听单个聊天窗口消息
-
-```python
-from pyweixin import Navigator,Monitor
-dialog_window=Navigator.open_seperate_dialog_window(friend='啦啦啦')
-result=Monitor.listen_on_chat(dialog_window=dialog_window,duration='30s')
-print(result)#返回值 {'新消息总数':x,'文本数量':x,'文件数量':x,'图片数量':x,'视频数量':x,'链接数量':x,'文本内容':x,'消息发送人':x}
-```
-
 #### 朋友圈内容导出
 
 ```python
@@ -199,7 +200,7 @@ for dic in posts:
     print(dic)
 ```
 
-![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/朋友圈数据获取.png)
+![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/朋友圈内容导出.png)
 </br>
 
 #### 发布朋友圈
@@ -351,7 +352,7 @@ for dict in moments:
     print(dict)
 ```
 
-![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/朋友圈内容导出.png)
+![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/朋友圈数据获取.png)
 
 注意，导出的结果为list[dict],每一条朋友圈对应一个dict,dict具体内容
 
@@ -437,6 +438,8 @@ print(check_new_message())
 
 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！
 
+</br>
+
 ## 本项目相关博客
 
 - [pywinauto使用教程](https://mrcrab.blog.csdn.net/article/details/157546162?fromshare=blogdetail&sharetype=blogdetail&sharerId=157546162&sharerefer=PC&sharesource=weixin_73953650&sharefrom=from_link)
@@ -445,6 +448,5 @@ print(check_new_message())
 - [shutil文件移动](https://mrcrab.blog.csdn.net/article/details/148735930?fromshare=blogdetail&sharetype=blogdetail&sharerId=148735930&sharerefer=PC&sharesource=weixin_73953650&sharefrom=from_link)
 - [os.path文件路径](https://mrcrab.blog.csdn.net/article/details/147304200?fromshare=blogdetail&sharetype=blogdetail&sharerId=147304200&sharerefer=PC&sharesource=weixin_73953650&sharefrom=from_link)
 - [x86Win10虚拟机安装问题](https://mrcrab.blog.csdn.net/article/details/158418985?fromshare=blogdetail&sharetype=blogdetail&sharerId=158418985&sharerefer=PC&sharesource=weixin_73953650&sharefrom=from_link)
-</br>
 
 ### 作者CSDN主页:[Hello,Mr Crab](https://blog.csdn.net/weixin_73953650?spm=1011.2415.3001.5343)
