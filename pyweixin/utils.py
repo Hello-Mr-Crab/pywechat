@@ -721,36 +721,36 @@ save_detail:bool=False,target_folder:str=None)->list[tuple[str,str,list[str]]]:
     Returns:
         details:[(ui文本,ui类名,[转发的聊天记录])]*number
     '''
-    def traverse_record_detail(listitem):
-        '''用来遍历获取转发的聊天记录块内内容'''
-        chat_history=[]
-        runtime_ids=[]
-        pyautogui.press('esc')#取消当前聊天记录列表的选中状态
-        rect=listitem.rectangle()
-        click_pos=rect.left+120,rect.top+60
-        mouse.click(coords=click_pos)#点击聊天记录块
-        #弹出的聊天记录明细移动到屏幕中央
-        record_detail_window=Tools.move_window_to_center({'class_name':'mmui::RecordDetailWindow','found_index':0})
-        record_detail_list=record_detail_window.child_window(class_name='mmui::RecyclerListView')
-        #激活聊天记录明细窗口内的列表,让其可以选中
-        record_detail_list.type_keys('{PGDN}')
-        record_detail_list.type_keys('{HOME}')
-        #疯狂遍历,直达见底
-        while True:
-            selected=[item for item in record_detail_list.children() if item.has_keyboard_focus()]
-            if selected:
-                chat_history.append(selected[0].window_text())
-                #同一个runtime_id挨着重复出现就说明到底部了无法继续下滑
-                runtime_ids.append(selected[0].element_info.runtime_id)
-                if len(runtime_ids)>2 and runtime_ids[-1]==runtime_ids[-2]:
-                    break
-            pyautogui.press('down',presses=1,_pause=False)
-        record_detail_window.close()
-        #重新再开启聊天记录列表的选中状态
-        mouse.right_click(coords=click_pos)
-        multiselect_item.click_input()
-        listitem.click_input()#点一下聊天记录是为了不选中这个checkbox,只有图片视频文件才选中
-        return chat_history#把转发的聊天记录文本列表返回
+    # def traverse_record_detail(listitem):
+    #     '''用来遍历获取转发的聊天记录块内内容'''
+    #     chat_history=[]
+    #     runtime_ids=[]
+    #     pyautogui.press('esc')#取消当前聊天记录列表的选中状态
+    #     rect=listitem.rectangle()
+    #     click_pos=rect.left+120,rect.top+60
+    #     mouse.click(coords=click_pos)#点击聊天记录块
+    #     #弹出的聊天记录明细移动到屏幕中央
+    #     record_detail_window=Tools.move_window_to_center({'class_name':'mmui::RecordDetailWindow','found_index':0})
+    #     record_detail_list=record_detail_window.child_window(class_name='mmui::RecyclerListView')
+    #     #激活聊天记录明细窗口内的列表,让其可以选中
+    #     record_detail_list.type_keys('{PGDN}')
+    #     record_detail_list.type_keys('{HOME}')
+    #     #疯狂遍历,直达见底
+    #     while True:
+    #         selected=[item for item in record_detail_list.children() if item.has_keyboard_focus()]
+    #         if selected:
+    #             chat_history.append(selected[0].window_text())
+    #             #同一个runtime_id挨着重复出现就说明到底部了无法继续下滑
+    #             runtime_ids.append(selected[0].element_info.runtime_id)
+    #             if len(runtime_ids)>2 and runtime_ids[-1]==runtime_ids[-2]:
+    #                 break
+    #         pyautogui.press('down',presses=1,_pause=False)
+    #     record_detail_window.close()
+    #     #重新再开启聊天记录列表的选中状态
+    #     mouse.right_click(coords=click_pos)
+    #     multiselect_item.click_input()
+    #     listitem.click_input()#点一下聊天记录是为了不选中这个checkbox,只有图片视频文件才选中
+    #     return chat_history#把转发的聊天记录文本列表返回
     file_count=0
     media_count=0
     recorded_num=0
@@ -786,8 +786,8 @@ save_detail:bool=False,target_folder:str=None)->list[tuple[str,str,list[str]]]:
             if selected[0].class_name()=='mmui::ChatBubbleItemView':
                 if file_label in selected[0].window_text() and select and save_detail:
                     pyautogui.press('enter')
-                if chat_history_label in selected[0].window_text() and file_label not in selected[0].window_text() and link_label not in selected[0].window_text():
-                    chat_history=traverse_record_detail(selected[0])
+                # if chat_history_label in selected[0].window_text() and file_label not in selected[0].window_text() and link_label not in selected[0].window_text():
+                    # chat_history=traverse_record_detail(selected[0])
             details.append((selected[0].window_text(),selected[0].class_name(),chat_history)) 
         pyautogui.press('down',presses=1,_pause=False)
     savable_item_count=file_count+media_count

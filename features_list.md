@@ -17,6 +17,7 @@
 
 ## Changed
 
+- pyweixin操作手册.docx:更新了pyweixin操作手册.docx
 - Regex_Pattern,Special_label,TimeStamp三个类移动到Uielements内
 - Navigator.open_weixin:无法识别定位到微信主界面时自动打开讲述人
 - Tools.language_detector:对wechatappex.exe命令行增加限制,防止语言获取失败
