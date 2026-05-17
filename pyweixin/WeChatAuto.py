@@ -61,8 +61,7 @@ import pyautogui
 import win32clipboard
 import win32gui,win32con
 from typing import Literal
-from warnings import warn,filterwarnings
-# filterwarnings('ignore',category=UserWarning)
+from warnings import warn
 from collections import Counter
 from pywinauto import WindowSpecification
 from pywinauto.controls.uia_controls import ListItemWrapper,ListViewWrapper#TypeHint要用到
@@ -71,11 +70,11 @@ from packaging import version#字符串版本比较,4.1.9>4.1.8>4.1.7
 #####################################################################################
 #内部依赖
 from .Config import GlobalConfig
-from .utils import traverse_chat_history_list,traverse_chatList
+from .utils import At,At_all,ColorMatch
+from .utils import traverse_chat_history,traverse_message
 from .utils import parse_chat_history,parse_group_chat_history
 from .utils import parse_messages,parse_group_messages,NativeChooseFolder
 from .utils import scan_for_new_messages,get_new_message_num,process_audios
-from .utils import At,At_all,ColorMatch,Regex_Patterns,Special_Labels,TimeStamps
 from .Warnings import LongTextWarning,NoChatHistoryWarning
 from .WeChatTools import Tools,Navigator,mouse,Desktop
 from .WinSettings import SystemSettings
@@ -85,6 +84,7 @@ from .Errors import NotFolderError
 from .Errors import NotFriendError
 from .Uielements import (Main_window,SideBar,Buttons,TabItems,
 Edits,Texts,Lists,Panes,Windows,CheckBoxes,MenuItems,Groups,Customs,ListItems)#导入的是自动判断语言后的实例化对象,如果自行使用需要导入xxx_Control
+from .Uielements import Regex_Patterns,Special_Labels,TimeStamps
 #######################################################################################
 desktop=Desktop(backend='uia')#pywinauto的windows桌面对象(WindowSpecification)实例化
 pyautogui.FAILSAFE=False#防止鼠标在屏幕边缘处造成的误触
@@ -219,7 +219,7 @@ class Call():
             wait:是否等待接听,最多等待60s
             close_weixin:任务结束后是否关闭微信,默认关闭
         Returns:
-            VoipCall_window:语音电话窗口,如果被挂断或接听超时返回None
+            VoipCall_window:语音电话窗口,wait设置为True时返回,如果被挂断或接听超时返回None
         '''
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
@@ -239,7 +239,8 @@ class Call():
                 voice_call_button=main_window.child_window(**Buttons.VoiceCallButton)
                 voice_call_button.click_input()
             VoipCall_window=Tools.move_window_to_center(Windows.VoipCallWindow)
-            if close_weixin:main_window.close()
+            if close_weixin:
+                main_window.close()
             if wait:
                 try:
                     duration_label=VoipCall_window.child_window(class_name="mmui::VOIPDurationTextView").wait(wait_for='ready',timeout=55)
@@ -247,6 +248,7 @@ class Call():
                 except Exception:
                     print(f'本次通话已挂断!')
                     return None
+            return None
         if is_group:
             print(f'不支持群聊语音电话(SessionPicker-Window Ui自动化有Bug,微信会卡死崩溃！')
             return None
@@ -260,7 +262,7 @@ class Call():
             wait:是否等待接听,最多等待60s
             close_weixin:任务结束后是否关闭微信,默认关闭
         Returns:
-            VoipCall_window:视频电话窗口,如果被挂断或接听超时返回None
+            VoipCall_window:视频电话窗口,wait设置为True时返回,如果被挂断或接听超时返回None
         '''
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
@@ -288,6 +290,7 @@ class Call():
                 except Exception:
                     print(f'本次通话已挂断!')
                     return None
+            return None
         if is_group:
             print(f'不支持群聊视频电话(SessionPicker-Window Ui自动化有Bug,微信会卡死崩溃！')
             if close_weixin:main_window.close()
@@ -536,6 +539,49 @@ class Contacts():
         return groupMembers
 
     @staticmethod
+    def get_friends_name(is_maximize:bool=None,close_weixin:bool=None)->(list[dict]|str):
+        '''
+        该方法用来获取通讯录内好友信息
+        Args:
+
+            is_maximize:微信界面是否全屏，默认不全屏
+            close_weixin:任务结束后是否关闭微信，默认关闭
+        Returns:
+            friends_name:所有好友的名字(注意,同名的好友只保留一个!)
+        '''
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+
+        friends_name=[]
+        #通讯录列表
+        contact_list,main_window=Navigator.open_contacts(is_maximize=is_maximize)
+        #右侧的自定义面板
+        contact_custom=main_window.child_window(**Customs.ContactDetailCustom)
+        #鼠标移动到右侧
+        area=(contact_custom.rectangle().mid_point().x,contact_custom.rectangle().mid_point().y)
+        Tools.collapse_contacts(main_window,contact_list)
+        contact_item=main_window.child_window(**ListItems.ContactsListItem)
+        if contact_item.exists(timeout=0.1):
+            contact_item.click_input()
+            mouse.move(coords=area)
+            contact_list.type_keys('{END}'*10)
+            last_friend=contact_list.children(control_type='ListItem')[-1].window_text()
+            contact_list.type_keys('{HOME}'*10)
+            while True:
+                names=[listitem.window_text() for listitem in contact_list.children(class_name='mmui::ContactsCellItemView')]
+                friends_name.extend(names)
+                if names[-1]==last_friend:
+                    break
+                contact_list.type_keys('{PGDN}')
+            Tools.collapse_contacts(main_window,contact_list)
+        friends_name=list(dict.fromkeys(friends_name))
+        if close_weixin:
+            main_window.close()
+        return friends_name
+    
+    @staticmethod
     def get_friends_detail(is_maximize:bool=None,close_weixin:bool=None,is_json:bool=False)->(list[dict]|str):
         '''
         该方法用来获取通讯录内好友信息
@@ -643,7 +689,7 @@ class Contacts():
         if close_weixin:
             main_window.close()
         return friends_detail
-    
+
     @staticmethod
     def get_wecom_friends_detail(is_maximize:bool=None,close_weixin:bool=None,is_json:bool=False)->(list[dict]|str):
         '''
@@ -1157,7 +1203,7 @@ class Contacts():
             return result
     
         def get_specific_info(texts):
-            nums=[num_pattern.search(text).group(1) for text in texts]
+            nums=[int(num_pattern.search(text).group(1)) for text in texts]
             names=[num_pattern.sub('',text) for text in texts]
             return names,nums
 
@@ -2595,7 +2641,7 @@ class Moments():
         illegal_chars=r'[\\/*?:"<>|]'#windows文件系统中的非法字符,好友名字中如果有需要替换
         sns_timestamp_pattern=Regex_Patterns.Sns_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳
         contain_image_pattern=Regex_Patterns.Contain_Images_pattern#朋友圈包含1~9张图片
-        not_contents=['mmui::TimelineCommentCell','mmui::TimelineCell','mmui::TimelineAdGridImageCell']#评论区，余下x条,广告,这三种不需要
+        not_contents=['mmui::TimelineCommentCell','mmui::TimelineCell','mmui::TimelineAdGridImageCell','mmui::TimelineAdBaseCardImageCell']#评论区，余下x条,广告,这三种不需要
         moments_window=Navigator.open_moments(is_maximize=is_maximize,close_weixin=close_weixin)
         win32gui.SendMessage(moments_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MAXIMIZE,0)
         Tools.cancel_pin(moments_window)
@@ -2805,8 +2851,7 @@ class Moments():
                     if copy_item.exists(timeout=0.2):
                         is_download=True 
                     time.sleep(1)       
-                pyautogui.press('down',presses=video_pressed_num)
-                pyautogui.press('enter')
+                copy_item.click_input()
                 time.sleep(3)#缓存到剪贴板
                 SystemSettings.save_pasted_video(video_path)
                 pyautogui.press('esc')
@@ -2827,7 +2872,6 @@ class Moments():
                     SystemSettings.save_pasted_image(path)
                     pyautogui.press('right',interval=0.05)
                 pyautogui.press('esc')
-            
 
         def parse_friend_post(listitem:ListItemWrapper):
             '''获取朋友圈文本中的时间戳,图片数量,以及剩余内容'''
@@ -2871,7 +2915,7 @@ class Moments():
         posts=[]
         recorded_num=0
         old_version=version.parse(GlobalConfig.Version)<version.parse('4.1.9')
-        video_pressed_num=2 if old_version else 1
+        # video_pressed_num=2 if old_version else 1
         sns_detail_pattern=Regex_Patterns.Snsdetail_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳pattern
         contain_image_pattern=Regex_Patterns.Contain_Images_pattern#朋友圈包含1~9张图片
         not_contents=['mmui::AlbumBaseCell','mmui::AlbumTopCell']#置顶内容不需要
@@ -3581,7 +3625,7 @@ class Messages():
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
-            chat_history:[{'消息内容':xxx,'消息发送人':yyy}....]
+            chat_history:[{'消息发送人':xxx,'消息内容':yyy,'消息类型'}....]
         '''
         def get_myName():
             '''获取本人昵称,为了节省时间不去调用Contacts.check_my_info'''
@@ -3616,138 +3660,16 @@ class Messages():
             else:
                 is_group_chat=Tools.is_group_chat(main_window)
                 if not is_group_chat:myName=get_myName()
-                texts_with_name=traverse_chatList(main_window,select=True,number=number)
+                details_with_name=traverse_message(main_window,select=True,number=number)
                 if not is_group_chat:
-                    contents,senders=parse_messages(friend,myName,texts_with_name)
+                    contents,senders,message_tpyes=parse_messages(friend,myName,details_with_name)
                 if is_group_chat:
-                    texts_without_name=traverse_chatList(main_window,select=False,number=number)
-                    contents,senders=parse_group_messages(texts_with_name,texts_without_name)
-            chat_history=[{'消息内容':chat[0],'消息发送人':chat[1]} for chat in zip(contents,senders)]
+                    details_without_name=traverse_message(main_window,select=False,number=number)
+                    contents,senders,message_tpyes=parse_group_messages(details_with_name,details_without_name)
+            chat_history=[{'消息发送人':chat[0],'消息内容':chat[1],'消息类型':chat[2]} for chat in zip(senders,contents,message_tpyes)]
             if is_json:chat_history=json.dumps(chat_history,ensure_ascii=False,indent=2)
             if close_weixin:main_window.close()
         return chat_history
-
-    # @staticmethod
-    # def dump_chat_history(friend:str,number:int,search_content:str=None,capture_alia:bool=False,alias_folder:str=None,
-    #     save_media:bool=False,media_folder:str=None,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->tuple[list,list]:
-    #     '''
-    #     该函数用来获取一定数量的聊天记录
-    #     Args:  
-    #         friend:好友名称
-    #         number:获取的消息数量
-    #         search_content:搜索关键字,传入后会先在顶部搜索关键字然后向下遍历
-    #         capture_alia:是否截取聊天记录中聊天对象的昵称
-    #         alias_folder:保存聊天对象昵称截图的文件夹
-    #         save_media:是否保存聊天记录中的图片与视频
-    #         media_folder:保存聊天对象昵称截图的文件夹
-    #         search_pages:打开好友聊天窗口时在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息
-    #         is_maximize:微信界面是否全屏，默认不全屏
-    #         close_weixin:任务结束后是否关闭微信，默认关闭
-    #     Returns:
-    #         (messages,timestamps):发送的消息(时间顺序从晚到早),每条消息对应的发送时间
-    #     '''
-    #     def save(listitem:ListItemWrapper,media_type:int):
-    #         video_path=os.path.join(media_folder,f'{video_count}.mp4')
-    #         image_path=os.path.join(media_folder,f'{image_count}.png')
-    #         rec=listitem.rectangle()
-    #         right_click_position=rec.left+120,rec.mid_point().y
-    #         #保存视频
-    #         if media_type==0:
-    #             is_download=not download_label in listitem.window_text() 
-    #             if not is_download:
-    #                 mouse.click(coords=right_click_position)
-    #                 while not is_download:
-    #                     mouse.right_click(coords=right_click_position)
-    #                     if copy_item.exists(timeout=0.2):
-    #                         is_download=True 
-    #                     time.sleep(0.2)     
-    #             mouse.right_click(coords=right_click_position)     
-    #             pyautogui.press('down',presses=video_pressed_num)
-    #             pyautogui.press('enter')
-    #             time.sleep(2)#2s时间延迟让视频保存到剪贴板
-    #             SystemSettings.save_pasted_video(video_path)
-    #         #保存图片
-    #         if media_type==1:
-    #             mouse.right_click(coords=right_click_position)
-    #             pyautogui.press('down',image_pressed_num)
-    #             pyautogui.press('enter')
-    #             time.sleep(0.5)#0.5s延迟让图片缓存到剪贴板时间
-    #             SystemSettings.save_pasted_image(image_path)
-    #     if is_maximize is None:
-    #         is_maximize=GlobalConfig.is_maximize
-    #     if close_weixin is None:
-    #         close_weixin=GlobalConfig.close_weixin
-    #     if search_pages is None:
-    #         search_pages=GlobalConfig.search_pages
-    #     if capture_alia and alias_folder is None:
-    #         alias_folder=os.path.join(os.getcwd(),f'dump_chat_history好友昵称截图',f'{friend}')
-    #         print(f'未传入文件夹路径,好友昵称截图将分别保存到{alias_folder}内')
-    #         os.makedirs(alias_folder,exist_ok=True)
-    #     if save_media and media_folder is None:
-    #         media_folder=os.path.join(os.getcwd(),f'dump_chat_history图片视频保存',f'{friend}')
-    #         print(f'未传入文件夹路径,好友昵称截图将分别保存到{media_folder}内')
-    #         os.makedirs(media_folder,exist_ok=True)
-    #     messages=[]
-    #     runtime_ids=[]
-    #     image_count=0
-    #     video_count=0
-    #     image_label=Special_Labels.Image
-    #     video_label=Special_Labels.Video
-    #     download_label=Special_Labels.Download
-    #     old_version=version.parse(GlobalConfig.Version)<version.parse('4.1.9')#4.1.9之前的版本右键目录不一样
-    #     image_pressed_num=2 if old_version else 1
-    #     video_pressed_num=3 if old_version else 2
-    #     timestamp_pattern=Regex_Patterns.Chathistory_Timestamp_pattern
-    #     chat_history_window,is_group_chat=Navigator.open_chat_history(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin,search_pages=search_pages)
-    #     chat_history_list=chat_history_window.child_window(**Lists.ChatHistoryList)
-    #     copy_item=chat_history_window.child_window(**MenuItems.CopyMenuItem)
-    #     if isinstance(search_content,str):
-    #         search_bar=chat_history_window.descendants(**Edits.SearchEdit)[0]
-    #         search_bar.set_text(search_content)
-    #     if not chat_history_list.exists(timeout=1):
-    #         warn(message=f"你与{friend}的聊天记录为空,无法获取聊天记录",category=NoChatHistoryWarning)
-    #         chat_history_window.close()
-    #         return [],[]
-    #     Tools.activate_chatHistoryList(chat_history_list)#激活滑块
-    #     #因为要先按down向下遍历,第一个被selected的实际是第二条，所以第一项内容直接记录
-    #     first_item=chat_history_list.children(control_type='ListItem')[0]
-    #     messages.append(first_item.window_text())
-    #     runtime_ids.append(first_item.element_info.runtime_id)
-    #     if capture_alia:
-    #         path=os.path.join(alias_folder,f'与{friend}聊天记录_1.png')
-    #         alia_image=Tools.capture_alias(first_item)
-    #         alia_image.save(path)
-    #     if first_item.class_name()=='mmui::ChatBubbleReferItemView' and save_media:
-    #         if video_label in first_item.window_text():save(listitem=first_item,media_type=0)
-    #         if image_label in first_item.window_text():save(listitem=first_item,media_type=1)
-    #     while len(messages)<number:
-    #         pyautogui.press('down',presses=1,_pause=False)
-    #         selected=[listitem for listitem in chat_history_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
-    #         if selected:
-    #             runtime_ids.append(selected[0].element_info.runtime_id)
-    #             #同一个runtime_id挨着重复出现就说明到底部了无法继续下滑
-    #             if runtime_ids[-1]==runtime_ids[-2]:
-    #                 break
-    #             if capture_alia:
-    #                 time.sleep(0.1)#必须等待0.1s以上才能截出指定数量的图，不然过快来不及截图
-    #                 path=os.path.join(alias_folder,f'与{friend}聊天记录_{len(messages)}.png')
-    #                 alia_image=Tools.capture_alias(selected[0])
-    #                 alia_image.save(path)
-    #             if selected[0].class_name()=='mmui::ChatBubbleReferItemView' and save_media:
-    #                 if video_label in selected[0].window_text():
-    #                     video_count+=1
-    #                     save(listitem=selected[0],media_type=0)
-    #                 if image_label in selected[0].window_text():
-    #                     image_count+=1
-    #                     save(listitem=selected[0],media_type=1)
-    #             messages.append(selected[0].window_text())
-    #     chat_history_list.type_keys('{HOME}')
-    #     chat_history_window.close()
-    #     messages=messages[:number]
-    #     timestamps=[timestamp_pattern.search(message).group(0) if timestamp_pattern.search(message) else '系统消息或为红包与转账(无法获取时间戳)' for message in messages]
-    #     messages=[timestamp_pattern.sub('',message) for message in messages]
-    #     return messages,timestamps
-
     @staticmethod
     def dump_chat_history(friend:str,number:int,search_content:str=None,is_json:bool=False,save_detail:bool=False,
     target_folder:str=None,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
@@ -3764,7 +3686,7 @@ class Messages():
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
-            chat_history:[{'消息内容':xxx,'消息发送人':yyy,'消息发送时间':xxx,'消息类型':yyy}....]
+            chat_history:[{'消息发送人':xxx,'消息内容':yyy,'消息类型':xxx,'消息发送时间':yyy}....]
         '''
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
@@ -3830,9 +3752,9 @@ class Messages():
             chat_history_window.close()
             return [],[],[]
         win32gui.SendMessage(chat_history_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MAXIMIZE,0)
-        details_with_name=traverse_chat_history_list(chat_history_window,select=True,number=number,save_detail=save_detail,target_folder=target_folder)
+        details_with_name=traverse_chat_history(chat_history_window,select=True,number=number,save_detail=save_detail,target_folder=target_folder)
         if not is_group_chat:
-            myName=get_myName()
+            myName=get_myName()      
             contents,senders,timestamps,message_types=parse_chat_history(friend,myName,details_with_name)
         if is_group_chat:
             total_num=int(re.search(rf'\((\d+)\)',chat_history_window.window_text()).group(1))
@@ -3841,9 +3763,9 @@ class Messages():
                 groupMembers=get_groupMembers_info()
                 contents,senders,timestamps,message_types=parse_group_chat_history(details_with_name,[],groupMembers)
             else:
-                details_without_name=traverse_chat_history_list(chat_history_window,select=False,number=number)
+                details_without_name=traverse_chat_history(chat_history_window,select=False,number=number)
                 contents,senders,timestamps,message_types=parse_group_chat_history(details_with_name,details_without_name,[])
-        chat_history=[{'消息发送人':chat[0],'消息内容':chat[1],'消息发送时间':chat[2],'消息类型':chat[3]} for chat in zip(senders,contents,timestamps,message_types)]
+        chat_history=[{'消息发送人':chat[0],'消息内容':chat[1],'消息类型':chat[2],'消息发送时间':chat[3]} for chat in zip(senders,contents,message_types,timestamps)]
         if save_detail:
             chat_history_json=json.dumps(chat_history,ensure_ascii=False,indent=2)
             json_path=os.path.join(target_folder,f'{friend}聊天记录信息.json')
@@ -3995,7 +3917,7 @@ class Messages():
                 if is_finished:
                     break
                 #传入数量按照数量判断
-                if  len(contents)>=number:
+                if len(contents)>=number:
                     break
                 timestamps.append(timestamp)
                 contents.append(content)

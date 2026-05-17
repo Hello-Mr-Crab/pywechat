@@ -642,7 +642,7 @@ class Tools():
                     if len(runtime_ids)>2 and runtime_ids[-1]==runtime_ids[-2]:
                         break
                     rect=selected[0].rectangle()
-                    right_clik_pos=rect.left+110,rect.top+60
+                    right_clik_pos=rect.left+120,rect.top+60
                     mouse.right_click(coords=right_clik_pos)
                     multiselect_item.click_input()
                     mouse.click(coords=right_clik_pos)
@@ -721,7 +721,8 @@ class Navigator():
             raise NotStartError
         handle=wx.find_wx_window()
         if handle==0:
-            raise NotFoundError
+            os.system('start narrator')
+            raise NotFoundError('无法识别定位到微信主界面,请在微信登录前运行无障碍服务(讲述人)后再尝试!(讲述人已启动)')
         #只有在窗口激活的时候
         if wx.window_type==0:#微信在运行,但是是登录界面
             raise NotLoginError
@@ -736,11 +737,11 @@ class Navigator():
         return main_window
     
     @staticmethod
-    def capture_Login_QRCode(image_path:str)->bool:
+    def capture_Login_QRCode(img_path:str)->bool:
         '''
         该方法用来保存微信登录二维码
         Args:
-            image_path:登录二维码的图片路径,xxx.png
+            img_path:登录二维码的图片路径,xxx.png
         Returns:
             is_saved:图片是否保存到了本地
         '''
@@ -762,7 +763,7 @@ class Navigator():
                 switch_text.click_input()
         time.sleep(2)#等待切换到扫码界面
         code_image=login_window.capture_as_image()
-        code_image.save(image_path)
+        code_image.save(img_path)
         is_saved=True
         print(f'二维码5分钟内有效,请尽快扫码登录,注意不要关闭登录窗口,否则需要重新获取！')
         return is_saved

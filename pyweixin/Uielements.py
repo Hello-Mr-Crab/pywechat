@@ -34,6 +34,8 @@ Examples
     >>> print(Buttons.SendMessageButton)
     
 '''
+import re
+import time
 from.Config import GlobalConfig
 language=GlobalConfig.language
 Version=GlobalConfig.Version
@@ -105,6 +107,7 @@ class Button_Control():
             self.SendMessageButton={'title':'发消息','control_type':'Button'}#添加好友窗口里的发消息按钮
             self.VerifyNowButton={'title':'前往验证','control_type':'Button'}#通讯录新朋友界面中前往验证按钮
             self.MomentsButton={'title':'朋友圈','control_type':'Button','auto_id':'button'}#好友个人简介界面内的朋友圈按钮(不是主页左侧的)
+            self.FinishButton={'title':'完成','control_type':'Button'}#完成按钮
         if self.language=='English':
             self.OpenButton={'title':'Open','control_type':'Button'}#微信红包拆开按钮
             self.SaveButton={'title':'Save','control_type':'Button'}#聊天记录界面内选中后的保存按钮
@@ -774,6 +777,284 @@ class Window_Control():
             self.IncomingCallWindow={'title':'微信','class_name':'mmui::VOIPTrayWindow'}#微信来电(视频或语音)桌面右下角的托盘窗口
             self.PrivacyWindow={'title':'朋友權限','class_name':'mmui::ProfileUniquePop'}#好友权限窗口,4.1.9点击好友权限后弹出的窗口独立于桌面了
 
+class Regex_Pattern():
+    '''微信内常用正则pattern,适配多语言'''
+    def __init__(self,language=language):
+        self.language=language
+        self.QtWindow_pattern=re.compile(r'Qt\d+QWindowIcon')#qt窗口通用classname
+        self.Filename_pattern=re.compile(r'.*\.\w+\s')#用来匹配.docx,.ppt等文件名，只适合在微信聊天文件界面中使用
+        self.GroupMember_Num_pattern=re.compile(r'\((\d+)\)$')#通讯录设置界面中每个最近群聊ListItem后边的数字
+        self.Article_Timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日|\d{1,2}月\d{1,2}日|昨天|星期\w|今天)')#公众号文章的时间戳
+        self.UserLib_Pattern=re.compile(r'--user-lib-dir=(.*?)')#匹配微信命令行参数内的userlib文件夹路径
+        if self.language=='简体中文':
+            #|表示或的逻辑关系,关于Python正则表达式的任何问题和入门级教程可以看这篇博客:https://blog.csdn.net/weixin_73953650/article/details/151123336?spm=1001.2014.3001.5501
+            self.Audio_pattern=re.compile(r'(?<=语音)\d+"秒(.*)$')#语音转文字后的文本内容
+            self.Sns_Timestamp_pattern=re.compile(r'\s(\d+分钟前|\d+小时前|昨天|\d+天前)\s')#朋友圈好友发布内容左下角的时间戳,注意使用findall()[-1]获取不要直接search因为朋友群文本内容内可能也有类似的,但无论如何真正的时间戳永远是最后被匹配到,所以[-1]
+            self.Contain_Images_pattern=re.compile(r'\s包含(\d+)张图片\s')#朋友圈包含\d+张图片
+            self.Chafile_Timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日|\d{1,2}月\d{1,2}日|昨天|星期\w|\d{1,2}:\d{2})')#微信聊天文件时间戳
+            self.Snsdetail_Timestamp_pattern=re.compile(r'\s(\d{4}年\d{1,2}月\d{1,2}日\s\d{1,2}:\d{2}|\d{1,2}月\d{1,2}日\s\d{1,2}:\d{2}|昨天\s\d{1,2}:\d{2}|星期\w\s\d{1,2}:\d{2}|\d{1,2}:\d{2})\s')#微信好友朋友圈主页内的时间戳,注意使用findall()[-1]获取不要直接search因为朋友群文本内容内可能也有类似的,但无论如何真正的时间戳永远是最后被匹配到,所以[-1]
+            self.Chathistory_Timestamp_pattern=re.compile(r'(?<=\s)(\d{4}年\d{1,2}月\d{1,2}日\s\d{2}:\d{2}|\d{1,2}月\d{1,2}日\s\d{2}:\d{2}|\d{2}:\d{2}|昨天\s\d{2}:\d{2}|星期\w\s\d{2}:\d{2})$')#聊天记录界面内的时间戳
+            self.Session_Timestamp_pattern=re.compile(r'(?<=\s)(\d{4}/\d{1,2}/\d{1,2}|\d{1,2}/\d{1,2}|\d{2}:\d{2}|昨天 \d{2}:\d{2}|星期\w)$')#主界面左侧会话列表内的时间戳
+            self.File_pattern=re.compile(r'文件\n(.*)\n')#微信聊天窗口发送的聊天文件卡片上的内容(有两个换行符)
+            self.Message_Timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日\s星期\w\s\d{2}:\d{2}|\d{1,2}月\d{1,2}日\s星期\w\s\d{2}:\d{2}|\d{1,2}月\d{1,2}日\s\d{2}:\d{2}|昨天\s\d{2}:\d{2}|星期\w\s\d{2}:\d{2}|\d{2}:\d{2})')#聊天界面内的时间戳
+            self.newMessage_pattern=re.compile(r'\n\[(\d+)条\]')#微信主页左侧会话列表内带有新消息提示的好友
+        if self.language=='English':
+            self.Audio_pattern=re.compile(r'(?<=Audio)\d+"sec(.*)$')#语音转文字后的文本内容
+            self.Sns_Timestamp_pattern=re.compile(r'\s(\d+\sminute\(s\)\sago|\d+\shour\(s\)\sago|Yesterday|\d+\sday\(s\)\sago)\s')#朋友圈好友发布内容左下角的时间戳
+            self.Contain_Images_pattern=re.compile(r'\sContain\s(\d+)\simage\(s\)\s')#朋友圈包含\d+张图片
+            self.Chafile_Timestamp_pattern=re.compile(r'(\d{4}-\d{1,2}-\d{1,2}|Yesterday|\w+day|\d{1,2}:\d{2})')#微信聊天文件界面内文件右下角的时间戳
+            self.Snsdetail_Timestamp_pattern=re.compile(r'\s(\d{4}-\d{1,2}-\d{1,2}\s\d{1,2}:\d{2}|Yesterday\s\d{1,2}:\d{2}|\d{1,2}:\d{2})\s')#微信好友朋友圈主页内的时间戳
+            self.Chathistory_Timestamp_pattern=re.compile(r'(?<=\s)(\d{4}-\d{1,2}-\d{1,2}\s\d{2}:\d{2})$')#聊天记录界面内的时间戳
+            self.Session_Timestamp_pattern=re.compile(r'(?<=\s)(\d{4}/\d{1,2}/\d{1,2}|\d{1,2}/\d{1,2}|\d{2}:\d{2}|Yesterday \d{2}:\d{2}|\w+day)$')#主界面左侧会话列表内的时间戳
+            self.File_pattern=re.compile(r'File\n(.*)\n')#微信聊天窗口发送的聊天文件卡片上的内容(有两个换行符)
+            self.Message_Timestamp_pattern=re.compile(r'(\d{4}-\d{1,2}-\d{1,2}\s\d{2}:\d{2}|\d{1,2}/\d{1,2}\s\d{2}:\d{2}|Yesterday\s\d{2}:\d{2}|\w+day\s\d{2}:\d{2}|\d{2}:\d{2})')#聊天界面内的时间戳
+            self.newMessage_pattern=re.compile(r'\n\[(\d+)\]')#微信主页左侧会话列表内带有新消息提示的好友
+        if self.language=='繁體中文':
+            self.Audio_pattern=re.compile(r'(?<=語音)\d+"秒(.*)$')#语音转文字后的文本内容
+            self.Sns_Timestamp_pattern=re.compile(r'\s(\d+分鐘前|\d+小時前|昨天|\d+天前)\s')#朋友圈好友发布内容左下角的时间戳,注意使用findall()[-1]获取不要直接search因为朋友群文本内容内可能也有类似的,但无论如何真正的时间戳永远是最后被匹配到,所以[-1]
+            self.Contain_Images_pattern=re.compile(r'\s包含\s(\d+)\s張圖片\s')#朋友圈包含\d+张图片
+            self.Chafile_Timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日|\d{1,2}月\d{1,2}日|昨天|星期\w|\d{1,2}:\d{2})')#微信聊天文件时间戳
+            self.Snsdetail_Timestamp_pattern=re.compile(r'\s\d{4}年\d{1,2}月\d{1,2}日\s\d{1,2}:\d{2}|\d{1,2}月\d{1,2}日\s\d{1,2}:\d{2}|昨天\s\d{1,2}:\d{2}|星期\w\s\d{1,2}:\d{2}|\d{1,2}:\d{2}\s')#微信好友朋友圈主页内的时间戳,注意使用findall()[-1]获取不要直接search因为朋友群文本内容内可能也有类似的,但无论如何真正的时间戳永远是最后被匹配到,所以[-1]
+            self.Chathistory_Timestamp_pattern=re.compile(r'(?<=\s)(\d{4}年\d{1,2}月\d{1,2}日\s\d{2}:\d{2}|\d{1,2}月\d{1,2}日\s\d{2}:\d{2}|\d{2}:\d{2}|昨天\s\d{2}:\d{2}|星期\w\s\d{2}:\d{2})$')#聊天记录界面内的时间戳
+            self.Session_Timestamp_pattern=re.compile(r'(?<=\s)(\d{4}/\d{1,2}/\d{1,2}|\d{1,2}/\d{1,2}|\d{2}:\d{2}|昨天 \d{2}:\d{2}|星期\w)$')#主界面左侧会话列表内的时间戳
+            self.File_pattern=re.compile(r'檔案\n(.*)\n')#微信聊天窗口发送的聊天文件卡片上的内容(有两个换行符)
+            self.Message_Timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日\s星期\w\s\d{2}:\d{2}|\d{1,2}月\d{1,2}日\s星期\w\s\d{2}:\d{2}|\d{1,2}月\d{1,2}日\s\d{2}:\d{2}|昨天\s\d{2}:\d{2}|星期\w\s\d{2}:\d{2}|\d{2}:\d{2})')#聊天界面内的时间戳
+            self.newMessage_pattern=re.compile(r'\n\[(\d+)則\]')#微信主页左侧会话列表内带有新消息提示的好友            
+class Special_Label():
+    '''常用的一些微信内的标签,比如:“消息已置顶”，这些标签随着微信的语言会变化.'''
+    def __init__(self,language=language):
+        self.language=language
+        self.EnterPrise='企业'
+        self.RealName='实名'
+        self.State='员工状态'
+        self.Duty='职务'
+        self.WorkingTime='工作时间'
+        self.OnlineTime='在线时间'
+        self.Location='地址'
+        self.From='来自'
+        self.WeCom='企业微信'
+        if self.language=='简体中文':
+            self.Emoji='动画表情'
+            self.EnterPriseInfomation='企业信息'
+            self.Block='加入黑名单'
+            self.UnBlock='移出黑名单'
+            self.StuckonTop='已置顶\n'
+            self.Star='设为星标朋友'
+            self.UnStar='不再设为星标朋友'
+            self.MuteNotifications='消息免打扰\n'
+            self.LightMode='浅色模式'
+            self.DarkMode='深色模式'
+            self.Automatic='跟随系统'
+            self.Image='图片'
+            self.File='文件\n'
+            self.Link='[链接]'
+            self.Video='视频'
+            self.WxNum='微信号：'
+            self.Nickname='昵称：' 
+            self.Region='地区：'
+            self.Remark='备注'
+            self.SharedGroups='共同群聊' 
+            self.Signature='个性签名' 
+            self.Source='来源'
+            self.Mobile='电话'
+            self.Description='描述'
+            self.Tags='标签'
+            self.Privacy='朋友权限'
+            self.ViewAll='查看全部'
+            self.YearSep='年'
+            self.MonthSep='月'
+            self.DaysAgo='天前'
+            self.NotDownloaded='未下载'
+            self.Expired='已过期'
+            self.SendInterrupt='发送中断'
+            self.Yesterday='昨天'
+            self.Moments='朋友圈'
+            self.Messages='发消息'
+            self.VoiceCall='语音聊天'
+            self.VideoCall='视频聊天'
+            self.Download='下载'
+            self.RedPacket='微信红包'
+            self.Transfer='微信转账'
+            self.MiniProgram='小程序'
+            self.Music='音乐'
+            self.Channels='视频号'
+            self.ChatHistory='聊天记录'
+            self.NotCare={'session_item_服务号','session_item_公众号'}
+            self.Minutes={f'{i}分钟前' for i in range(1,60)}
+            self.Hours={f'{i}小时前' for i in range(1,24)}
+            self.WeekDays={f'{i}天前' for i in range(1,8)}
+            self.MonthDays={f'{i}天前' for i in range(1,31)}
+            self.Hours.update(self.Minutes)
+            self.WeekDays.update(self.Hours)
+            self.WeekDays.add(self.Yesterday)
+            self.MonthDays.update(self.WeekDays)
+        if self.language=='English':
+            self.Emoji='Animated Stickers'
+            self.Block='Block'
+            self.UnBlock='UnBlock'
+            self.EnterPriseInfomation='Enterprise Information'
+            self.StuckonTop='Stuck on Top\n'
+            self.Star='Star'
+            self.UnStar='UnStar'
+            self.MuteNotifications='Mute Notifications\n'
+            self.LightMode='LightMode'
+            self.DarkMode='DarkMode'
+            self.Automatic='Automatic'
+            self.Image='Image'
+            self.File='File\n'
+            self.Link='[Link]'
+            self.Video='Video'
+            self.WxNum='Weixin ID:'
+            self.Nickname='Name:' 
+            self.Region='Region:'
+            self.Remark='Remark'
+            self.SharedGroups='Shared Groups' 
+            self.Signature="What's Up" 
+            self.Source='Source'
+            self.Mobile='Mobile'
+            self.Description='Description'
+            self.Tags='Tags'
+            self.Privacy='Privacy'
+            self.ViewAll='View All'
+            self.YearSep='-'
+            self.MonthSep='-'
+            self.DaysAgo='day(s) ago'
+            self.NotDownloaded='Not Downloaded'
+            self.Expired='Expired'
+            self.SendInterrupt='Send Interrupt'
+            self.Yesterday='Yesterday'
+            self.Moments='Moments'
+            self.Messages='Messages'
+            self.VoiceCall='Voice Call'
+            self.VideoCall='Video Call'
+            self.Download='Download'
+            self.RedPacket='Weixin Red Packet'
+            self.MiniProgram='Mini Programs'
+            self.Music='Music'
+            self.Channels='Channels'
+            self.Transfer='WeChat Transfer'
+            self.ChatHistory='Chat History'
+            self.NotCare={'session_item_Service Accounts','session_item_Official Accounts'}
+            self.Minutes={f'{i} minute(s) ago' for i in range(1,60)}
+            self.Hours={f'{i} hour(s) ago' for i in range(1,24)}
+            self.WeekDays={f'{i} day(s) ago' for i in range(1,8)}
+            self.MonthDays={f'{i} day(s) ago' for i in range(1,31)}
+            self.Hours.update(self.Minutes)
+            self.WeekDays.update(self.Hours)
+            self.WeekDays.add(self.Yesterday)
+            self.MonthDays.update(self.WeekDays)
+        if self.language=='繁體中文':
+            self.Emoji='動態貼圖'
+            self.Block='加入黑名單'
+            self.UnBlock='移出黑名單'
+            self.Star='設為超級好友'
+            self.UnStar='不再設為超級好友'
+            self.StuckonTop='已置頂\n'
+            self.MuteNotifications='訊息免打擾\n'
+            self.LightMode='淺色模式'
+            self.DarkMode='深色模式'
+            self.Automatic='跟隨系统'
+            self.Image='圖片'
+            self.File='檔案\n'
+            self.Link='[連結]'
+            self.Video='影片'
+            self.WxNum='微信 ID:'
+            self.Nickname='暱稱:' 
+            self.Region='地區:'
+            self.Remark='備註'
+            self.SharedGroups='共同群組' 
+            self.Signature='個性簽名' 
+            self.Source='來源'
+            self.Mobile='電話'
+            self.Description='描述'
+            self.Tags='標籤'
+            self.Privacy='朋友權限'
+            self.ViewAll='查看全部'
+            self.YearSep='年'
+            self.MonthSep='月'
+            self.DaysAgo='天前'
+            self.NotDownloaded='未下載'
+            self.Expired='已逾期'
+            self.SendInterrupt='发送中断'
+            self.Yesterday='昨天'
+            self.Moments='朋友圈'
+            self.Download='下載'
+            self.RedPacket='微信紅包'
+            self.MiniProgram='小程式'
+            self.Music='音樂'
+            self.Channels='影音號'
+            self.Transfer='WeChat 轉賬'
+            self.ChatHistory='聊天記錄'
+            self.VoiceCall='語音通話'
+            self.VideoCall='視訊通話'
+            self.NotCare={'session_item_服務賬號','session_item_官方賬號'}
+            self.Minutes={f'{i}分鐘前' for i in range(1,60)}
+            self.Hours={f'{i}小時前' for i in range(1,24)}
+            self.WeekDays={f'{i}天前' for i in range(1,8)}
+            self.MonthDays={f'{i}天前' for i in range(1,31)}
+            self.Hours.update(self.Minutes)
+            self.WeekDays.update(self.Hours)
+            self.WeekDays.add(self.Yesterday)
+            self.MonthDays.update(self.WeekDays)
+
+class TimeStamp():
+    '关于微信内的一些时间戳'
+    def __init__(self,language=language,Version=Version):
+        self.language=language
+        self.Version=Version
+
+    def get_current_week_dates(self)->list[str]:
+        '''按照获取当前周的所有日期
+        Returns:
+            week_dates:['2026-04-xx',...,'2026-04-xx+7']
+        '''
+        now=time.localtime()
+        current_weekday=now.tm_wday
+        current_timestamp=time.mktime(now)
+        monday_timestamp=current_timestamp-current_weekday*24*3600
+        week_dates=[]
+        for i in range(7):
+            day_timestamp=monday_timestamp+i*24*3600
+            if self.language=='English':
+                date_str=time.strftime("%Y-%m-%d",time.localtime(day_timestamp))
+                date_str=re.sub('-0','-',date_str)
+            else:
+                date_str=time.strftime("%Y年%m月%d日",time.localtime(day_timestamp))
+                date_str=re.sub('年0','年',date_str)
+            week_dates.append(date_str)
+        return week_dates
+    
+    def get_yesterday_label(self)->str:
+        '''获取昨天日期'''
+        now=time.time()
+        if self.language=='English':
+            yesterday=time.strftime("%Y-%m-%d",time.localtime(now-86400))
+            yesterday=re.sub(r'-0','-',yesterday)
+        else:
+            yesterday=time.strftime("%Y年%m月%d日",time.localtime(now-86400))
+            yesterday=re.sub(r'年0','年',yesterday) 
+        return yesterday
+    
+    def get_today_label(self)->str:
+        '''获取今天日期'''
+        if self.language=='English':
+            today_label=time.strftime("%Y-%m-%d")
+            today_label=re.sub(r'-0','-',today_label)
+        else:
+            today_label=time.strftime("%Y年%m月%d日")
+            today_label=re.sub(r'年0','年',today_label)
+        return today_label
+
+    def get_month_label(self)->str:
+        '''获取本月日期'''
+        if self.language=='English':
+            month_label=time.strftime("%Y-%m")
+            month_label=re.sub(r'-0','-',month_label)
+        else:
+            month_label=time.strftime("%Y年%m月")
+            month_label=re.sub(r'年0','年',month_label)
+        return month_label
+
 Main_window=Main_window_Control(language=language,Version=Version)#主界面UI
 Login_window=Login_window_Control(language=language,Version=ValueError)#登录界面UI
 Independent_window=Independent_window_Control(language=language,Version=Version)#独立主界面UI
@@ -791,3 +1072,7 @@ Menus=Menu_Control(language=language,Version=Version)#所有Menu类型UI
 Groups=Group_Control(language=language,Version=Version)#所有Group类型UI
 Customs=Custom_Control(language=language,Version=Version)#所有Custom类型UI
 ListItems=ListItem_Control(language=language,Version=Version)#所有ListItems类型UI
+##################################################################################
+Special_Labels=Special_Label(language=language)#所有特殊符号或文本
+Regex_Patterns=Regex_Pattern(language=language)#所有正则表达式
+TimeStamps=TimeStamp(language=language,Version=Version)#所有常用的时间戳

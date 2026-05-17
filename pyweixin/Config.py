@@ -57,7 +57,7 @@ class globalConfig:
             cls._instance._clear=True
             cls._window_size=(1000,1000)
             cls._language='简体中文'
-            cls._Version='4.1.8.107'
+            cls._Version='4.1.9.30'
         return cls._instance
     
     @property
@@ -203,7 +203,6 @@ def language_detector()->(str|None):
             if '--lang=zh-tw' in cmd_str:lang='繁體中文'
             if '--lang=en' in cmd_str:lang='English'
     return lang
-language_detector()
 
 def get_weixin_version():
     '''通过查询注册表来获取微信版本
