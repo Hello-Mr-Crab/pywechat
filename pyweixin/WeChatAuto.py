@@ -62,7 +62,6 @@ import win32clipboard
 import win32gui,win32con
 from typing import Literal
 from warnings import warn
-from collections import Counter
 from pywinauto import WindowSpecification
 from pywinauto.controls.uia_controls import ListItemWrapper,ListViewWrapper#TypeHint要用到
 from typing import Callable
@@ -472,20 +471,16 @@ class Contacts():
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
         wxid=Tools.get_current_wxid()
-        moments_window=Navigator.open_moments(is_maximize=is_maximize,close_weixin=close_weixin)
-        moments_list=moments_window.child_window(control_type='List',auto_id="sns_list")
-        rec=moments_list.children()[0].rectangle()
-        coords=(rec.right-60,rec.bottom-35)
-        mouse.click(coords=coords)
-        profile_pane=desktop.window(**Windows.PopUpProfileWindow)
+        profile_pane,main_window=Navigator.open_my_profile(is_maximize=is_maximize)
         group=profile_pane.child_window(control_type='Group',found_index=3).children()[1]
-        texts=group.descendants(control_type='Text')
-        texts=[item.window_text() for item in texts]
+        text_ctrls=group.descendants(control_type='Text')
+        texts=[item.window_text() for item in text_ctrls]
+        profile_pane.close()
         myinfo={'昵称':texts[0],'微信号':texts[2],'wxid':wxid}
         if len(texts)==5:
             myinfo['地区']=texts[4]
-        profile_pane.close()
-        moments_window.close()
+        if close_weixin:
+            main_window.close()
         return myinfo
     
     @staticmethod
@@ -510,18 +505,15 @@ class Contacts():
         runtime_ids=[]
         chat_history_window,is_group_chat=Navigator.open_chat_history(friend=group,is_maximize=is_maximize,search_pages=search_pages)
         if is_group_chat:
+            total_num=int(re.search(rf'\((\d+)\)',chat_history_window.window_text()).group(1))
             win32gui.SendMessage(chat_history_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MAXIMIZE,0)
             Tools.cancel_pin(chat_history_window)
             chat_history_window.child_window(**TabItems.GroupMembersTabItem).click_input()
-            total_num=int(re.search(rf'\((\d+)\)',chat_history_window.window_text()).group(1))
-            pop_over=desktop.window(**Windows.PopOverWindow)
+            time.sleep(1)
+            hwnd=win32gui.FindWindow(None,'Weixin')
+            pop_over=desktop.window(handle=hwnd)
             groupMember_list=pop_over.child_window(control_type='List')
             groupMember_list.type_keys('{PGUP}')#激活列表
-            time.sleep(1)#必须等待,不然ui的文本属性加载不出来
-            first_item=groupMember_list.children()[1]
-            rectangle=first_item.rectangle()
-            mouse.move(coords=(rectangle.mid_point().x,rectangle.mid_point().y))
-            time.sleep(1)#必须等待,不然ui的文本属性加载不出来
             while len(groupMembers)<total_num:
                 selected=[listitem for listitem in groupMember_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
                 if selected and selected[0].window_text()!='':
@@ -530,7 +522,7 @@ class Contacts():
                     if len(runtime_ids)>2 and runtime_ids[-1]==runtime_ids[-2]:
                         break
                     groupMembers.append(selected[0].window_text())
-                pyautogui.keyDown('down',_pause=False)
+                pyautogui.press('down',_pause=False)
             groupMember_list.type_keys('{HOME}')
             pop_over.close()
         else:
@@ -539,9 +531,9 @@ class Contacts():
         return groupMembers
 
     @staticmethod
-    def get_friends_name(is_maximize:bool=None,close_weixin:bool=None)->(list[dict]|str):
+    def get_friends_name(is_maximize:bool=None,close_weixin:bool=None)->list[str]:
         '''
-        该方法用来获取通讯录内好友信息
+        该方法用来获取通讯录内好友备注名称
         Args:
 
             is_maximize:微信界面是否全屏，默认不全屏
@@ -566,9 +558,9 @@ class Contacts():
         if contact_item.exists(timeout=0.1):
             contact_item.click_input()
             mouse.move(coords=area)
-            contact_list.type_keys('{END}'*10)
-            last_friend=contact_list.children(control_type='ListItem')[-1].window_text()
-            contact_list.type_keys('{HOME}'*10)
+            contact_list.type_keys('{END}'*2)
+            last_friend=contact_list.children(control_type='ListItem',class_name='mmui::ContactsCellItemView')[-1].window_text()
+            contact_list.type_keys('{HOME}'*2)
             while True:
                 names=[listitem.window_text() for listitem in contact_list.children(class_name='mmui::ContactsCellItemView')]
                 friends_name.extend(names)
@@ -581,6 +573,141 @@ class Contacts():
             main_window.close()
         return friends_name
     
+    @staticmethod
+    def get_wecom_friends_name(is_maximize:bool=None,close_weixin:bool=None)->list[str]:
+        '''
+        该方法用来获取通讯录内企业微信好友备注名称
+        Args:
+
+            is_maximize:微信界面是否全屏，默认不全屏
+            close_weixin:任务结束后是否关闭微信，默认关闭
+        Returns:
+            friends_name:所有企业微信好友的名字(注意,同名的好友只保留一个!)
+        '''
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+
+        friends_name=[]
+        #通讯录列表
+        contact_list,main_window=Navigator.open_contacts(is_maximize=is_maximize)
+        #右侧的自定义面板
+        contact_custom=main_window.child_window(**Customs.ContactDetailCustom)
+        #鼠标移动到右侧
+        area=(contact_custom.rectangle().mid_point().x,contact_custom.rectangle().mid_point().y)
+        Tools.collapse_contacts(main_window,contact_list)
+        wecom_item=main_window.child_window(**ListItems.WeComContactsListItems)
+        if not wecom_item.exists(timeout=0.1):
+            print(f'你没有企业微信联系人,无法获取企业微信好友信息！')
+        else:
+            wecom_item.click_input()
+            mouse.move(coords=area)
+            contact_list.type_keys('{END}'*2)
+            last_friend=contact_list.children(control_type='ListItem',class_name='mmui::ContactsCellItemView')[-1].window_text()
+            contact_list.type_keys('{HOME}'*2)
+            while True:
+                names=[listitem.window_text() for listitem in contact_list.children(class_name='mmui::ContactsCellItemView')]
+                friends_name.extend(names)
+                if names[-1]==last_friend:
+                    break
+                contact_list.type_keys('{PGDN}')
+            Tools.collapse_contacts(main_window,contact_list)
+        friends_name=list(dict.fromkeys(friends_name))
+        if close_weixin:
+            main_window.close()
+        return friends_name
+    
+    @staticmethod
+    def get_serAcc_name(is_maximize:bool=None,close_weixin:bool=None)->list[str]:
+        '''
+        该方法用来获取通讯录内所有服务号名称
+        Args:
+
+            is_maximize:微信界面是否全屏，默认不全屏
+            close_weixin:任务结束后是否关闭微信，默认关闭
+        Returns:
+            friends_name:所有服务号的备注(注意,同名的服务号只保留一个!)
+        '''
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+
+        friends_name=[]
+        #通讯录列表
+        contact_list,main_window=Navigator.open_contacts(is_maximize=is_maximize)
+        #右侧的自定义面板
+        contact_custom=main_window.child_window(**Customs.ContactDetailCustom)
+        #鼠标移动到右侧
+        area=(contact_custom.rectangle().mid_point().x,contact_custom.rectangle().mid_point().y)
+        Tools.collapse_contacts(main_window,contact_list)
+        service_item=main_window.child_window(**ListItems.ServiceAccountsListItem)
+        if not service_item.exists(timeout=0.1):
+            print(f'你没有关注过任何服务号,无法获取服务号信息！')
+        else:
+            service_item.click_input()
+            mouse.move(coords=area)
+            contact_list.type_keys('{END}'*2)
+            last_friend=contact_list.children(control_type='ListItem',class_name='mmui::ContactsCellItemView')[-1].window_text()
+            contact_list.type_keys('{HOME}'*2)
+            while True:
+                names=[listitem.window_text() for listitem in contact_list.children(class_name='mmui::ContactsCellItemView')]
+                friends_name.extend(names)
+                if names[-1]==last_friend:
+                    break
+                contact_list.type_keys('{PGDN}')
+            Tools.collapse_contacts(main_window,contact_list)
+        friends_name=list(dict.fromkeys(friends_name))
+        if close_weixin:
+            main_window.close()
+        return friends_name
+
+    @staticmethod
+    def get_offAcc_name(is_maximize:bool=None,close_weixin:bool=None)->list[str]:
+        '''
+        该方法用来获取通讯录内所有公众号名称
+        Args:
+
+            is_maximize:微信界面是否全屏，默认不全屏
+            close_weixin:任务结束后是否关闭微信，默认关闭
+        Returns:
+            friends_name:所有公众号的名称(注意,同名的公众号只保留一个!)
+        '''
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+
+        friends_name=[]
+        #通讯录列表
+        contact_list,main_window=Navigator.open_contacts(is_maximize=is_maximize)
+        #右侧的自定义面板
+        contact_custom=main_window.child_window(**Customs.ContactDetailCustom)
+        #鼠标移动到右侧
+        area=(contact_custom.rectangle().mid_point().x,contact_custom.rectangle().mid_point().y)
+        Tools.collapse_contacts(main_window,contact_list)
+        official_item=main_window.child_window(**ListItems.OfficialAccountsListItem)
+        if not official_item.exists(timeout=0.1):
+            print(f'你没有关注过任何公众号,无法获取公众号信息！')
+        else:
+            official_item.click_input()
+            mouse.move(coords=area)
+            contact_list.type_keys('{END}'*2)
+            last_friend=contact_list.children(control_type='ListItem',class_name='mmui::ContactsCellItemView')[-1].window_text()
+            contact_list.type_keys('{HOME}'*2)
+            while True:
+                names=[listitem.window_text() for listitem in contact_list.children(class_name='mmui::ContactsCellItemView')]
+                friends_name.extend(names)
+                if names[-1]==last_friend:
+                    break
+                contact_list.type_keys('{PGDN}')
+            Tools.collapse_contacts(main_window,contact_list)
+        friends_name=list(dict.fromkeys(friends_name))
+        if close_weixin:
+            main_window.close()
+        return friends_name
+
     @staticmethod
     def get_friends_detail(is_maximize:bool=None,close_weixin:bool=None,is_json:bool=False)->(list[dict]|str):
         '''
@@ -781,9 +908,9 @@ class Contacts():
         #企业微信联系人分区
         Tools.collapse_contacts(main_window,contact_list)
         wecom_item=main_window.child_window(**ListItems.WeComContactsListItems)
-        if not wecom_item.exists(timeout=0.1):
+        if not wecom_item.exists(timeout=0.2):
             print(f'你没有企业微信联系人,无法获取企业微信好友信息！')
-        if wecom_item.exists(timeout=0.1):
+        else:
             total_num=int(re.search(r'\d+',wecom_item.window_text()).group(0))
             if total_num>2000:interval=0.3
             if 1000<total_num<2000:interval=0.1
@@ -805,7 +932,7 @@ class Contacts():
         return friends_detail 
     
     @staticmethod
-    def get_serAcc_info(is_maximize:bool=None,close_weixin:bool=None,is_json:bool=False)->(list[dict]|str):
+    def get_serAcc_detail(is_maximize:bool=None,close_weixin:bool=None,is_json:bool=False)->(list[dict]|str):
         '''
         该方法用来获取通讯录内服务号信息
         Args:
@@ -863,9 +990,9 @@ class Contacts():
         #企业微信联系人分区
         Tools.collapse_contacts(main_window,contact_list)
         service_item=main_window.child_window(**ListItems.ServiceAccountsListItem)
-        if not service_item.exists(timeout=0.1):
+        if not service_item.exists(timeout=0.2):
             print(f'你没有关注过任何服务号,无法获取服务号信息！')
-        if service_item.exists(timeout=0.1):
+        else:
             total_num=int(re.search(r'\d+',service_item.window_text()).group(0))
             if total_num>2000:interval=0.3
             if 1000<total_num<2000:interval=0.1
@@ -888,7 +1015,7 @@ class Contacts():
         return friends_detail 
 
     @staticmethod
-    def get_offAcc_info(is_maximize:bool=None,close_weixin:bool=None,is_json:bool=False)->(list[dict]|str):
+    def get_offAcc_detail(is_maximize:bool=None,close_weixin:bool=None,is_json:bool=False)->(list[dict]|str):
         '''
         该方法用来获取通讯录内公众号信息
         Args:
@@ -946,9 +1073,9 @@ class Contacts():
         #企业微信联系人分区
         Tools.collapse_contacts(main_window,contact_list)
         official_item=main_window.child_window(**ListItems.OfficialAccountsListItem)
-        if not official_item.exists(timeout=0.1):
+        if not official_item.exists(timeout=0.2):
             print(f'你没有关注过任何公众号,无法获取公众号信息！')
-        if official_item.exists(timeout=0.1):
+        else:
             total_num=int(re.search(r'\d+',official_item.window_text()).group(0))
             if total_num<1000:interval=0
             if 1000<total_num<2000:interval=0.1
@@ -983,6 +1110,7 @@ class Contacts():
         '''
         def switct_to_top():
             first_group=Tools.get_next_item(search_results,group_label)
+            pyautogui.press('up',presses=20,_pause=False)
             pyautogui.press('down')
             focused_item=[listitem for listitem in 
             search_results.children(control_type='ListItem') 
@@ -1015,8 +1143,6 @@ class Contacts():
             if check_all_buttons:
                 total=int(re.search(r'\d+',check_all_buttons[0].window_text()).group(0))
                 check_all_buttons[0].click_input()
-                pyautogui.press('up',presses=20,_pause=False)#回到顶部,无法使用Home健
-                #微信潜规则,展开全部按钮之上只显示3个搜索结果，
                 switct_to_top()
                 for _ in range(total+1):
                     #获取灰色的被选中的listitem记录
@@ -1077,8 +1203,8 @@ class Contacts():
         search_bar=main_window.descendants(**Main_window.Search)[0]
         search_bar.click_input()
         search_bar.set_text(friend)
-        time.sleep(1)#必须停顿1s等待加载出结果来
         search_results=main_window.child_window(title='',control_type='List')
+        search_results.wait(wait_for='ready',timeout=1)
         group_label=search_results.child_window(**ListItems.GroupLabelListItem)
         #微信搜索相关好友后会显示共同群聊，如果搜索结果中有群聊这个灰色标签的ListItem，说明有共同群聊
         if not group_label.exists():
@@ -1340,9 +1466,8 @@ class FriendSettings():
         search_edit.set_text('')
         search_edit.type_keys(number,with_spaces=True)
         search_edit.type_keys('{ENTER}')
-        time.sleep(1)
         contact_profile_view=add_friend_pane.child_window(**Groups.ContactProfileViewGroup)
-        if contact_profile_view.exists(timeout=0.2):
+        if contact_profile_view.exists(timeout=2):
             add_to_contact=contact_profile_view.child_window(**Buttons.AddToContactsButton)
             if add_to_contact.exists(timeout=2):
                 add_to_contact.click_input()
@@ -1664,49 +1789,49 @@ class FriendSettings():
         if close_weixin:
             main_window.close()
     
-    @staticmethod
-    def get_common_groups(friend:str,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->list[str]:
-        '''
-        该方法用来获取我与某些好友加入的所有共同群聊名称
-        Args:
-            friend:好友备注
-            search_pages:在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
-            is_maximize:微信界面是否全屏，默认不全屏
-            close_weixin:任务结束后是否关闭微信，默认关闭
-        Returns:
-            groups:所有已加入的群聊名称
-        '''
-        if is_maximize is None:
-            is_maximize=GlobalConfig.is_maximize
-        if close_weixin is None:
-            close_weixin=GlobalConfig.close_weixin
-        if search_pages is None:
-            search_pages=GlobalConfig.search_pages
-        common_groups=[]
-        profile_window,main_window=Navigator.open_friend_profile(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
-        chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton) 
-        shared_groups_label=profile_window.child_window(**Texts.SharedGroupsText)
-        if shared_groups_label.exists(timeout=2):
-            number_button=shared_groups_label.parent().descendants(control_type='Button',class_name='mmui::XMouseEventView')[0]
-            total_num=int(number_button.window_text().replace('个','').replace('個',''))
-            number_button.click_input()
-            popup_window=main_window.window(**Windows.PopUpProfileWindow)
-            shared_groups_list=popup_window.child_window(**Lists.CommonGroupList)
-            shared_groups_list.type_keys('{END}')
-            last_item=shared_groups_list.children()[-1].window_text()
-            shared_groups_list.type_keys('{HOME}')
-            while len(common_groups)<total_num:
-                texts=[listitem.window_text() for listitem in shared_groups_list.children()]
-                texts=[text for text in texts if text not in  common_groups]
-                common_groups.extend(texts)
-                shared_groups_list.type_keys('{PGDN}')
-                if common_groups[-1]==last_item:
-                    break
-        profile_window.close()
-        chatinfo_button.click_input() 
-        if close_weixin:
-            main_window.close()
-        return common_groups
+    # @staticmethod
+    # def get_common_groups(friend:str,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->list[str]:
+    #     '''
+    #     该方法用来获取我与某些好友加入的所有共同群聊名称
+    #     Args:
+    #         friend:好友备注
+    #         search_pages:在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
+    #         is_maximize:微信界面是否全屏，默认不全屏
+    #         close_weixin:任务结束后是否关闭微信，默认关闭
+    #     Returns:
+    #         groups:所有已加入的群聊名称
+    #     '''
+    #     if is_maximize is None:
+    #         is_maximize=GlobalConfig.is_maximize
+    #     if close_weixin is None:
+    #         close_weixin=GlobalConfig.close_weixin
+    #     if search_pages is None:
+    #         search_pages=GlobalConfig.search_pages
+    #     common_groups=[]
+    #     profile_window,main_window=Navigator.open_friend_profile(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
+    #     chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton) 
+    #     shared_groups_label=profile_window.child_window(**Texts.SharedGroupsText)
+    #     if shared_groups_label.exists(timeout=2):
+    #         number_button=shared_groups_label.parent().parent().descendants(control_type='Button')[1]
+    #         total_num=int(number_button.window_text().replace('个','').replace('個',''))
+    #         number_button.click_input()
+    #         popup_window=main_window.window(**Windows.PopUpProfileWindow)
+    #         shared_groups_list=popup_window.child_window(**Lists.CommonGroupList)
+    #         shared_groups_list.type_keys('{END}')
+    #         last_item=shared_groups_list.children()[-1].window_text()
+    #         shared_groups_list.type_keys('{HOME}')
+    #         while len(common_groups)<total_num:
+    #             texts=[listitem.window_text() for listitem in shared_groups_list.children()]
+    #             texts=[text for text in texts if text not in  common_groups]
+    #             common_groups.extend(texts)
+    #             shared_groups_list.type_keys('{PGDN}')
+    #             if common_groups[-1]==last_item:
+    #                 break
+    #     profile_window.close()
+    #     chatinfo_button.click_input() 
+    #     if close_weixin:
+    #         main_window.close()
+    #     return common_groups
 
     # @staticmethod
     # # SessionPicker window无法ui自动化,微信直接白屏卡死程序崩溃！不信,可以尝试一下
@@ -2654,7 +2779,7 @@ class Moments():
         week_days=Special_Labels.WeekDays
         yesterday=Special_Labels.Yesterday
         days_ago=Special_Labels.DaysAgo
-        time.sleep(2)#等待一下刷新
+        time.sleep(2)#等待一下朋友圈自动刷新,不然获取的可能是过去的内容
         if moments_list.children(control_type='ListItem'):
             while True:
                 listitems=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.class_name() not in not_contents]
@@ -2776,7 +2901,6 @@ class Moments():
         like_button=moments_window.child_window(**Buttons.LikeButton)
         comment_button=moments_window.child_window(**Buttons.CommentButton)
         moments_list=moments_window.child_window(**Lists.MomentsList)
-        center_point=(moments_list.rectangle().mid_point().x,moments_list.rectangle().mid_point().y)
         moments_list.type_keys('{HOME}')
         if moments_list.children(control_type='ListItem'):
             while True:
@@ -3270,14 +3394,13 @@ class Messages():
             search=main_window.descendants(**Main_window.Search)[0]
             search.click_input()
             search.set_text(friend)
-            time.sleep(0.8)
             search_results=main_window.child_window(title='',control_type='List')
+            search_results.wait(wait_for='ready',timeout=1)
             friend_button=Tools.get_search_result(friend=friend,search_result=search_results)
             if friend_button:
                 friend_button.click_input()
                 edit_area.click_input()
                 send_messages(friend)
-        Tools.cancel_pin(main_window)
         if close_weixin:
             main_window.close()
 
@@ -3670,6 +3793,7 @@ class Messages():
             if is_json:chat_history=json.dumps(chat_history,ensure_ascii=False,indent=2)
             if close_weixin:main_window.close()
         return chat_history
+    
     @staticmethod
     def dump_chat_history(friend:str,number:int,search_content:str=None,is_json:bool=False,save_detail:bool=False,
     target_folder:str=None,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
@@ -3699,35 +3823,17 @@ class Messages():
             print(f'未传入文件夹路径,聊天记录明细将分别保存到{target_folder}内')
             os.makedirs(target_folder,exist_ok=True)
         
-        def get_myName():
-            '''获取本人昵称,为了节省时间不去调用Contacts.check_my_info'''
-            Tools.cancel_pin(chat_history_window)
-            moments_window=Navigator.open_moments(is_maximize=is_maximize,close_weixin=True)
-            moments_list=moments_window.child_window(control_type='List',auto_id="sns_list")
-            rec=moments_list.children()[0].rectangle()
-            coords=(rec.right-60,rec.bottom-35)
-            mouse.click(coords=coords)
-            profile_pane=desktop.window(**Windows.PopUpProfileWindow)
-            group=profile_pane.child_window(control_type='Group',found_index=3).children()[1]
-            myName=group.descendants(control_type='Text')[0].window_text()
-            moments_window.close()
-            return myName
-
         def get_groupMembers_info():
             '''获取群成员列表,为了节省时间不去调用Contacts.get_groupMembers_info'''
             runtime_ids=[]
             groupMembers=[]
-            Tools.cancel_pin(chat_history_window)
+            win32gui.SendMessage(chat_history_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MAXIMIZE,0)
             chat_history_window.child_window(**TabItems.GroupMembersTabItem).click_input()
-            total_num=int(re.search(rf'\((\d+)\)',chat_history_window.window_text()).group(1))
-            pop_over=desktop.window(**Windows.PopOverWindow)
+            time.sleep(1)#先让窗口出现再查找
+            hwnd=win32gui.FindWindow(None,'Weixin')
+            pop_over=desktop.window(handle=hwnd)
             groupMember_list=pop_over.child_window(control_type='List')
             groupMember_list.type_keys('{PGUP}')#激活列表
-            time.sleep(1)#必须等待,不然ui的文本属性加载不出来
-            first_item=groupMember_list.children()[1]
-            rectangle=first_item.rectangle()
-            mouse.move(coords=(rectangle.mid_point().x,rectangle.mid_point().y))
-            time.sleep(1)#必须等待,不然ui的文本属性加载不出来
             while len(groupMembers)<total_num:
                 selected=[listitem for listitem in groupMember_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
                 if selected and selected[0].window_text()!='':
@@ -3736,13 +3842,14 @@ class Messages():
                     if len(runtime_ids)>2 and runtime_ids[-1]==runtime_ids[-2]:
                         break
                     groupMembers.append(selected[0].window_text())
-                pyautogui.keyDown('down')
+                pyautogui.press('down',_pause=False)
             groupMember_list.type_keys('{HOME}')
             pop_over.close()
             return groupMembers
        
         groupMembers=[]
         chat_history_window,is_group_chat=Navigator.open_chat_history(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin,search_pages=search_pages)
+        Tools.cancel_pin(chat_history_window)
         if isinstance(search_content,str):
             search_bar=chat_history_window.descendants(**Edits.SearchEdit)[0]
             search_bar.set_text(search_content)
@@ -3754,12 +3861,13 @@ class Messages():
         win32gui.SendMessage(chat_history_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MAXIMIZE,0)
         details_with_name=traverse_chat_history(chat_history_window,select=True,number=number,save_detail=save_detail,target_folder=target_folder)
         if not is_group_chat:
-            myName=get_myName()      
+            Tools.cancel_pin(chat_history_window)
+            myName=Contacts.check_my_info(close_weixin=close_weixin).get('昵称')      
             contents,senders,timestamps,message_types=parse_chat_history(friend,myName,details_with_name)
         if is_group_chat:
             total_num=int(re.search(rf'\((\d+)\)',chat_history_window.window_text()).group(1))
             #要么获取群成员名称后按个查找确认sender，要么在不选择的情况下遍历一遍然后替换比较得到sender
-            if total_num<number and total_num<100:#根据数量选择具体的一个,群聊人数比要获取的聊天记录少的多的情况下直接获取群成员信息
+            if total_num<200 and number>200:#根据数量选择具体的一个,群聊人数比要获取的聊天记录少的多的情况下直接获取群成员信息
                 groupMembers=get_groupMembers_info()
                 contents,senders,timestamps,message_types=parse_group_chat_history(details_with_name,[],groupMembers)
             else:
@@ -3786,8 +3894,6 @@ class Messages():
             recent:获取最近聊天记录的时间节点,可选值为'Today','Week','Month'分别获取当天,昨天,本周,本月
             number:获取的消息数量,如果传入达到指定数量结束,默认1000
             search_content:搜索关键字,传入后会先在顶部搜索关键字然后向下遍历
-            capture_alia:是否截取聊天记录中聊天对象的昵称
-            alias_folder:保存聊天对象昵称截图的文件夹
             save_media:是否保存聊天记录中的图片视频文件
             media_folder:保存聊天对象发送图片视频的文件夹
             search_pages:打开好友聊天窗口时在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息

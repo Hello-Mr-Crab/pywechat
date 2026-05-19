@@ -93,7 +93,6 @@ import win32api
 import pyautogui
 import win32gui
 import win32con
-import win32com.client
 from typing import Literal
 from packaging import version
 from pywinauto import mouse,Desktop
@@ -106,43 +105,12 @@ from .Errors import NetWorkError
 from .Errors import NoSuchFriendError
 from .Errors import NotFriendError,NotStartError,NotLoginError
 from .Errors import NoResultsError,NotInstalledError,NotFoundError
-from pyweixin.Uielements import (Main_window,SideBar,Independent_window,ListItems,
+from pyweixin.Uielements import (Main_window,SideBar,Independent_window,ListItems,Special_Labels,
 Buttons,Texts,TabItems,Lists,Edits,Windows,Panes,MenuItems,Login_window)#导入的是自动判断语言后的实例化对象,如果自行使用需要导入xxx_Control
 from pyweixin.WinSettings import SystemSettings 
 ##########################################################################################
 desktop=Desktop(backend='uia')#Window桌面
 pyautogui.FAILSAFE=False#防止鼠标在屏幕边缘处造成的误触
-
-class WxWindowManage():
-    '''用来查找活跃的微信窗口,实例化后使用find_wx_window方法'''
-    def __init__(self):
-        self.hwnd=0
-        self.possible_windows=[]
-        self.window_type=1#1为主界面,0为登录界面
-        self.classname_pattern=re.compile(r'Qt\d+QWindowIcon')#Qt51514QWindowIcon,QT窗口通用的classname
-
-    def filter(self,hwnd,param):
-        #EnumDesktopWindows的回调函数
-        classname=win32gui.GetClassName(hwnd)
-        if self.classname_pattern.match(classname):
-            self.possible_windows.append(hwnd) 
-    
-    def find_wx_window(self):
-        '''当微信在运行时,即使关闭掉窗口。win32gui也可以找到窗口句柄
-        不过win32gui获取到的classname是通用的qt窗口类名
-        pywinauto可以获取到真正的窗口类名mmui::,其中mm与微信移动版的package包名一致
-        猜测是微信为了全平台的一致性''' 
-        win32gui.EnumDesktopWindows(0,self.filter,None)      
-        self.possible_windows=[hwnd for hwnd in self.possible_windows 
-        if 'mmui::MainWindow' in desktop.window(handle=hwnd).class_name() or 'mmui::LoginWindow' in desktop.window(handle=hwnd).class_name()]
-        if self.possible_windows:
-            self.hwnd=self.possible_windows[0]
-            if desktop.window(handle=self.hwnd).class_name()=='mmui::LoginWindow':
-                self.window_type=0#登录界面
-        return self.hwnd
-wx=WxWindowManage()
-
-
 class Tools():
     '''
     一些关于PC微信的工具,主要是获取路径和ui状态相关的一些方法
@@ -165,10 +133,8 @@ class Tools():
         该方法通过检测当前windows系统的进程中
         是否有Weixin.exe该项进程来判断微信是否在运行
         '''
-        wmi=win32com.client.GetObject('winmgmts:')
-        processes=wmi.InstancesOf('Win32_Process')
-        for process in processes:
-            if process.Name.lower()=='Weixin.exe'.lower():
+        for process in psutil.process_iter(['name']):
+            if process.info['name'].lower()=='weixin.exe':
                 return True
         return False
     
@@ -381,13 +347,17 @@ class Tools():
         win32gui.ShowWindow(handle,1)
         screen_width,screen_height=win32api.GetSystemMetrics(win32con.SM_CXSCREEN),win32api.GetSystemMetrics(win32con.SM_CYSCREEN)
         window=desktop.window(handle=handle)
-        window_width,window_height=window.rectangle().width(),window.rectangle().height()
-        new_left=(screen_width-window_width)//2
-        new_top=(screen_height-window_height)//2
-        if screen_width!=window_width:
-            win32gui.MoveWindow(handle, new_left, new_top, window_width, window_height, True)
-            win32gui.SetWindowPos(handle,win32con.HWND_TOPMOST, 
-            0, 0, 0, 0,win32con.SWP_NOMOVE|win32con.SWP_NOSIZE)
+        try:
+            window.wait(wait_for='ready',timeout=2)
+            window_width,window_height=window.rectangle().width(),window.rectangle().height()
+            new_left=(screen_width-window_width)//2
+            new_top=(screen_height-window_height)//2
+            if screen_width!=window_width:
+                win32gui.MoveWindow(handle, new_left, new_top, window_width, window_height, True)
+                win32gui.SetWindowPos(handle,win32con.HWND_TOPMOST, 
+                0, 0, 0, 0,win32con.SWP_NOMOVE|win32con.SWP_NOSIZE)
+        except ExceptionGroup:
+            print(f'无法移动窗口至中央!')
         return window
 
     @staticmethod
@@ -642,7 +612,7 @@ class Tools():
                     if len(runtime_ids)>2 and runtime_ids[-1]==runtime_ids[-2]:
                         break
                     rect=selected[0].rectangle()
-                    right_clik_pos=rect.left+120,rect.top+60
+                    right_clik_pos=rect.left+110,rect.top+60
                     mouse.right_click(coords=right_clik_pos)
                     multiselect_item.click_input()
                     mouse.click(coords=right_clik_pos)
@@ -685,18 +655,28 @@ class Tools():
 
 class Navigator():
     '''打开微信内一切能打开的界面'''
-    @staticmethod 
-    def open_weixin(is_maximize:bool=None,window_size:tuple=None)->WindowSpecification:
+    @staticmethod
+    def open_weixin(is_maximize:bool=None,window_size:tuple=None)->(WindowSpecification|None):
         '''
         打开微信(微信需要提前登录)
         Args:
             is_maximize:微信界面是否全屏,默认不全屏
             window_size:微信主界面大小,默认(1000,100),可GlobalConfig.window_size=(width,height)全局控制
         '''
-        def move_window_to_center(window:WindowSpecification,is_maximize:bool):
-            #将微信主界面移动到窗口正中间,并调整全屏
-            window.restore()
-            win32gui.SetWindowPos(window.handle,win32con.HWND_TOPMOST, 
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if window_size is None:
+            window_size=GlobalConfig.window_size
+        if not Tools.is_weixin_running():
+            raise NotStartError
+        window_name=Special_Labels.Weixin 
+        hwnd=win32gui.FindWindow('Qt51514QWindowIcon',window_name)
+        main_window=desktop.window(handle=hwnd)
+        if main_window.class_name()=='mmui::LoginWindow':
+            raise NotLoginError
+        if main_window.class_name()=='mmui::MainWindow':
+            main_window.restore()
+            win32gui.SetWindowPos(hwnd,win32con.HWND_TOPMOST, 
             0, 0,window_size[0],window_size[1],win32con.SWP_NOMOVE)
             window_width,window_height=window_size[0],window_size[1]
             screen_width,screen_height=win32api.GetSystemMetrics(win32con.SM_CXSCREEN),win32api.GetSystemMetrics(win32con.SM_CYSCREEN)
@@ -704,38 +684,22 @@ class Navigator():
             new_top=(screen_height-window_height)//2
             if screen_width!=window_width:
                 #移动窗口到屏幕中央
-                win32gui.MoveWindow(window.handle,new_left,new_top,window_width,window_height,True)
+                win32gui.MoveWindow(hwnd,new_left,new_top,window_width,window_height,True)
             ###############################
             if is_maximize:
-                win32gui.SendMessage(window.handle, win32con.WM_SYSCOMMAND, win32con.SC_MAXIMIZE,0)
+                #需要使用win32gui.SendMessage全屏,main_window.maximize不管用
+                win32gui.SendMessage(hwnd, win32con.WM_SYSCOMMAND, win32con.SC_MAXIMIZE,0)
             if not is_maximize:
-                win32gui.SendMessage(window.handle, win32con.WM_SYSCOMMAND, win32con.SC_RESTORE,0)
-            return window
-        if is_maximize is None:
-            is_maximize=GlobalConfig.is_maximize
-        if window_size is None:
-            window_size=GlobalConfig.window_size
-        
-        is_running=Tools.is_weixin_running()
-        if not is_running:#微信不在运行,主界面看不到窗口，需要先启动
-            raise NotStartError
-        handle=wx.find_wx_window()
-        if handle==0:
-            os.system('start narrator')
-            raise NotFoundError('无法识别定位到微信主界面,请在微信登录前运行无障碍服务(讲述人)后再尝试!(讲述人已启动)')
-        #只有在窗口激活的时候
-        if wx.window_type==0:#微信在运行,但是是登录界面
-            raise NotLoginError
-        if wx.window_type==1:#微信在运行，主界面存在(可能被关闭或者可见)
-            wx_window=desktop.window(handle=handle)
-            main_window=move_window_to_center(wx_window,is_maximize=is_maximize)
+                win32gui.SendMessage(hwnd, win32con.WM_SYSCOMMAND, win32con.SC_RESTORE,0)
+            offline_button=main_window.child_window(**Buttons.OffLineButton)
             Tools.cancel_pin(main_window)
-        offline_button=main_window.child_window(**Buttons.OffLineButton)
-        if offline_button.exists(timeout=0.1):
-            main_window.close()
-            raise NetWorkError('当前网络不可用,无法进行UI自动化!')
+            if offline_button.exists(timeout=0.1):
+                main_window.close()
+                raise NetWorkError('当前网络不可用,无法进行UI自动化!')
+        else:
+            raise NotFoundError
         return main_window
-    
+   
     @staticmethod
     def capture_Login_QRCode(img_path:str)->bool:
         '''
@@ -750,9 +714,8 @@ class Navigator():
         if not is_running:#微信不在运行,主界面看不到窗口，需要先启动
             exe_path=Tools.where_weixin()
             os.startfile(exe_path)
-            time.sleep(3)
         login_window=desktop.window(**Login_window.LoginWindow)
-        if not login_window.exists(timeout=4):
+        if not login_window.exists(timeout=6):
             print('无法连接到登录窗口,可能是微信正在运行,请退出登录重试!')
             return is_saved
         login_window.restore()
@@ -761,7 +724,7 @@ class Navigator():
             switch_text=login_window.child_window(**element)
             if switch_text.exists(timeout=0.2):
                 switch_text.click_input()
-        time.sleep(2)#等待切换到扫码界面
+        login_window.wait(wait_for='ready',timeout=2)
         code_image=login_window.capture_as_image()
         code_image.save(img_path)
         is_saved=True
@@ -896,11 +859,57 @@ class Navigator():
                 chatinfo_button.click_input()
             return chatinfo_pane,main_window
             
+    @staticmethod
+    def open_my_profile(is_maximize:bool=None)->tuple[WindowSpecification,WindowSpecification]:
+        '''
+        该方法用来打开个人简介界面
+        Args:
+            is_maximize:微信界面是否全屏,默认不全屏。
+        Returns:
+            (profile_pane,main_window):个人简介界面和微信主界面
+        '''
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        main_window=Navigator.open_weixin(is_maximize=is_maximize)
+        weixin_button=main_window.child_window(**SideBar.Weixin)
+        rec=weixin_button.rectangle()
+        coords=(rec.mid_point().x,rec.top-40)
+        mouse.click(coords=coords)
+        time.sleep(1)
+        hwnd=win32gui.FindWindow(None,'Weixin')
+        profile_pane=desktop.window(handle=hwnd)
+        return profile_pane,main_window
 
+    # @staticmethod 
+    # def open_friend_profile(friend:str,is_maximize:bool=None,search_pages:int=None)->tuple[WindowSpecification,WindowSpecification]:
+    #     '''
+    #     该方法用来打开好友的个人简介界面
+    #     Args:
+    #         friend:好友名称
+    #         search_pages:在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
+    #         is_maximize:微信界面是否全屏,默认不全屏。
+    #     '''
+    #     if is_maximize is None:
+    #         is_maximize=GlobalConfig.is_maximize
+    #     if search_pages is None:
+    #         search_pages=GlobalConfig.search_pages
+    #     chatinfo_pane,main_window=Navigator.open_chatinfo(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
+    #     friend_button=chatinfo_pane.child_window(title=friend,control_type='Button')
+    #     old_version=version.parse(GlobalConfig.Version)<version.parse('4.1.9')#比4.1.9版本低
+    #     try:
+    #         friend_button.wait(wait_for='ready',timeout=3)
+    #         friend_button.click_input()
+    #         profile_pane=desktop.window(**Windows.PopUpProfileWindow) if not old_version else main_window.window(**Windows.PopUpProfileWindow)
+    #         return profile_pane,main_window
+    #     except Exception:
+    #         chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton)
+    #         chatinfo_button.click_input()
+    #         main_window.close()
+    #         raise NotFriendError(f'此为群聊,非好友,无法打开个人简介界面!')
     @staticmethod 
     def open_friend_profile(friend:str,is_maximize:bool=None,search_pages:int=None)->tuple[WindowSpecification,WindowSpecification]:
         '''
-        该函数用来打开好友的个人简介界面
+        该方法用来打开好友的个人简介界面
         Args:
             friend:好友名称
             search_pages:在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
@@ -913,12 +922,14 @@ class Navigator():
         chatinfo_pane,main_window=Navigator.open_chatinfo(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         friend_button=chatinfo_pane.child_window(title=friend,control_type='Button')
         old_version=version.parse(GlobalConfig.Version)<version.parse('4.1.9')#比4.1.9版本低
-        try:
-            friend_button.wait(wait_for='ready',timeout=3)
+        if friend_button.exists(timeout=3):
             friend_button.click_input()
-            profile_pane=desktop.window(**Windows.PopUpProfileWindow) if not old_version else main_window.window(**Windows.PopUpProfileWindow)
+            if not old_version:
+                profile_pane=desktop.window(**Windows.PopUpProfileWindow)
+            else:
+                profile_pane=main_window.window(**Windows.PopUpProfileWindow)
             return profile_pane,main_window
-        except Exception:
+        else:
             chatinfo_button=main_window.child_window(**Buttons.ChatInfoButton)
             chatinfo_button.click_input()
             main_window.close()
@@ -1046,7 +1057,7 @@ class Navigator():
     @staticmethod
     def open_settings(is_maximize:bool=None,close_weixin:bool=None)->WindowSpecification:
         '''
-        该方法用来打开微信设置界面。
+        该方法用来打开微信设置界面
         Args:
             is_maximize:微信界面是否全屏,默认不全屏。
             close_weixin:任务结束后是否关闭微信,默认关闭
@@ -1060,7 +1071,6 @@ class Navigator():
         more.click_input()
         settings_button=main_window.child_window(**Buttons.SettingsButton)
         settings_button.click_input()
-        time.sleep(1.5)
         settings_window=Tools.move_window_to_center(Independent_window.SettingsWindow)        
         if close_weixin:
             main_window.close() 
@@ -1099,7 +1109,6 @@ class Navigator():
             close_weixin=GlobalConfig.close_weixin
         contact_list,main_window=Navigator.open_contacts(is_maximize=is_maximize)
         contact_list.children()[0].click_input()
-        time.sleep(1.5)
         contact_manager=Tools.move_window_to_center(Independent_window.ContactManagerWindow)
         if window_maximize:
             win32gui.SendMessage(contact_manager.handle, win32con.WM_SYSCOMMAND, win32con.SC_MAXIMIZE, 0)
@@ -1127,7 +1136,6 @@ class Navigator():
         more.click_input()
         chatfiles_button=main_window.child_window(**Buttons.ChatFilesButton)
         chatfiles_button.click_input()
-        time.sleep(1.5)
         chatfiles_window=Tools.move_window_to_center(Independent_window.ChatFilesWindow)
         if window_maximize:
             win32gui.SendMessage(chatfiles_window.handle, win32con.WM_SYSCOMMAND, win32con.SC_MAXIMIZE, 0)
@@ -1301,7 +1309,6 @@ class Navigator():
             search_result=None 
         if search_result is not None:
             search_result.click_input()
-            time.sleep(1)
             if is_contact:
                 friend_listitem=[listitem for listitem in session_list.children(control_type='ListItem') if listitem.is_selected()][0]
                 friend_listitem.double_click_input()
@@ -1339,8 +1346,8 @@ class Navigator():
         search_bar=main_window.descendants(**Main_window.Search)[0]
         search_bar.click_input()
         search_bar.set_text(keyword)
-        time.sleep(0.8)#必须停顿1s等待加载出结果来
         search_results=main_window.child_window(title='',control_type='List')
+        search_results.wait(wait_for='ready',timeout=1)
         chat_history_label=search_results.child_window(**ListItems.ChatHistoryListItem)
         #微信搜索相关好友后会显示共同群聊，如果搜索结果中有群聊这个灰色标签的ListItem，说明有共同群聊
         if not chat_history_label.exists(timeout=0.5):

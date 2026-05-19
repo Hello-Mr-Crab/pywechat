@@ -55,9 +55,9 @@ class globalConfig:
             cls._instance._send_delay=0.2
             cls._instance._audio_length=60
             cls._instance._clear=True
-            cls._window_size=(1000,1000)
-            cls._language='简体中文'
-            cls._Version='4.1.9.30'
+            cls._instance._window_size=(1000,1000)
+            cls._instance._language=None
+            cls._instance._Version=None
         return cls._instance
     
     @property
@@ -138,7 +138,7 @@ class globalConfig:
         self._send_delay=value
     @property
     def audio_length(self):
-        '''微信当前的版本(4.1.9之后有变动)'''
+        '''发送语音的长度(微信4.1.9以后可以使用)'''
         return self._audio_length
     
     @audio_length.setter
@@ -159,69 +159,75 @@ class globalConfig:
         self._clear=value
     
     @property
-    def language(self):
-        '''微信当前的语言'''
-        return self._language
-    
-    @language.setter
-    def language(self,value):
-        if not isinstance(value,str):
-            raise TypeError(f"language必须是str类型,但传入了{type(value)}:{value}")
-        if value not in {'简体中文','English','繁體中文'}:
-            raise ValueError(f"language的取值为{'简体中文','English','繁體中文'}!")
-        self._language=value
-    
-    @property
     def Version(self):
-        '''微信当前的版本(4.1.9之后有变动)'''
+        '''微信当前版本'''
+        if self._Version is None:
+            try:
+                self._Version=self._get_weixin_version()
+            except Exception:
+                warn(f"获取微信版本失败,使用默认值'4.1.9.30'", RuntimeWarning)
+                self._Version='4.1.9.30'
         return self._Version
-    
+
     @Version.setter
-    def Version(self,value):
-        if not isinstance(value,str):
-            raise TypeError(f"Version必须是str类型,但传入了{type(value)}:{value}")
-        self._Version=value
+    def Version(self, value):
+        if not isinstance(value, str):
+            raise TypeError(f"version必须是str类型,但传入了{type(value)}: {value}")
+        self._Version=value #允许手动设置覆盖缓存
+
+    @property
+    def language(self):
+        '''微信当前语言'''
+        if self._language is None:
+            self._language=self._language_detector()
+            if self._language is None:
+                warn("语言检测失败，使用默认 '简体中文'", LanguageDetectionFailedWarning)
+                self._language='简体中文'
+        return self._language
+
+    @language.setter
+    def language(self, value):
+        if not isinstance(value, str):
+            raise TypeError(f"language必须是str类型,但传入了 {type(value)}: {value}")
+        if value not in {'简体中文', 'English', '繁體中文'}:
+            raise ValueError(f"不支持的语言: {value}")
+        self._language=value  #允许手动设置覆盖缓存
+
+    def _language_detector(self)->(str|None):
+        '''
+        通过WechatAppex的命令行参数判断语言版本
+        Returns:
+            lang:简体中文,繁體中文,English
+        '''
+        lang=None
+        cmdline=''
+        cmdlines=[]
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            if proc.info['name'] and 'wechatappex' in proc.info['name'].lower():
+                cmdlines.append(proc.info['cmdline'])#wechatappex.exr不止一个！所以把所有的exe命令行参数都保留
+        for cmdline in cmdlines:
+            cmd_str=' '.join(cmdline).lower()
+            if '--type=renderer' in cmd_str:
+                if '--lang=zh-cn' in cmd_str:lang='简体中文'
+                if '--lang=zh-tw' in cmd_str:lang='繁體中文'
+                if '--lang=en' in cmd_str:lang='English'
+        return lang
+
+    def _get_weixin_version(self):
+        '''通过查询注册表来获取微信版本
+        Returns:
+            weixin_version:微信版本号,4.1.x.xx
+        '''
+        try:
+            reg_path=r"Software\Tencent\Weixin"
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER,reg_path) as key:
+                int_version=winreg.QueryValueEx(key,"Version")[0]
+                #0xf254186b,0xf25之后是微信版本,每隔一位加个.,最后两位16转10进制就是版本号
+                hex_str=hex(int_version)[5:]
+                weixin_version=f'{hex_str[0]}.{hex_str[1]}.{hex_str[2]}.{int(hex_str[-2:],16)}'
+            return weixin_version
+        except Exception:
+            return None
+   
 #全局实例
 GlobalConfig=globalConfig()
-#微信语言检测
-def language_detector()->(str|None):
-    '''
-    通过WechatAppex的命令行参数判断语言版本
-    Returns:
-        lang:简体中文,繁體中文,English
-    '''
-    lang=None
-    cmdline=''
-    cmdlines=[]
-    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
-        if proc.info['name'] and 'wechatappex' in proc.info['name'].lower():
-            cmdlines.append(proc.info['cmdline'])#wechatappex.exr不止一个！所以把所有的exe命令行参数都保留
-    for cmdline in cmdlines:
-        cmd_str=' '.join(cmdline).lower()
-        if '--type=renderer' in cmd_str:
-            if '--lang=zh-cn' in cmd_str:lang='简体中文'
-            if '--lang=zh-tw' in cmd_str:lang='繁體中文'
-            if '--lang=en' in cmd_str:lang='English'
-    return lang
-
-def get_weixin_version():
-    '''通过查询注册表来获取微信版本
-    Returns:
-        weixin_version:微信版本号,4.1.x.xx
-    '''
-    try:
-        reg_path=r"Software\Tencent\Weixin"
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER,reg_path) as key:
-            int_version=winreg.QueryValueEx(key,"Version")[0]
-            #0xf254186b,0xf25之后是微信版本,每隔一位加个.,最后两位16转10进制就是版本号
-            hex_str=hex(int_version)[5:]
-            weixin_version=f'{hex_str[0]}.{hex_str[1]}.{hex_str[2]}.{int(hex_str[-2:],16)}'
-        return weixin_version
-    except Exception:
-        raise NotInstalledError
-#检测不到只有可能是WechatAppex.exe没有被初始化过(需要打开一次小程序面板或视频号)或微信没有启动
-language=language_detector()
-Version=get_weixin_version()
-GlobalConfig.Version=Version
-if language is None:warn(message=f"无法探查到微信当前语言,若需自动检测，请手打打开一次视频号或小程序面板,亦可自行设定",category=LanguageDetectionFailedWarning)
-if language is not None:GlobalConfig.language=language

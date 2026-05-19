@@ -834,6 +834,8 @@ class Special_Label():
         self.From='来自'
         self.WeCom='企业微信'
         if self.language=='简体中文':
+            self.Weixin='微信'
+            self.SelectFolder='选择文件夹'
             self.Emoji='动画表情'
             self.EnterPriseInfomation='企业信息'
             self.Block='加入黑名单'
@@ -889,6 +891,8 @@ class Special_Label():
             self.WeekDays.add(self.Yesterday)
             self.MonthDays.update(self.WeekDays)
         if self.language=='English':
+            self.Weixin='Weixin'
+            self.SelectFolder='Select folder'
             self.Emoji='Animated Stickers'
             self.Block='Block'
             self.UnBlock='UnBlock'
@@ -944,6 +948,8 @@ class Special_Label():
             self.WeekDays.add(self.Yesterday)
             self.MonthDays.update(self.WeekDays)
         if self.language=='繁體中文':
+            self.Weixin='微信'
+            self.SelectFolder='選擇資料夾'
             self.Emoji='動態貼圖'
             self.Block='加入黑名單'
             self.UnBlock='移出黑名單'
