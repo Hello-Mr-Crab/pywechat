@@ -669,7 +669,8 @@ class Navigator():
             window_size=GlobalConfig.window_size
         if not Tools.is_weixin_running():
             raise NotStartError
-        hwnd=win32gui.FindWindow('Qt51514QWindowIcon',None)
+        hwnd=win32gui.FindWindow('Qt51514QWindowIcon','微信')
+        if hwnd==0:hwnd=win32gui.FindWindow('Qt51514QWindowIcon','Weixin')
         main_window=desktop.window(handle=hwnd)
         if main_window.class_name()=='mmui::LoginWindow':
             raise NotLoginError
@@ -1302,12 +1303,13 @@ class Navigator():
         search.click_input()
         search.set_text(friend)
         try:
-            search_results=main_window.child_window(**Lists.SearchResult).wait(wait_for='ready',timeout=3)#搜索结果列表
+            search_results=main_window.child_window(**Lists.SearchResult).wait(wait_for='ready',timeout=2)#搜索结果列表
             search_result,is_contact=get_search_result(friend=friend,search_result=search_results)
         except Exception:
             search_result=None 
         if search_result is not None:
             search_result.click_input()
+            session_list.wait(wait_for='ready',timeout=1)
             if is_contact:
                 friend_listitem=[listitem for listitem in session_list.children(control_type='ListItem') if listitem.is_selected()][0]
                 friend_listitem.double_click_input()

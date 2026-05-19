@@ -162,7 +162,7 @@ def send_messages_to_friend(main_window:WindowSpecification,messages:list[str],s
             edit_area.set_text(message)
             time.sleep(send_delay)
             pyautogui.hotkey('alt','s',_pause=False)
-        elif len(message)>2000:#字数超过200字发送txt文件
+        elif len(message)>=2000:#字数超过2000字发送txt文件
             SystemSettings.convert_long_text_to_txt(message)
             pyautogui.hotkey('ctrl','v',_pause=False)
             time.sleep(send_delay)
@@ -365,8 +365,8 @@ def NativeChooseFolder(folder:str):
     '''
     该函数用来在windows选择文件夹界面中选择文件夹(微信点击保存按钮后弹出),Win10,Win11通用
     '''
-    SystemSettings.copy_text_to_clipboard(folder)
     time.sleep(1)
+    SystemSettings.copy_text_to_clipboard(folder)
     hwnd=win32gui.FindWindow(None,Special_Labels.SelectFolder)
     choose_folder_window=desktop.window(handle=hwnd)
     choose_folder_button=choose_folder_window.child_window(control_type='Button',title='选择文件夹')
