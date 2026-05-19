@@ -669,8 +669,7 @@ class Navigator():
             window_size=GlobalConfig.window_size
         if not Tools.is_weixin_running():
             raise NotStartError
-        window_name=Special_Labels.Weixin 
-        hwnd=win32gui.FindWindow('Qt51514QWindowIcon',window_name)
+        hwnd=win32gui.FindWindow('Qt51514QWindowIcon',None)
         main_window=desktop.window(handle=hwnd)
         if main_window.class_name()=='mmui::LoginWindow':
             raise NotLoginError
