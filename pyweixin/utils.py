@@ -11,6 +11,7 @@ from pywinauto import WindowSpecification,Desktop,mouse
 from .Config import GlobalConfig
 from .WeChatTools import Navigator,Tools
 from .WinSettings import SystemSettings
+from .Uielements import ClickPos
 from .Uielements import Main_window,SideBar,Buttons,Edits,Lists,Windows,Texts,MenuItems,Special_Labels,Regex_Patterns
 #######################################################################################
 pyautogui.FAILSAFE=False#防止鼠标在屏幕边缘处造成的误触
@@ -367,14 +368,14 @@ def NativeChooseFolder(folder:str):
     '''
     time.sleep(1)
     SystemSettings.copy_text_to_clipboard(folder)
-    hwnd=win32gui.FindWindow(None,Special_Labels.SelectFolder)
+    hwnd=win32gui.FindWindow('#32770',Special_Labels.SelectFolder)
     choose_folder_window=desktop.window(handle=hwnd)
     choose_folder_button=choose_folder_window.child_window(control_type='Button',title='选择文件夹')
     prograss_bar=choose_folder_window.child_window(control_type='ProgressBar',class_name='msctls_progress32',framework_id='Win32')
     path_bar=prograss_bar.child_window(class_name='ToolbarWindow32',control_type='ToolBar',found_index=0)
     if re.search(r':\s*(.*)',path_bar.window_text()).group(1)!=folder:
-        rect=path_bar.rectangle()
-        mouse.click(coords=(rect.right-5,rect.mid_point().y))
+        PathBarPos=ClickPos(path_bar).PathBarPos
+        mouse.click(coords=(PathBarPos))
         pyautogui.press('backspace')
         pyautogui.hotkey('ctrl','v',_pause=False)
         pyautogui.press('enter')

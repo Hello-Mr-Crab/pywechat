@@ -84,6 +84,7 @@ from .Errors import NotFriendError
 from .Uielements import (Main_window,SideBar,Buttons,TabItems,
 Edits,Texts,Lists,Panes,Windows,CheckBoxes,MenuItems,Groups,Customs,ListItems)#导入的是自动判断语言后的实例化对象,如果自行使用需要导入xxx_Control
 from .Uielements import Regex_Patterns,Special_Labels,TimeStamps
+from .Uielements import ClickPos
 #######################################################################################
 desktop=Desktop(backend='uia')#pywinauto的windows桌面对象(WindowSpecification)实例化
 pyautogui.FAILSAFE=False#防止鼠标在屏幕边缘处造成的误触
@@ -376,15 +377,13 @@ class Collections():
         link_list.type_keys('{HOME}')
         link_list.type_keys('{DOWN}')
         selected_item=[listitem for listitem in link_list.children(control_type='ListItem') if listitem.has_keyboard_focus() and listitem.window_text()!=''][0]
-        rectangle=selected_item.rectangle()
-        side_x=rectangle.right-15
-        center_y=rectangle.mid_point().y
+        CardLinkPos=ClickPos(selected_item).CardLinkPos
         while selected_item.window_text()!=last_item:#while循环的结束条件是到达底部
             url=copy_url(selected_item)
             title=selected_item.window_text()[2:]#前两个字是固定的,为链接二字,后边的文本才是需要的
             title=timestamp_pattern.sub('',title)#替换掉时间戳
             links[url]=title
-            mouse.click(coords=(side_x,center_y))
+            mouse.click(coords=CardLinkPos)
             link_list.type_keys('{DOWN}',pause=0.15)
             selected_item=[listitem for listitem in link_list.children(control_type='ListItem') if listitem.has_keyboard_focus() and listitem.window_text()!=''][0]
             if len(links)>=number:
@@ -425,8 +424,7 @@ class Collections():
         offAcc_window=Tools.move_window_to_center(Window=Panes.OfficialAccountPane)
         seperate_window.close()
         offAcc_window.maximize()
-        rectangle=offAcc_window.rectangle()
-        side_x,center_y=rectangle.right-45,rectangle.mid_point().y
+        cardLinkPos=ClickPos(offAcc_window).CardLinkPos
         articles_link=offAcc_window.child_window(title='文章',control_type='Hyperlink')
         articles_link.click_input()
         container=offAcc_window.child_window(control_type='Group')
@@ -439,12 +437,10 @@ class Collections():
                     time.sleep(delay)
                     child.right_click_input()
                     clicked.append(child.element_info.runtime_id)
-                    # rec=child.rectangle()
-                    # mouse.click(coords=(rec.mid_point().x+5,rec.mid_point().y+50))
                     offAcc_window.child_window(title='收藏',control_type='Text').click_input()
                     if collected_num>=number:
                         break
-                mouse.click(coords=(side_x,center_y))
+                mouse.click(coords=cardLinkPos)
                 pyautogui.press('pagedown',_pause=False)
             else:
                 break
@@ -2641,8 +2637,8 @@ class Moments():
         time.sleep(5)#等待保存
         Tools.cancel_pin(note_window)
         container=note_window.child_window(auto_id='mainContainer')
-        more_button_area=container.rectangle().right-60,container.rectangle().top+60
-        mouse.click(coords=more_button_area)
+        MoreButtonPos=ClickPos(container).MoreButtonPos
+        mouse.click(coords=MoreButtonPos)
         pyautogui.press('up',presses=2)
         pyautogui.press('enter')
         time.sleep(2)
@@ -2685,12 +2681,12 @@ class Moments():
             if image_obj is not None:image_obj.save(capture_path)
             with open(content_path,'w',encoding='utf-8') as f:
                 f.write(content) if content else f.write(f'无文本内容')
+            rec=content_listitem.rectangle()
+            PostImagePos=ClickPos(content_listitem).PostImagePos
+            PostVideoPos=ClickPos(content_listitem).PostVideoPos
             #保存视频
             if video_num: 
-                rectangle=content_listitem.rectangle()
-                center_y=rectangle.mid_point().y
-                side_x=rectangle.left+150 
-                mouse.click(coords=(side_x,center_y))
+                mouse.click(coords=PostImagePos)
                 image_preview_window.right_click_input()
                 is_download=moments_window.child_window(**MenuItems.CopyMenuItem).exists(timeout=0.1)
                 while not is_download:
@@ -2705,9 +2701,7 @@ class Moments():
                 pyautogui.press('esc')
             #保存图片
             if photo_num:
-                rec=content_listitem.rectangle()
-                x,y=rec.left+120,rec.mid_point().y
-                mouse.click(coords=(x,y))
+                mouse.click(coords=PostImagePos)
                 pyautogui.press('left',presses=photo_num,interval=0.15)
                 rect=moments_window.rectangle()
                 right_click_pos=rect.mid_point().x+120,rect.mid_point().y-20
@@ -2727,12 +2721,11 @@ class Moments():
             friend=''
             text=content_listitem.window_text()
             if with_name:
-                rect=content_listitem.rectangle()
-                right_click_pos=rect.left+70,rect.top+70
-                mouse.double_click(coords=right_click_pos)
+                PostNamePos=ClickPos(content_listitem).PostNamePos
+                mouse.double_click(coords=PostNamePos)
                 friend=profile_window.child_window(control_type='Button',found_index=0).window_text()
                 friend=friend.strip()
-                mouse.click(coords=right_click_pos)
+                mouse.click(coords=PostNamePos)
             text=text.replace(friend,'')
             post_time=sns_timestamp_pattern.findall(text)[-1]
             if GlobalConfig.language=='简体中文':
@@ -2768,7 +2761,7 @@ class Moments():
         contain_image_pattern=Regex_Patterns.Contain_Images_pattern#朋友圈包含1~9张图片
         not_contents=['mmui::TimelineCommentCell','mmui::TimelineCell','mmui::TimelineAdGridImageCell','mmui::TimelineAdBaseCardImageCell']#评论区，余下x条,广告,这三种不需要
         moments_window=Navigator.open_moments(is_maximize=is_maximize,close_weixin=close_weixin)
-        win32gui.SendMessage(moments_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MAXIMIZE,0)
+        # win32gui.SendMessage(moments_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MAXIMIZE,0)
         Tools.cancel_pin(moments_window)
         image_preview_window=desktop.window(**Windows.ImagePreviewWindow)
         profile_window=desktop.window(**Windows.PopUpProfileWindow)
@@ -2833,12 +2826,11 @@ class Moments():
             text=content_listitem.window_text()
             friend=''
             if with_name:
-                rect=content_listitem.rectangle()
-                right_click_pos=rect.left+70,rect.top+70
-                mouse.double_click(coords=right_click_pos)
+                PostNamePos=ClickPos(content_listitem).PostNamePos
+                mouse.double_click(coords=PostNamePos)
                 friend=profile_window.child_window(control_type='Button',found_index=0).window_text()
                 friend=friend.strip()
-                mouse.click(coords=right_click_pos)
+                mouse.click(coords=PostNamePos)
             post_time=sns_timestamp_pattern.findall(text)[-1]
             if GlobalConfig.language=='简体中文':
                 contain_video_pattern=re.compile(rf'\s视频\s{post_time}')
@@ -2867,9 +2859,8 @@ class Moments():
 
         def comment(content_listitem:ListItemWrapper,comment_listitem:ListItemWrapper,content:str):
             #评论操作
-            # mouse.move(coords=center_point)
-            ellipsis_area=(content_listitem.rectangle().right-44,content_listitem.rectangle().bottom-15)#省略号按钮所处位置
-            mouse.click(coords=ellipsis_area)
+            EllipsisPos=ClickPos(content_listitem).EllipsisPos
+            mouse.click(coords=EllipsisPos)
             reply=callback(content) 
             if comment_button.exists(timeout=0.1) and reply is not None:
                 comment_button.click_input()
@@ -2962,13 +2953,14 @@ class Moments():
             #保存视频
             if video_num: 
                 content_listitem=sns_detail_list.children(control_type='ListItem',title='')[0]
-                rectangle=content_listitem.rectangle()
-                center_y=rectangle.mid_point().y
-                side_x=rectangle.left+150 
-                mouse.right_click(coords=(side_x,center_y))
+                PostDetailVideoPos=ClickPos(content_listitem).PostDetailVideoPos
+                PostDetailVideoClickPos=ClickPos(content_listitem).PostDetailVideoClickPos
+                mouse.right_click(coords=PostDetailVideoPos)
                 is_download=moments_window.child_window(**MenuItems.AddToFavoritesMenuItem).exists(timeout=0.1)
-                pyautogui.doubleClick(x=side_x-10,y=center_y,interval=0.1)
+                mouse.click(coords=PostDetailVideoClickPos)
+                mouse.double_click(coords=PostDetailVideoClickPos)
                 image_preview_window.right_click_input()
+                copy_item=image_preview_window.child_window(**MenuItems.CopyMenuItem)
                 while not is_download:
                     image_preview_window.right_click_input()
                     copy_item=image_preview_window.child_window(**MenuItems.CopyMenuItem)
@@ -2981,15 +2973,13 @@ class Moments():
                 pyautogui.press('esc')
             #保存图片
             if photo_num:
-                rec=sns_detail_list.rectangle()
-                right_click_position=rec.mid_point().x+20,rec.mid_point().y+25
                 comment_detail=sns_detail_list.children(control_type='ListItem',title='')[1]
-                rec=comment_detail.rectangle()
-                x,y=rec.left+120,rec.top-80
-                mouse.click(coords=(x,y))
+                PostDetailImagePos=ClickPos(comment_detail).PostDetailImagePos
+                PostDetailImageClickPos=ClickPos(sns_detail_list).PostDetailImageClickPos
+                mouse.click(coords=PostDetailImagePos)
                 pyautogui.press('left',presses=photo_num,interval=0.15)
                 for i in range(photo_num):
-                    sns_detail_list.right_click_input(coords=right_click_position)
+                    mouse.right_click(coords=PostDetailImageClickPos)
                     moments_window.child_window(**MenuItems.CopyMenuItem).click_input()
                     path=os.path.join(detail_folder,f'{i}.png')
                     time.sleep(0.5)#0.5s缓存到剪贴板时间
@@ -3038,16 +3028,13 @@ class Moments():
             os.makedirs(friend_folder,exist_ok=True)
         posts=[]
         recorded_num=0
-        old_version=version.parse(GlobalConfig.Version)<version.parse('4.1.9')
-        # video_pressed_num=2 if old_version else 1
         sns_detail_pattern=Regex_Patterns.Snsdetail_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳pattern
         contain_image_pattern=Regex_Patterns.Contain_Images_pattern#朋友圈包含1~9张图片
         not_contents=['mmui::AlbumBaseCell','mmui::AlbumTopCell']#置顶内容不需要
         image_preview_window=desktop.window(**Windows.ImagePreviewWindow)
         moments_window=Navigator.open_friend_moments(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin,search_pages=search_pages)
         backbutton=moments_window.child_window(**Buttons.BackButton)
-        #直接maximize不行,需要使用win32gui
-        win32gui.SendMessage(moments_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MAXIMIZE,0)
+        Tools.cancel_pin(moments_window)
         moments_list=moments_window.child_window(**Lists.MomentsList)
         sns_detail_list=moments_window.child_window(**Lists.SnsDetailList)
         moments_list.type_keys('{PGDN}')
@@ -3148,8 +3135,6 @@ class Moments():
         not_contents=['mmui::AlbumBaseCell','mmui::AlbumTopCell']#置顶内容不需要
         moments_window=Navigator.open_friend_moments(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin)
         backbutton=moments_window.child_window(**Buttons.BackButton)
-        #直接maximize不行,需要使用win32gui
-        win32gui.SendMessage(moments_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MAXIMIZE,0)
         moments_list=moments_window.child_window(**Lists.MomentsList)
         sns_detail_list=moments_window.child_window(**Lists.SnsDetailList)
         like_button=moments_window.child_window(**Buttons.LikeButton)
@@ -3171,6 +3156,7 @@ class Moments():
                         comment(sns_detail_list,content_listitem,content)
                     liked_num+=1
                     backbutton.click_input()
+                    moments_list.wait(wait_for='ready',timeout=1)
                     if Tools.is_sns_at_bottom(moments_list,selected[0]):
                         break
                 if liked_num>=number:
@@ -3282,16 +3268,19 @@ class Messages():
                 if at_members:
                     At(main_window,at_members)
                 send_audio_button=main_window.child_window(**Buttons.SendAudioButon)
-                window_center=main_window.rectangle().mid_point()
-                button_center=send_audio_button.rectangle().mid_point()
+                AudioButtonPos=ClickPos(send_audio_button).AudioButtonPos
+                MainWindowPos=ClickPos(main_window).MainWindowPos
+                ClickPos(send_audio_button).AudioButtonPos
                 for samplerate,audio in audios:
+                    duration=len(audio)//samplerate
                     send_audio_button.click_input() 
-                    mouse.move(coords=(window_center.x,window_center.y))
+                    mouse.move(coords=MainWindowPos)
                     sd.play(audio,samplerate)
                     sd.wait()
-                    mouse.click(coords=(button_center.x,button_center.y))
+                    if duration!=60:#60s自动发，不用再点了
+                        mouse.click(coords=(AudioButtonPos))
                     time.sleep(send_delay)
-                if close_weixin:main_window.close()
+                if close_weixin:main_window.close() 
         else:
             print(f'当前微信版本不支持发送语音!')
 
@@ -3340,9 +3329,8 @@ class Messages():
                 solitaire_window.child_window(control_type='Edit',found_index=1).set_text(example)
             if isinstance(description,str):
                 text=solitaire_window.child_window(**Texts.AddContentText)
-                rec=text.rectangle()
-                position=rec.left+2,rec.mid_point().y
-                mouse.click(coords=position)
+                SolitairePos=ClickPos(text).SolitairePos
+                mouse.click(coords=SolitairePos)
                 solitaire_window.child_window(control_type='Edit',found_index=2).set_text(description)
             solitaire_button.click_input()
         if close_weixin:
@@ -3750,18 +3738,6 @@ class Messages():
         Returns:
             chat_history:[{'消息发送人':xxx,'消息内容':yyy,'消息类型'}....]
         '''
-        def get_myName():
-            '''获取本人昵称,为了节省时间不去调用Contacts.check_my_info'''
-            moments_window=Navigator.open_moments(is_maximize=is_maximize,close_weixin=False)
-            moments_list=moments_window.child_window(control_type='List',auto_id="sns_list")
-            rec=moments_list.children()[0].rectangle()
-            coords=(rec.right-60,rec.bottom-35)
-            mouse.click(coords=coords)
-            profile_pane=desktop.window(**Windows.PopUpProfileWindow)
-            group=profile_pane.child_window(control_type='Group',found_index=3).children()[1]
-            myName=group.descendants(control_type='Text')[0].window_text()
-            moments_window.close()
-            return myName
     
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
@@ -3782,7 +3758,7 @@ class Messages():
                 return messages
             else:
                 is_group_chat=Tools.is_group_chat(main_window)
-                if not is_group_chat:myName=get_myName()
+                if not is_group_chat:myName=Contacts.check_my_info(close_weixin=False).get('昵称')
                 details_with_name=traverse_message(main_window,select=True,number=number)
                 if not is_group_chat:
                     contents,senders,message_tpyes=parse_messages(friend,myName,details_with_name)
@@ -3861,7 +3837,7 @@ class Messages():
         win32gui.SendMessage(chat_history_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MAXIMIZE,0)
         details_with_name=traverse_chat_history(chat_history_window,select=True,number=number,save_detail=save_detail,target_folder=target_folder)
         if not is_group_chat:
-            Tools.cancel_pin(chat_history_window)
+            chat_history_window.close()
             myName=Contacts.check_my_info(close_weixin=close_weixin).get('昵称')      
             contents,senders,timestamps,message_types=parse_chat_history(friend,myName,details_with_name)
         if is_group_chat:
@@ -3873,6 +3849,7 @@ class Messages():
             else:
                 details_without_name=traverse_chat_history(chat_history_window,select=False,number=number)
                 contents,senders,timestamps,message_types=parse_group_chat_history(details_with_name,details_without_name,[])
+            chat_history_window.close()
         chat_history=[{'消息发送人':chat[0],'消息内容':chat[1],'消息类型':chat[2],'消息发送时间':chat[3]} for chat in zip(senders,contents,message_types,timestamps)]
         if save_detail:
             chat_history_json=json.dumps(chat_history,ensure_ascii=False,indent=2)
@@ -3881,7 +3858,7 @@ class Messages():
                 f.write(chat_history_json)
         if is_json:
             chat_history=json.dumps(chat_history,ensure_ascii=False,indent=2)
-        chat_history_window.close()
+      
         return chat_history
 
     @staticmethod
@@ -3909,7 +3886,7 @@ class Messages():
             image_path=os.path.join(media_folder,f'{image_count}.png')
             #保存视频
             if media_type==0:
-                is_download=not download_label in listitem.window_text() 
+                is_download=not (download_label in listitem.window_text())
                 if not is_download:
                     mouse.click(coords=right_click_position)
                     while not is_download:
@@ -4102,9 +4079,8 @@ class Messages():
                     next_item=Tools.get_next_item(search_list,current_item)
                 if next_item is None:
                     break
-                rectangle=next_item.rectangle()
-                click_position=rectangle.mid_point().x,rectangle.top+5
-                mouse.click(coords=click_position)
+                SearchChatPos=ClickPos(next_item).SearchChatPos
+                mouse.click(coords=SearchChatPos)
                 current_item=next_item
         chat_history_window.close()
         if close_weixin:

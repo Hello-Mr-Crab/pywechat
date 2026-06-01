@@ -105,6 +105,7 @@ from .Errors import NetWorkError
 from .Errors import NoSuchFriendError
 from .Errors import NotFriendError,NotStartError,NotLoginError
 from .Errors import NoResultsError,NotInstalledError,NotFoundError
+from .Uielements import ClickPos#点击位置
 from pyweixin.Uielements import (Main_window,SideBar,Independent_window,ListItems,Special_Labels,
 Buttons,Texts,TabItems,Lists,Edits,Windows,Panes,MenuItems,Login_window)#导入的是自动判断语言后的实例化对象,如果自行使用需要导入xxx_Control
 from pyweixin.WinSettings import SystemSettings 
@@ -125,7 +126,7 @@ class Tools():
         version=GlobalConfig.Version
         language=GlobalConfig.language
         chatfiles_folder=Tools.where_chatfile_folder()
-        return {'exe路径':exe_path,'版本':version,'语言':language,'wxid':wxid,'wxid目录':wxid_folder,'用户配置目录':userlib_folder,'聊天文件目录':chatfiles_folder}
+        return {'exe路径':exe_path,'版本':version,'语言':language,'wxid':wxid,'wxid目录':wxid_folder,'微信配置目录':userlib_folder,'聊天文件目录':chatfiles_folder}
 
     @staticmethod
     def is_weixin_running()->bool:
@@ -296,7 +297,7 @@ class Tools():
                 int_version=winreg.QueryValueEx(key,"Version")[0]
                 #0xf254186b,0xf25之后是微信版本,每隔一位加个.,最后两位16转10进制就是版本号
                 hex_str=hex(int_version)[5:]
-                weixin_version=f'{hex_str[0]}.{hex_str[1]}.{hex_str[2]}.{int(hex_str[-2:],16)}'
+                weixin_version=f'{hex_str[0]}.{hex_str[1]}.{int(hex_str[2],16)}.{int(hex_str[-2:],16)}'
             return weixin_version
         except Exception:
             raise NotInstalledError
@@ -577,14 +578,14 @@ class Tools():
             selected=[listitem for listitem in chatList.children(control_type='ListItem') if listitem.has_keyboard_focus()]
             if selected:
                 if selected[0].class_name()!='mmui::ChatItemView':
-                    rect=selected[0].rectangle()
-                    right_clik_pos=rect.left+120,rect.bottom-60
-                    mouse.right_click(coords=right_clik_pos)
+                    ChatListSelectPos=ClickPos(selected[0]).ChatListSelectPos
+                    mouse.right_click(coords=ChatListSelectPos)
                     if not multiselect_item.exists(timeout=0.2):
-                        right_clik_pos=rect.right-120,rect.bottom-60
-                        mouse.right_click(coords=right_clik_pos)
+                        ChatListSelectPos=(ClickPos(selected[0]).right-120,ChatListSelectPos[1])
+                        # right_clik_pos=rect.right-120,rect.bottom-60
+                        mouse.right_click(coords=ChatListSelectPos)
                     multiselect_item.click_input()
-                    mouse.click(coords=right_clik_pos)
+                    mouse.click(coords=ChatListSelectPos)
                     break
             if not selected:
                 break
@@ -611,11 +612,10 @@ class Tools():
                     #同一个runtime_id挨着重复出现就说明到底部了无法继续下滑
                     if len(runtime_ids)>2 and runtime_ids[-1]==runtime_ids[-2]:
                         break
-                    rect=selected[0].rectangle()
-                    right_clik_pos=rect.left+110,rect.top+60
-                    mouse.right_click(coords=right_clik_pos)
+                    ChatHistorySelectPos=ClickPos(selected[0]).ChatHistorySelectPos
+                    mouse.right_click(coords=ChatHistorySelectPos)
                     multiselect_item.click_input()
-                    mouse.click(coords=right_clik_pos)
+                    mouse.click(coords=ChatHistorySelectPos)
                     break
             pyautogui.press('down',presses=1,_pause=False)
         selected=[listitem for listitem in chat_history_list.children(control_type='CheckBox')]
@@ -872,8 +872,7 @@ class Navigator():
             is_maximize=GlobalConfig.is_maximize
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
         weixin_button=main_window.child_window(**SideBar.Weixin)
-        rec=weixin_button.rectangle()
-        coords=(rec.mid_point().x,rec.top-40)
+        coords=ClickPos(weixin_button).AvatarPos
         mouse.click(coords=coords)
         time.sleep(1)
         hwnd=win32gui.FindWindow(None,'Weixin')

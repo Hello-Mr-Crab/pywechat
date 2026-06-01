@@ -37,6 +37,8 @@ Examples
 import re
 import time
 from.Config import GlobalConfig
+from pywinauto import WindowSpecification
+from pywinauto.controls.uia_controls import ListItemWrapper,ListViewWrapper
 language=GlobalConfig.language
 Version=GlobalConfig.Version
 class Button_Control():
@@ -1060,6 +1062,37 @@ class TimeStamp():
             month_label=time.strftime("%Y年%m月")
             month_label=re.sub(r'年0','年',month_label)
         return month_label
+class ClickPos():
+    def __init__(self,ListItem:ListItemWrapper):
+        self.ListItem=ListItem
+        #矩形的上下左右还有正中央
+        self.rect=self.ListItem.rectangle()
+        self.center_x=self.rect.mid_point().x
+        self.center_y=self.rect.mid_point().y
+        self.top=self.rect.top
+        self.bottom=self.rect.bottom
+        self.left=self.rect.left
+        self.right=self.rect.right
+        #常用的点击位置
+        self.CardLinkPos=(self.right-45,self.center_y)#收藏界面内的更多按钮
+        self.MoreButtonPos=(self.right-60,self.top+60)#笔记界面内更多按钮的位置
+        self.PostImagePos=(self.left+120,self.bottom-80)#朋友圈作品有图片的点击位置
+        self.PostVideoPos=(self.left+150,self.bottom-80)#朋友圈作品有视频的点击位置
+        self.PostNamePos=(self.rect.left+70,self.rect.top+70)#朋友圈发布人头像点击位置
+        self.EllipsisPos=(self.right-44,self.bottom-15)#朋友圈评论时省略号按钮所处位置
+        self.PostDetailImagePos=(self.left+120,self.top-80)#好友朋友圈内作品有图片的点击位置
+        self.PostDetailVideoPos=(self.left+150,self.center_y)#好友朋友圈内作品有视频的点击位置
+        self.PostDetailImageClickPos=(self.center_x,self.top+40)##好友朋友圈内作品图片复制粘贴保存时右键位置
+        self.PostDetailVideoClickPos=(self.left+150,self.center_y-20)#好友朋友圈内作品有视频时的点击位置
+        self.AudioButtonPos=(self.center_x,self.center_y)#发送语音按钮的中间位置
+        self.MainWindowPos=(self.center_x,self.center_y)#微信主界面中间位置
+        self.SolitairePos=(self.left+2,self.center_y)#接龙描述区域位置
+        self.SearchChatPos=(self.center_x,self.top+5)#搜索聊天记录时左侧好友列表遍历点击的位置
+        self.AvatarPos=(self.center_x,self.top-40)#主界面左侧导航栏头像按钮的点击位置，微信按钮的正上方
+        self.EditAreaPos=(self.left+10,self.center_y)#编辑区域点击位置
+        self.PathBarPos=(self.right-5,self.center_y)#windows本地选择文件夹窗口顶部路径栏点击位置
+        self.ChatHistorySelectPos=(self.left+110,self.top+60)#多选状态下遍历聊天记录列表时右键(点击多选)的位置
+        self.ChatListSelectPos=(self.left+120,self.bottom-60)#多选状态下遍历聊天列表时右键(点击多选)的位置
 
 Main_window=Main_window_Control(language=language,Version=Version)#主界面UI
 Login_window=Login_window_Control(language=language,Version=ValueError)#登录界面UI

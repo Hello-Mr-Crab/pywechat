@@ -38,7 +38,6 @@ Examples
 import psutil
 import winreg
 from warnings import warn
-from .Errors import NotInstalledError
 from .Warnings import LanguageDetectionFailedWarning
 class globalConfig:
     '''位置参数全局配置'''
@@ -48,7 +47,7 @@ class globalConfig:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._is_maximize=False
-            cls._instance._close_weixin=True
+            cls._instance._close_weixin=False
             cls._instance._load_delay=3.5
             cls._instance._search_pages=5
             cls._instance._window_maximize=False
@@ -224,7 +223,7 @@ class globalConfig:
                 int_version=winreg.QueryValueEx(key,"Version")[0]
                 #0xf254186b,0xf25之后是微信版本,每隔一位加个.,最后两位16转10进制就是版本号
                 hex_str=hex(int_version)[5:]
-                weixin_version=f'{hex_str[0]}.{hex_str[1]}.{hex_str[2]}.{int(hex_str[-2:],16)}'
+                weixin_version=f'{hex_str[0]}.{hex_str[1]}.{int(hex_str[2],16)}.{int(hex_str[-2:],16)}'
             return weixin_version
         except Exception:
             return None
