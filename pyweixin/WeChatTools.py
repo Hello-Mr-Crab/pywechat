@@ -582,7 +582,6 @@ class Tools():
                     mouse.right_click(coords=ChatListSelectPos)
                     if not multiselect_item.exists(timeout=0.2):
                         ChatListSelectPos=(ClickPos(selected[0]).right-120,ChatListSelectPos[1])
-                        # right_clik_pos=rect.right-120,rect.bottom-60
                         mouse.right_click(coords=ChatListSelectPos)
                     multiselect_item.click_input()
                     mouse.click(coords=ChatListSelectPos)
@@ -1310,8 +1309,11 @@ class Navigator():
             search_result.click_input()
             session_list.wait(wait_for='ready',timeout=1)
             if is_contact:
-                friend_listitem=[listitem for listitem in session_list.children(control_type='ListItem') if listitem.is_selected()][0]
-                friend_listitem.double_click_input()
+                selected_items=[listitem for listitem in session_list.children(control_type='ListItem') if listitem.is_selected()]
+                if selected_items:
+                    selected_items[0].double_click_input()
+                # else: 主界面已经显示该好友(session_list 没有 selected 项),
+                # 跳过 double_click 直接 fall through 到 move_window_to_center
             dialog_window=Tools.move_window_to_center(Window={'class_name':'mmui::ChatSingleWindow','title':f'{friend}'})
             if select:Tools.select_chatList(dialog_window)
             if window_minimize:
