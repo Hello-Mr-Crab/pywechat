@@ -8,7 +8,7 @@
 
 [微信4.1+自动化说明](https://github.com/Hello-Mr-Crab/pywechat/blob/main/Weixin4.0.md)
 
-### 微信版本:3.9.12+,4.1.6+~4.1.9+
+### 微信版本:3.9.12+,4.1.6+~4.1.10+
 
 ### 操作系统:🪟windows 7 🪟windows 10 🪟windows 11
 
@@ -20,6 +20,20 @@
 
 ![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/pyweixin结构.png)
 </br>
+
+### 适用于OpenClaw的Skill:pyweixin-rpa目前已发布于ClawHub,可以前往[pyweixin-rpa](https://clawhub.ai/hello-mr-crab/pyweixin-rpa)获取
+
+![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/openclaw评价.png)
+</br>
+
+使用示例：
+
+![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/pyweixin-rpa测试.png)
+</br>
+
+实际效果:
+
+![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/openclaw测试案例.png)
 
 ### 获取方法（4.1+微信）
 

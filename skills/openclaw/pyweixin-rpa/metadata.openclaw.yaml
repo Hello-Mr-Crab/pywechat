@@ -1,0 +1,106 @@
+# metadata.openclaw.yaml — pyweixin-rpa Skill Metadata
+name: pyweixin-rpa
+version: 1.0.0
+description: 基于 pywinauto 的 Windows PC 微信 UI 自动化工具，支持消息、文件、朋友圈、联系人等操作，无需 Hook 注入。
+author: Hello-Mr-Crab
+
+# ============================================================================
+# 平台要求
+# ============================================================================
+platform:
+  os:
+    - windows          # 仅支持 Windows (pywinauto 需要 Windows UI Automation API)
+  arch:
+    - x64
+
+# ============================================================================
+# Python 运行时与依赖声明
+# ============================================================================
+python:
+  version: ">=3.9"       # 需要 TypeHint 支持
+  requirements_file: scripts/requirements.txt
+  dependencies:
+    - psutil>=5.9.5
+    - pyautogui>=0.9.54
+    - pycaw>=20240210
+    - pywin32>=308
+    - pywin32-ctypes>=0.2.2
+    - pywinauto>=0.6.8
+    - pillow>=10.4.0
+    - emoji>=2.14.1
+    - sounddevice>=0.5.1
+    - soundfile>=0.13.1
+    - packaging>=23.2
+
+# ============================================================================
+# 微信兼容性
+# ============================================================================
+wechat:
+  version: "4.1.6 ~ 4.1.10+"
+  ui_automation:
+    method: uia                # pywinauto backend='uia'
+# ============================================================================
+# 依赖安装检查脚本
+# ============================================================================
+setup:
+  check_requirements:
+    script: scripts/check_requirements.py
+    cwd: .
+    output_format: json
+    success_key: missing_package
+    run_once: true             # 仅首次调用 Skill 时需要执行
+    on_missing:
+      action: install
+      command: pip install -r scripts/requirements.txt
+      message: 缺乏相关依赖，正在安装相关依赖
+
+  check_visibility:
+    script: scripts/check_visibility.py
+    cwd: .
+    output_format: json
+    success_key: visibility
+    always_run: true           # 每次调用 Skill 都需要执行
+    on_failure:
+      fallback_script: scripts/check_running_state.py
+      fallback_key: is_running
+      messages:
+        not_running: 微信未启动，请自行启动并登录后再尝试进行相关自动化操作！
+        ui_invisible: 微信UI树不可见，无法执行自动化操作
+
+  check_running_state:
+    script: scripts/check_running_state.py
+    cwd: .
+    output_format: json
+    success_key: is_running
+
+# ============================================================================
+# 模块导入规范
+# ============================================================================
+imports:
+  canonical:
+    - "from pyweixin import AutoReply, Collections, Call, Contacts, Files, FriendSettings, Messages, Moments, Monitor, Settings"
+    - "from pyweixin import Tools, Navigator"
+    - "from pyweixin import SystemSettings"
+  also_valid:
+    - "from pyweixin.WeChatAuto import AutoReply, Collections, Call, Contacts, Files, FriendSettings, Messages, Moments, Monitor, Settings"
+    - "from pyweixin.WeChatTools import Tools, Navigator"
+    - "from pyweixin.WinSettings import SystemSettings"
+    - "from pyweixin.Config import GlobalConfig"
+
+# ============================================================================
+# 资源文件
+# ============================================================================
+references:
+  api_reference: references/api_reference.md
+  manual: references/pyweixin操作手册.pdf
+  weixin_ui_notes: scripts/Weixin4.0.md
+  source_code: scripts/pyweixin/
+
+# ============================================================================
+# 重要声明
+# ============================================================================
+disclaimer: |
+  1. 操作过于频繁会导致微信自动退出登录，此为正常检测机制，不会造成封号。
+     可通过调整各方法内 delay 参数控制操作频率。
+  2. 不得用于任何非法商业用途与活动。
+  3. 使用前请确保已了解并遵守微信的相关规定和政策。

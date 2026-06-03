@@ -67,14 +67,12 @@ class SystemSettings():
 
     @staticmethod
     def get_default_output()->int:
-        output_devives=sd.default.device#可能有多个
-        default_output=output_devives[0]#默认第一个
-        for device in output_devives:
-            query=sd.query_devices(device)
-            #需要保证是cable input
-            if query.get('name') is not None and 'cable input' in query.get('name').lower():
-                default_output=device
+        default_output=sd.default.device#默认是所有音频输出设备的第一个
+        output_devive=sd.query_devices(kind='output')#当前正在使用的音频输出设备
+        if 'cable input' in output_devive.get('name').lower():#看看是不是cable input
+            default_output=output_devive.get('index')
         return default_output
+
 
     @staticmethod
     def open_listening_mode(volume:bool=True):

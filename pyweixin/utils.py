@@ -761,7 +761,7 @@ save_detail:bool=False,target_folder:str=None)->list[tuple[str,str,list[str]]]:
     # multiselect_item=chat_history_window.child_window(**MenuItems.SelectMenuItem)
     chat_history_list=chat_history_window.child_window(**Lists.ChatHistoryList)
     if select:
-        latest_message=Tools.select_chat_history_list(chat_history_window)
+        latest_message=Tools.select_chatHistoryList(chat_history_window)
         if latest_message is None:raise ValueError(f'该聊天只有系统消息,无法在聊天记录界面中选中任何消息!')
     while recorded_num<number:
         selected=[item for item in chat_history_list.children() if item.has_keyboard_focus()]

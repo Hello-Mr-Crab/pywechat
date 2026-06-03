@@ -597,7 +597,7 @@ class Tools():
             return None
     
     @staticmethod
-    def select_chat_history_list(chat_history_window:WindowSpecification)->(ListItemWrapper|None):
+    def select_chatHistoryList(chat_history_window:WindowSpecification)->(ListItemWrapper|None):
         '''该方法用来在聊天记录窗口内选中最新一条消息(系统消息不支持选中)'''
         runtime_ids=[]
         multiselect_item=chat_history_window.child_window(**MenuItems.SelectMenuItem)
@@ -620,6 +620,23 @@ class Tools():
         selected=[listitem for listitem in chat_history_list.children(control_type='CheckBox')]
         if selected:return selected[0]
         return None
+
+    @staticmethod
+    def find_Popover()->tuple[WindowSpecification,None]:
+        def enum_cb(hwnd, _):
+            cls=win32gui.GetClassName(hwnd)
+            title=win32gui.GetWindowText(hwnd)
+            if win32gui.IsWindowVisible(hwnd) and cls==target_class and title==target_title:
+                matched_hwnds.append(hwnd)
+        pop_over=None
+        matched_hwnds=[]
+        target_title='Weixin'
+        target_class="Qt51514QWindowToolSaveBits"
+        time.sleep(1)
+        win32gui.EnumWindows(enum_cb, None)
+        if matched_hwnds:
+            pop_over=desktop.window(handle=matched_hwnds[0])
+        return pop_over
     
     @staticmethod
     def match_duration(duration:str)->float:
@@ -873,9 +890,7 @@ class Navigator():
         weixin_button=main_window.child_window(**SideBar.Weixin)
         coords=ClickPos(weixin_button).AvatarPos
         mouse.click(coords=coords)
-        time.sleep(1)
-        hwnd=win32gui.FindWindow(None,'Weixin')
-        profile_pane=desktop.window(handle=hwnd)
+        profile_pane=Tools.find_Popover()
         return profile_pane,main_window
 
     # @staticmethod 
@@ -904,6 +919,7 @@ class Navigator():
     #         chatinfo_button.click_input()
     #         main_window.close()
     #         raise NotFriendError(f'此为群聊,非好友,无法打开个人简介界面!')
+
     @staticmethod 
     def open_friend_profile(friend:str,is_maximize:bool=None,search_pages:int=None)->tuple[WindowSpecification,WindowSpecification]:
         '''
@@ -921,7 +937,9 @@ class Navigator():
         friend_button=chatinfo_pane.child_window(title=friend,control_type='Button')
         old_version=version.parse(GlobalConfig.Version)<version.parse('4.1.9')#比4.1.9版本低
         if friend_button.exists(timeout=3):
-            friend_button.click_input()
+            rect=friend_button.rectangle()
+            click_pos=rect.mid_point().x-5,rect.mid_point().y
+            mouse.click(coords=click_pos)
             if not old_version:
                 profile_pane=desktop.window(**Windows.PopUpProfileWindow)
             else:
