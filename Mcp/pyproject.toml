@@ -1,0 +1,41 @@
+[project]
+name="pyweixin-rpa"
+version="0.1.0"
+description="WeChat automation MCP Server based on pywechat"
+readme="README.md"
+requires-python=">=3.10"
+license={text="MIT"}
+authors=[{name="Hello,Mr Crab", email="3083256475@qq.com"}]
+urls={Homepage="https://github.com/Hello-Mr-Crab/pywechat"}
+
+dependencies=[
+    "fastmcp>=2.0.0",
+    "psutil>=5.9.5",
+    "pyautogui>=0.9.54",
+    "pycaw>=20240210",
+    "pywin32>=308"，
+    "pywin32-ctypes>=0.2.2",
+    "pywinauto>=0.6.8",
+    "pillow>=10.4.0",
+    "emoji>=2.14.1",
+    "sounddevice>=0.5.1",
+    "soundfile>=0.13.1",
+    "packaging>=23.2",
+    "typing-extensions>=4.12.0"
+]
+
+[project.scripts]
+pyweixin-rpa="mcp_server.server:main"
+
+[build-system]
+requires=["hatchling"]
+build-backend="hatchling.build"
+
+[tool.ruff]
+line-length=120
+select=["E","F","I","W"]
+
+[tool.mypy]
+strict=true
+warn_return_any=true
+warn_unused_ignores=true

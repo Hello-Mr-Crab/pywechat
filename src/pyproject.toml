@@ -1,0 +1,42 @@
+[project]
+name="pywechat127"
+version="1.9.8"
+description="A Powerful Windows-PC-Wechat automation Tool (pywechat for WeChat 3.9, pyweixin for WeChat 4.x)"
+readme="README.md"
+license={text="LGPL"}
+authors=[{name="Hello-Mr-Crab", email="3083256475@qq.com"}]
+urls={Homepage="https://github.com/Hello-Mr-Crab/pywechat"}
+
+keywords=["rpa", "windows", "wechat", "automation"]
+
+classifiers = [
+    "Operating System :: Microsoft :: Windows",
+    "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Desktop Environment",
+    "Intended Audience :: Developers"
+]
+
+requires-python=">=3.10"
+
+dependencies=[
+    "emoji>=2.14.1",
+    "PyAutoGUI>=0.9.54",
+    "pycaw>=20240210.0",
+    "pywin32>=308",
+    "pywin32-ctypes>=0.2.2",
+    "pywinauto>=0.6.8",
+    "psutil>=5.9.5",
+    "pillow>=10.4.0",
+    "sounddevice>=0.5.1",
+    "soundfile>=0.13.1",
+    "packaging>=23.2"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires=["setuptools>=61.0"]
+build-backend="setuptools.build_meta"

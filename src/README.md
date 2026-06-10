@@ -16,30 +16,30 @@ pywechat是一个基于pywinauto实现的Windows系统下PC微信自动化(pure 
 
 ### pyweixin 与 pywechat 项目结构(pywechat只能用于32位x86🪟10,32位x86🪟7)
 
-![pyweixin结构](/pics/pyweixin结构.png "pyweixin结构")
+![pyweixin结构](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/pyweixin结构.png "pyweixin结构")
 </br>
 
 ### Skill
 
 目前,可以使用的Skill的Agent主流平台:
-![Skill主流平台](/pics/支持Skill平台.png)
-具体使用方法可见[QuickStart.md](/QuickStart.md)
+![Skill主流平台](https://github.com/Hello-Mr-Crab/pywechat/blob/main//pics/支持Skill平台.png)
+具体使用方法可见[点击查看QuickStart.md](/QuickStart.md)
 
-![openclaw评价](/pics/openclaw评价.png "openclaw评价")
+![openclaw评价](https://github.com/Hello-Mr-Crab/pywechat/blob/main//pics/openclaw评价.png "openclaw评价")
 </br>
 
 使用示例：
 
-![image](/pics/pyweixin-rpa测试.png "pyweixin-rpa测试")
+![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main//pics/pyweixin-rpa测试.png "pyweixin-rpa测试")
 </br>
 
 实际效果:
 
-![openclaw测试案例](/pics/openclaw测试案例.png "openclaw测试案例")
+![openclaw测试案例](https://github.com/Hello-Mr-Crab/pywechat/blob/main//pics/openclaw测试案例.png "openclaw测试案例")
 
 ### 快速上手✌️
 
-[点击查看QuickStart.md](/QuickStart.md)
+[点击查看QuickStart.md](https://github.com/Hello-Mr-Crab/pywechat/blob/main/QuickStart.md)
 
 ### pyweixin模块介绍(适用于4.1+微信)
 
@@ -143,7 +143,7 @@ for friend,result in zip(friends,results):
 #返回值 {'新消息总数':x,'文本数量':x,'文件数量':x,'图片数量':x,'视频数量':x,'链接数量':x,'文本内容':x,'消息发送人':x}
 ```
 
-![listen_on_chat](/pics/listen_on_chat多线程.png "listen_on_chat")
+![listen_on_chat](https://github.com/Hello-Mr-Crab/pywechat/blob/main//pics/listen_on_chat多线程.png "listen_on_chat")
 </br>
 
 #### 多线程监听消息并自动回复
@@ -177,7 +177,7 @@ for friend,result in zip(friends,results):
     print(friend,result)
 ```
 
-!["自动回复"](/pics/自动回复.png "自动回复")
+!["自动回复"](https://github.com/Hello-Mr-Crab/pywechat/blob/main//pics/自动回复.png "自动回复")
 </br>
 
 #### 朋友圈内容导出
@@ -190,7 +190,7 @@ for dic in posts:
     print(dic)
 ```
 
-![朋友圈内容导出](pics/朋友圈内容导出.png "朋友圈内容导出")
+![朋友圈内容导出](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/朋友圈内容导出.png "朋友圈内容导出")
 </br>
 
 #### 发布朋友圈
@@ -200,7 +200,7 @@ from pyweixin import Moments
 Moments.post_moments(texts='''发布朋友圈测试[旺柴]''',medias=[r"E:\Desktop\test0.png",r"E:\Desktop\test1.png"])
 ```
 
-![发朋友圈](/pics/发朋友圈.png "发朋友圈")
+![发朋友圈](https://github.com/Hello-Mr-Crab/pywechat/blob/main//pics/发朋友圈.png "发朋友圈")
 </br>
 
 #### 好友朋友圈内容导出
@@ -210,8 +210,8 @@ from pyweixin import Moments
 Moments.dump_friend_posts(friend='xxx',number=3,save_detail=True,target_folder=r"E:\Desktop\好友朋友圈内容导出")
 ```
 
-![好友朋友圈内容导出](/pics/好友朋友圈内容导出.png "好友朋友圈内容导出")
-![好友朋友圈内容](/pics/好友朋友圈内容.png "好友朋友圈内容")
+![好友朋友圈内容导出](https://github.com/Hello-Mr-Crab/pywechat/blob/main//pics/好友朋友圈内容导出.png "好友朋友圈内容导出")
+![好友朋友圈内容](https://github.com/Hello-Mr-Crab/pywechat/blob/main//pics/好友朋友圈内容.png "好友朋友圈内容")
 </br>
 
 #### 好友朋友圈自定义评论
@@ -236,7 +236,7 @@ for url,text in urls.items():
     print(f'{text}\n{url}')
 ```
 
-![公众号文章url获取](/pics/公众号文章url获取.png "公众号文章url获取")
+![公众号文章url获取](https://github.com/Hello-Mr-Crab/pywechat/blob/main//pics/公众号文章url获取.png "公众号文章url获取")
 </br>
 
 #### 此外pyweixin内所有方法及函数的一些位置参数支持全局设定,be like
@@ -321,7 +321,7 @@ def reply_func(newMessage):
 reply_func()
 ```
 
-![decorator](/pics/decorator.png "decorator")
+![decorator](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/decorator.png "decorator")
 </br>
 
 #### 监听某个群聊或好友的窗口(自动保存聊天文件与图片和视频)
@@ -343,7 +343,7 @@ for dict in moments:
     print(dict)
 ```
 
-![朋友圈数据获取](/pics/朋友圈数据获取.png "朋友圈")
+![朋友圈数据获取](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/朋友圈数据获取.png "朋友圈")
 
 注意，导出的结果为list[dict],每一条朋友圈对应一个dict,dict具体内容
 
@@ -385,7 +385,7 @@ from pywechat import auto_reply_to_group
 auto_reply_to_group(group_name='测试群',duration='20min',content='我被@了',at_only=True,at_others=True)
 ```
 
-![群聊自动回复](/pics/auto_reply_to_group.png "群聊自动回复")
+![群聊自动回复](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/auto_reply_to_group.png "群聊自动回复")
 </br>
 
 #### 给某个好友发送多条信息
@@ -408,11 +408,17 @@ from pywechat import check_new_message
 print(check_new_message())
 ```
 
-![检查新消息](/pics/check_new_message.gif "检查新消息")
+![检查新消息](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/check_new_message.gif "检查新消息")
+
+若你开启了语音自动转消息功能后,新消息中含有语音消息的话,可以将其转换结果一并记录。（1.9.7版本支持此功能）
+
+</br>
 
 ## 注意
 
-> 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！
+>👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！
+
+</br>
 
 ## 本项目相关博客
 

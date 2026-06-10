@@ -40,4 +40,5 @@ Windows的可访问性API（UI Automation）在设计上必须向屏幕阅读器
 
 ## 使用方式
 
-参考[QuickStart.md](/QuickStart.md)
+由于UI框架更换，完全替换原代码需要一定时间，现将已经实现的部分代码分享出来，可以先pip install -r requirements.txt后将pyweixin git到本地后可直接使用,随时欢迎大家在pyweixin源码基础上改进和增加新功能.
+随时欢迎大家pr!
