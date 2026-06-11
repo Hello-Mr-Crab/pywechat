@@ -22,20 +22,28 @@ pywechat是一个基于pywinauto实现的Windows系统下PC微信自动化(pure 
 ### Skill
 
 目前,可以使用的Skill的Agent主流平台:
-![Skill主流平台](/pics/支持Skill平台.png)
+
+<p align="center">
+  <img src="/pics/支持Skill平台.png" alt="Skill主流平台" />
+</p>
+
 具体使用方法可见[QuickStart.md](/QuickStart.md)
 
-![openclaw评价](/pics/openclaw评价.png "openclaw评价")
-</br>
+<p align="center">
+  <img src="/pics/openclaw评价.png" alt="openclaw评价" />
+</p>
 
 使用示例：
 
-![image](/pics/pyweixin-rpa测试.png "pyweixin-rpa测试")
-</br>
+<p align="center">
+  <img src="/pics/pyweixin-rpa测试.png" alt="pyweixin-rpa测试" />
+</p>
 
 实际效果:
 
-![openclaw测试案例](/pics/openclaw测试案例.png "openclaw测试案例")
+<p align="center">
+  <img src="/pics/openclaw测试案例.png" alt="openclaw测试案例" />
+</p>
 
 ### 快速上手✌️
 
