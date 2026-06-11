@@ -208,8 +208,10 @@ from pyweixin import Moments
 Moments.post_moments(texts='''发布朋友圈测试[旺柴]''',medias=[r"E:\Desktop\test0.png",r"E:\Desktop\test1.png"])
 ```
 
-![发朋友圈](/pics/发朋友圈.png "发朋友圈")
-</br>
+<p align="center">
+  <img src="/pics/发朋友圈.png" alt='发朋友圈'>
+</p>
+
 
 #### 好友朋友圈内容导出
 
