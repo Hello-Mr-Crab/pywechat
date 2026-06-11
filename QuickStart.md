@@ -22,6 +22,7 @@
 
 ## 项目结构
 
+```block
 src/
 │   ├── pywechat/
 │   │   ├── WeChatAuto.py
@@ -33,6 +34,7 @@ src/
 ├── pyproject.toml
 ├── requirements.txt
 └── README.md
+```
 
 ## 安装与使用(Python Package)
 
@@ -53,6 +55,7 @@ pip install -e .
 
 ### 如果需要快速本地开发与测试，还可以在当前目录下相对导入使用
 
+```block
 workspace/
 │   ├── pywechat/
 │   │   ├── WeChatAuto.py
@@ -62,6 +65,7 @@ workspace/
 │   │   └── ...
 │   │
 │   └── test.py
+```
 
 不过需要先安装依赖(如果没有的话):
 
@@ -108,7 +112,9 @@ Customize内点击Create Skill，选择Upload a Skill
 
 选择pyweixin-rpa.skill文件上传
 
-!['Claude选择skill'](/pics/claude选择skill.png "Claude")
+<p align="center">
+  <img src="/pics/claude选择skill.png" alt="claude选择skill">
+</p>
 
 上传后便可以使用了
 
