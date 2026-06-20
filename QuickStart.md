@@ -112,7 +112,9 @@ Customize内点击Create Skill，选择Upload a Skill
 
 选择pyweixin-rpa.skill文件上传
 
-!['Claude选择skill'](/pics/claude选择skill.png "Claude")
+<p align="center">
+  <img src="/pics/claude选择skill.png" alt="claude选择skill">
+</p>
 
 上传后便可以使用了
 
