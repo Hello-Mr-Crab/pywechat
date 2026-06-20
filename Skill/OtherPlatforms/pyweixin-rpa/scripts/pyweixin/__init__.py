@@ -55,6 +55,6 @@ from pyweixin.WeChatAuto import AutoReply,Collections,Call,Contacts,Files,Friend
 from pyweixin.WeChatTools import Tools,Navigator
 from pyweixin.WinSettings import SystemSettings
 from pyweixin.Config import GlobalConfig
+
 #Author:Hello-Mr-Crab
 #Contributor:Viper,Chanpoe,mrhan1993,nmhjklnm,clen1,guanjt3,Yjppj,SamCheng0717
-#version:1.9.8

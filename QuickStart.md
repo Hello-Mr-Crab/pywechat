@@ -22,6 +22,7 @@
 
 ## 项目结构
 
+```block
 src/
 │   ├── pywechat/
 │   │   ├── WeChatAuto.py
@@ -33,6 +34,7 @@ src/
 ├── pyproject.toml
 ├── requirements.txt
 └── README.md
+```
 
 ## 安装与使用(Python Package)
 
@@ -53,6 +55,7 @@ pip install -e .
 
 ### 如果需要快速本地开发与测试，还可以在当前目录下相对导入使用
 
+```block
 workspace/
 │   ├── pywechat/
 │   │   ├── WeChatAuto.py
@@ -62,6 +65,7 @@ workspace/
 │   │   └── ...
 │   │
 │   └── test.py
+```
 
 不过需要先安装依赖(如果没有的话):
 

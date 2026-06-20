@@ -28,8 +28,8 @@ dependencies=[
 pyweixin-rpa="mcp_server.server:main"
 
 [build-system]
-requires=["hatchling"]
-build-backend="hatchling.build"
+requires=["setuptools>=61.0"]
+build-backend="setuptools.build_meta"
 
 [tool.ruff]
 line-length=120

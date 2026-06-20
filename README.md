@@ -22,20 +22,28 @@ pywechat是一个基于pywinauto实现的Windows系统下PC微信自动化(pure 
 ### Skill
 
 目前,可以使用的Skill的Agent主流平台:
-![Skill主流平台](/pics/支持Skill平台.png)
+
+<p align="center">
+  <img src="/pics/支持Skill平台.png" alt="Skill主流平台" />
+</p>
+
 具体使用方法可见[QuickStart.md](/QuickStart.md)
 
-![openclaw评价](/pics/openclaw评价.png "openclaw评价")
-</br>
+<p align="center">
+  <img src="/pics/openclaw评价.png" alt="openclaw评价" />
+</p>
 
 使用示例：
 
-![image](/pics/pyweixin-rpa测试.png "pyweixin-rpa测试")
-</br>
+<p align="center">
+  <img src="/pics/pyweixin-rpa测试.png" alt="pyweixin-rpa测试" />
+</p>
 
 实际效果:
 
-![openclaw测试案例](/pics/openclaw测试案例.png "openclaw测试案例")
+<p align="center">
+  <img src="/pics/openclaw测试案例.png" alt="openclaw测试案例" />
+</p>
 
 ### 快速上手✌️
 
@@ -149,209 +157,6 @@ for friend,result in zip(friends,results):
 #### 多线程监听消息并自动回复
 
 ```python
-from pyweixin import Navigator
-from concurrent.futures import ThreadPoolExecutor
-from pyweixin import Navigator,AutoReply
-#自动回复函数传入参数是字符串和字符串列表(消息列表内所有可见的文本,可作为上下文),返回值须为字符串类型
-def reply_func1(newMessage:str,contexts:list[str]):
-    if '你好' in newMessage:
-        return '你好,有什么可以帮您的吗[呲牙]?'
-    if '在吗' in message:
-        return '在的[旺柴]'
-    return '自动回复[微信机器人]:您好,我当前不在,请您稍后再试'
-
-def reply_func2(newMessage:str,contexts:list[str]):
-    return '自动回复[微信机器人]:您好,我当前不在,请您稍后再试'
-
-#先打开所有好友的独立窗口
-dialog_windows=[]
-friends=['abcdefghijklmnopqrstuvwxyz123456','Pywechat测试群']
-for friend in friends:
-    dialog_window=Navigator.open_seperate_dialog_window(friend=friend,window_minimize=True,close_weixin=True)
-    dialog_windows.append(dialog_window)
-durations=['1min','1min']
-callbacks=[reply_func1,reply_func2]
-with ThreadPoolExecutor() as pool:
-    results=pool.map(lambda args: AutoReply.auto_reply_to_friend(*args),list(zip(dialog_windows,durations,callbacks)))
-for friend,result in zip(friends,results):
-    print(friend,result)
-```
-
-!["自动回复"](/pics/自动回复.png "自动回复")
-</br>
-
-#### 朋友圈内容导出
-
-```python
-from pyweixin import Moments
-#获取并导出今日前20个好友发布的朋友圈的具体内容
-posts=Moments.dump_recent_posts(recent='Today',save_detail=True,number=10)
-for dic in posts:
-    print(dic)
-```
-
-![朋友圈内容导出](pics/朋友圈内容导出.png "朋友圈内容导出")
-</br>
-
-#### 发布朋友圈
-
-```python
-from pyweixin import Moments
-Moments.post_moments(texts='''发布朋友圈测试[旺柴]''',medias=[r"E:\Desktop\test0.png",r"E:\Desktop\test1.png"])
-```
-
-![发朋友圈](/pics/发朋友圈.png "发朋友圈")
-</br>
-
-#### 好友朋友圈内容导出
-
-```python
-from pyweixin import Moments
-Moments.dump_friend_posts(friend='xxx',number=3,save_detail=True,target_folder=r"E:\Desktop\好友朋友圈内容导出")
-```
-
-![好友朋友圈内容导出](/pics/好友朋友圈内容导出.png "好友朋友圈内容导出")
-![好友朋友圈内容](/pics/好友朋友圈内容.png "好友朋友圈内容")
-</br>
-
-#### 好友朋友圈自定义评论
-
-```python
-from pyweixin import Moments
-def comment_func(content):
-    if 'xxx' in content:
-        return 'yyy'
-    return 'zzz'
-Moments.like_friend_posts(friend='xxx',number=20,callback=comment_func,use_green_send=True)
-```
-
-#### 公众号文章url获取
-
-```python
-#注意,该方法不稳定
-from pyweixin import Collections
-Collections.collect_offAcc_articles(name='新华社',number=10)
-urls=Collections.cardLink_to_url(number=10)
-for url,text in urls.items():
-    print(f'{text}\n{url}')
-```
-
-![公众号文章url获取](/pics/公众号文章url获取.png "公众号文章url获取")
-</br>
-
-#### 此外pyweixin内所有方法及函数的一些位置参数支持全局设定,be like
-
-```python
-from pyweixin import Navigator,GlobalConfig
-GlobalConfig.load_delay=2.5
-GlobalConfig.is_maximize=True
-GlobalConfig.close_weixin=False
-Navigator.search_channels(search_content='微信4.0')
-Navigator.search_miniprogram(name='问卷星')
-Navigator.search_official_account(name='微信')
-```
-
-#### 其他类内method使用方法可见代码中详细的文档注释以及pyweixin操作手册.docx
-
-### Pywechat(3.9+微信)
-
-#### WechatTools🌪️
-
-##### 类包括
-
-- Tools:关于PC微信的一些工具,包括打开PC微信内各个界面的open系列方法
-
-- API:打开指定微信小程序，指定公众号,打开视频号的功能，若有其他开发者想自动化操作上述程序可调用此API
-
-函数:该模块内所有函数与方法一致
-
-#### WechatAuto🛏️
-
-##### class
-
-- `Messages`: 5种类型的发送消息方法，包括:单人单条,单人多条,多人单条,多人多条,转发消息:多人同一条。
-- `Files`: 5种类型的发送文件方法，包括:单人单个,单人多个,多人单个,多人多个,转发文件:多人同一个。发送多个文件时，你只需将所有文件放入文件夹内，将文件夹路径传入即可。
-- `FriendSettings`: 涵盖了PC微信针对某个好友的全部操作的方法。
-- `GroupSettings`: 涵盖了PC微信针对某个群聊的全部操作的方法。
-- `Contacts`: 获取3种类型通讯录好友的备注与昵称包括:微信好友,企业号微信,群聊名称与人数，数据返回格式为json。
-- `Call`: 给某个好友打视频或语音电话。
-- `AutoReply`:自动接听微信视频或语音电话,自动回复指定好友消息,自动回复所有好友消息。
-- `Moments`:针对微信朋友圈的一些方法,包括数据获取，图片视频导出
-
-##### 该模块内所有函数与方法一致
-
-#### WinSettings🔹
-
-##### 类
-
-- Systemsettings:该模块中提供了一些修改windows系统设置的方法
-
-##### 函数：该模块内所有函数与类内方法一致
-
-### pywechat使用示例
-
-#### 所有自动化操作只需两行代码即可实现
-
-```python
-from pywechat import xxx
-xxx.yy
-
-from pyweixin import xxx
-xxx,yy
-```
-
-</br>
-
-#### 在某个群聊自动回复(使用装饰器自定义回复内容)
-
-```python
-from pywechat.utils import auto_reply_to_group_decorator
-@auto_reply_to_group_decorator(duration='2min',group_name='Pywechat测试群',at_only=True,at_other=True)
-def reply_func(newMessage):
-    if '你好' in newMessage:
-        return '你好,请问有什么可以帮您的吗?'
-    if '在吗' in newMessage:
-        return '在的,请问有什么可以帮您的吗?'
-    if '售后' in newMessage:
-        return '''您好，您可以点击下方链接申请售后:
-        https://github.com/Hello-Mr-Crab/pywechat'''
-    if '算了' in newMessage or '不需要了' in newMessage:
-        return '不好意思.未能为您提供满意的服务,欢迎下次光临'
-    return '不好意思，未能理解您的需求'#最后总是要返回一个值，不要出现newMessage不在列举的情况,返回None
-reply_func()
-```
-
-![decorator](/pics/decorator.png "decorator")
-</br>
-
-#### 监听某个群聊或好友的窗口(自动保存聊天文件与图片和视频)
-
-```python
-from pywechat import listen_on_chat
-filesave_folder=r"E:\Desktop\保存文件"
-mediasave_folder=r"E:\Desktop\聊天图片与视频保存"
-contents,senders,types=listen_on_chat(friend='测试群',duration='10min',save_file=True,file_folder=filesave_folder,save_media=True,media_folder=mediasave_folder)
-print(contents,senders,types)
-```
-
-#### 朋友圈数据获取
-
-```python
-from pywechat import dump_recent_moments
-moments=dump_recent_moments(recent='Today',number=20,save_detail=True)
-for dict in moments:
-    print(dict)
-```
-
-![朋友圈数据获取](/pics/朋友圈数据获取.png "朋友圈")
-
-注意，导出的结果为list[dict],每一条朋友圈对应一个dict,dict具体内容
-
-{'好友备注':'','发布时间':'','文本内容':'','点赞者':'','评论内容':'','图片数量':'','视频数量':'','卡片链接':'','卡片链接内容':'','视频号':'','公众号链接内容':''}
-
-</br>
-
-#### 监听整个会话列表内所有好友的新消息(自动保存聊天文件)
 
 ```python
 from pywechat import check_new_message

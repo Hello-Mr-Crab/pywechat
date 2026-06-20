@@ -159,10 +159,11 @@ class AutoReply():
                     if newMessage.class_name()=='mmui::ChatTextItemView':
                         texts.append(newMessage.window_text())
                         dialog_window.restore()
-                        is_my_bubble=Tools.is_my_bubble(dialog_window,newMessage,input_edit)
-                        if not is_my_bubble:
+                        is_my_bubble=Tools.is_my_bubble(newMessage.capture_as_image())
+                        if is_my_bubble:
                             reply_content=callback(newMessage.window_text(),contexts)
                             if reply_content is not None:
+                                input_edit.click_input()
                                 input_edit.set_text(reply_content)
                                 pyautogui.hotkey('alt','s')
                     if newMessage.class_name()=='mmui::ChatBubbleItemView' and newMessage.window_text()[:2]==link_label:
@@ -280,7 +281,7 @@ class Call():
 class Collections():
     
     @staticmethod
-    def take_notes(text:str,files:list[str]=[],share_moments:bool=False,is_maximize:bool=None,close_weixin:bool=None):
+    def take_notes(text:str,files:list[str]=[],share_moments:bool=False,is_maximize:bool=None,close_weixin:bool=None)->None:
         '''该方法用来新建一个微信笔记
         Args:
             text:笔记内的文本
@@ -307,6 +308,29 @@ class Collections():
             pyautogui.press('up',presses=2)
             pyautogui.press('enter')
         note_window.close()
+
+    @staticmethod
+    def save_media(target_folder:str=None,number:int=None,is_maximize:bool=None,close_weixin:bool=None)->None:
+        '''该方法用来保存收藏内的图片与视频
+            Args:
+            开发ing
+        
+        '''
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+        if target_folder is not None and not os.path.isdir(target_folder):
+            raise NotFolderError(f'所选路径不是文件夹!无法保存聊天记录,请重新选择!')
+        if target_folder is None:
+            target_folder=os.path.join(os.getcwd(),'save_media收藏图片视频保存',friend)
+            os.makedirs(name=target_folder,exist_ok=True)
+            print(f'未传入文件夹路径,聊天图片或视频将保存至 {target_folder}')
+        pass
+        # main_window=Navigator.open_collections(is_maximize=is_maximize)
+        # media_item=main_window.child_window(**ListItems.)
+        # copylink_item=main_window.child_window(**MenuItems.CopyLinkMenuItem)
+        # if close_weixin:main_window.close
 
     @staticmethod
     def cardLink_to_url(number:int,delete:bool=False,delay:float=0.5,is_maximize:bool=None,close_weixin:bool=None)->dict[str,str]:
@@ -2544,7 +2568,8 @@ class Moments():
         illegal_chars=r'[\\/*?:"<>|]'#windows文件系统中的非法字符,好友名字中如果有需要替换
         sns_timestamp_pattern=Regex_Patterns.Sns_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳
         contain_image_pattern=Regex_Patterns.Contain_Images_pattern#朋友圈包含1~9张图片
-        not_contents=['mmui::TimelineCommentCell','mmui::TimelineCell','mmui::TimelineAdGridImageCell','mmui::TimelineAdBaseCardImageCell','mmui::TimelineAdVideoCell']#评论区，余下x条,广告,这三种不需要
+        not_contents=['mmui::TimelineCommentCell','mmui::TimelineCell','mmui::TimelineAdGridImageCell',
+        'mmui::TimelineAdBaseCardImageCell','mmui::TimelineAdVideoCell','mmui::TimelineAdNormalCell']#评论区，余下x条,广告,这三种不需要
         moments_window=Navigator.open_moments(is_maximize=is_maximize,close_weixin=close_weixin)
         Tools.cancel_pin(moments_window)
         image_preview_window=desktop.window(**Windows.ImagePreviewWindow)
@@ -2668,7 +2693,8 @@ class Moments():
         days_ago=Special_Labels.DaysAgo
         sns_timestamp_pattern=Regex_Patterns.Sns_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳
         contain_image_pattern=Regex_Patterns.Contain_Images_pattern#朋友圈包含1~9张图片
-        not_contents=['mmui::TimelineCommentCell','mmui::TimelineCell','mmui::TimelineAdGridImageCell']#评论区，余下x条,广告,这三种不需要
+        not_contents=['mmui::TimelineCommentCell','mmui::TimelineCell','mmui::TimelineAdGridImageCell',
+        'mmui::TimelineAdBaseCardImageCell','mmui::TimelineAdVideoCell','mmui::TimelineAdNormalCell']#评论区，余下x条,广告,这三种不需要
         moments_window=Navigator.open_moments(is_maximize=is_maximize,close_weixin=close_weixin)
         Tools.cancel_pin(moments_window)
         profile_window=desktop.window(**Windows.PopUpProfileWindow)
@@ -3656,9 +3682,9 @@ class Messages():
             close_weixin=GlobalConfig.close_weixin
         if search_pages is None:
             search_pages=GlobalConfig.search_pages
-        if target_folder and not os.path.isdir(target_folder):
+        if target_folder is not None and not os.path.isdir(target_folder):
             raise NotFolderError(f'所选路径不是文件夹!无法保存聊天记录,请重新选择!')
-        if not target_folder:
+        if target_folder is None:
             target_folder=os.path.join(os.getcwd(),'save_media聊天图片保存',friend)
             os.makedirs(name=target_folder,exist_ok=True)
             print(f'未传入文件夹路径,聊天图片或视频将保存至 {target_folder}')

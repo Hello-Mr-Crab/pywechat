@@ -1,8 +1,7 @@
 from fastmcp import FastMCP
 from pyweixin.WeChatAuto import Messages # 假设这是你的包名
 
-# 假设你有一个配置读取，或者直接用 GlobalConfig
-# 这里为了演示，我们把默认值写在 MCP 层，或者让 MCP 读取全局配置
+
 
 mcp=FastMCP("messaging")
 
