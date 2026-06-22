@@ -160,7 +160,7 @@ class AutoReply():
                         texts.append(newMessage.window_text())
                         dialog_window.restore()
                         is_my_bubble=Tools.is_my_bubble(newMessage.capture_as_image())
-                        if is_my_bubble:
+                        if not is_my_bubble:
                             reply_content=callback(newMessage.window_text(),contexts)
                             if reply_content is not None:
                                 input_edit.click_input()

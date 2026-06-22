@@ -212,7 +212,6 @@ Moments.post_moments(texts='''发布朋友圈测试[旺柴]''',medias=[r"E:\Desk
   <img src="/pics/发朋友圈.png" alt='发朋友圈'>
 </p>
 
-
 #### 好友朋友圈内容导出
 
 ```python
