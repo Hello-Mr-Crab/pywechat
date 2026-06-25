@@ -106,6 +106,7 @@ robocopy "D:\autowechat\Skill\OtherPlatforms\pyweixin-rpa" pyweixin-rpa /E
 注意将"D:\autowechat\Skill\OtherPlatforms\pyweixin-rpa"替换为实际路径，如果上述命令失败亦可手动复制到对应目录然后重启codex,cursor
 
 **`claude`**
+
 Customize内点击Create Skill，选择Upload a Skill
 
 !['Claude导入'](/pics/claude导入自定义skill.png "Claude")

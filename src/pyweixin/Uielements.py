@@ -2,22 +2,23 @@
 Uielements
 ---------
 PC微信中的各种Ui-Object,使用于多语言,包括:
-    - `Buttons`:Button类型Ui
-    - `CheckBoxes`:复选框类型Ui
-    - `Customs`:自定义类型Ui
-    - `Edits`:编辑框类型Ui 
-    - `Groups`:组类型Ui
-    - `Independent_Window`:独立于微信界面需使用desktop.window定位的窗口
-    - `Lists`:List类型Ui
-    - `ListItems`:ListItem类型Ui
-    - `Login_Window`:登录界面内内可直接.child_window定位的一级Ui
-    - `Main_Window`:主界面窗口内可直接.child_window定位的一级Ui
-    - `MenuItems`:MenuItem类型UI
-    - `Menus`:Menu类型UI
-    - `Texts`: 文本类型Ui
-    - `TabItems`:TabItem类型Ui
-    - `SideBar`:主界面导航栏内的所有Button
-    - `Windows`:Window类型Ui
+    - `Button_Control`:Button类型Ui
+    - `CheckBoxe_Control`:复选框类型Ui
+    - `Custom_Control`:自定义类型Ui
+    - `Edit_Control`:编辑框类型Ui 
+    - `Group_Control`:组类型Ui
+    - `Independent_Window_Control`:独立于微信界面需使用desktop.window定位的窗口
+    - `List_Control`:List类型Ui
+    - `ListItem_Control`:ListItem类型Ui
+    - `Login_Window_Control`:登录界面内内可直接.child_window定位的一级Ui
+    - `Main_Window_Control`:主界面窗口内可直接.child_window定位的一级Ui
+    - `MenuItem_Control`:MenuItem类型UI
+    - `Menu_Control`:Menu类型UI
+    - `Text_Control`: 文本类型Ui
+    - `TabItem_Control`:TabItem类型Ui
+    - `SideBar_Control`:主界面导航栏内的所有Button
+    - `Window_Control`:Window类型Ui
+    - `SpecialLabel`:一些特殊的文本标签
    
        
 Examples
@@ -387,6 +388,8 @@ class ListItem_Control():
         self.SessionListItem={'control_type':'ListItem','class_name':'mmui::ChatSessionCell'}#微信会话列表中的聊天对象
         self.SnsContentListItem={'control_type':'ListItem','class_name':'mmui::TimeLineContentCell'}#朋友圈内容ListItem
         if self.language=='简体中文':
+            self.CollectionsTagListItem={'control_type':'ListItem','class_name':'mmui::XTabelCell','title':'标签'}#微信收藏界面中的标签
+            self.MediaListItem={'title':'圖片與影片','control_type':'ListItem','class_name':'mmui::XTabelCell'}#微信收藏界面里的照片和视频项目
             self.GroupLabelListItem={'title':'群聊','control_type':'ListItem','class_name':'mmui::XTableCell'}#微信顶部搜索内容后搜索结果中的群聊标签(分隔符)
             self.NewFriendListItem={'control_type':'ListItem','title':r'新的朋友','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的新的朋友项目
             self.SavedGroupsListIte={'control_type':'ListItem','title_re':r'群聊\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的群聊项目
@@ -406,6 +409,8 @@ class ListItem_Control():
             self.MobileSearchListItem={'title':'网络查找手机/QQ号：','control_type':'ListItem'}#在顶部搜索的是数字组合时出现的查找手机号qq好
             self.SenderListItem={'title':'发送人','control_type':'ListItem'}#聊天文件窗口左侧的发送人选项
         if self.language=='English':
+            self.CollectionsTagListItem={'control_type':'ListItem','class_name':'mmui::XTabelCell','title':'Tags'}#微信收藏界面中的标签
+            self.MediaListItem={'title':'Media','control_type':'ListItem','class_name':'mmui::XTabelCell'}#微信收藏界面里的照片和视频项目
             self.GroupLabelListItem={'title':'Group Chats','control_type':'ListItem','class_name':'mmui::XTableCell'}#微信顶部搜索内容后搜索结果中的群聊标签(分隔符)
             self.NewFriendListItem={'control_type':'ListItem','title':r'New Friends','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的新的朋友项目
             self.SavedGroupsListIte={'control_type':'ListItem','title_re':r'Saved Groups\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的群聊项目
@@ -425,6 +430,8 @@ class ListItem_Control():
             self.MobileSearchListItem={'title':'Search mobile/QQ ID:','control_type':'ListItem'}#在顶部搜索的是数字组合时出现的查找手机号qq好
             self.SenderListItem={'title':'Sender','control_type':'ListItem'}#聊天文件窗口左侧的发送人选项
         if self.language=='繁體中文':
+            self.CollectionsTagListItem={'control_type':'ListItem','class_name':'mmui::XTabelCell','title':'標籤'}#微信收藏界面中的标签
+            self.MediaListItem={'title':'圖片與影片','control_type':'ListItem','class_name':'mmui::XTabelCell'}#微信收藏界面里的照片和视频项目
             self.GroupLabelListItem={'title':'群組','control_type':'ListItem','class_name':'mmui::XTableCell'}#微信顶部搜索内容后搜索结果中的群聊标签(分隔符)
             self.NewFriendListItem={'control_type':'ListItem','title':r'新的朋友','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的新的朋友项目
             self.SavedGroupsListIte={'control_type':'ListItem','title_re':r'群聊\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的群聊项目
@@ -833,6 +840,7 @@ class Special_Label():
         self.WeCom='企业微信'
         if self.language=='简体中文':
             self.Weixin='微信'
+            self.FileTransfer='文件传输助手'
             self.FriendProfile='朋友资料'
             self.VoipCall='微信音视频通话 '
             self.SelectFolder='选择文件夹'
@@ -882,6 +890,7 @@ class Special_Label():
             self.Channels='视频号'
             self.ChatHistory='聊天记录'
             self.NotCare={'session_item_服务号','session_item_公众号'}
+            self.NeverReply=['微信团队','微信支付','订阅号','腾讯新闻','服务通知','微信游戏','公众号','服务号']
             self.Minutes={f'{i}分钟前' for i in range(1,60)}
             self.Hours={f'{i}小时前' for i in range(1,24)}
             self.WeekDays={f'{i}天前' for i in range(1,8)}
@@ -892,6 +901,7 @@ class Special_Label():
             self.MonthDays.update(self.WeekDays)
         if self.language=='English':
             self.Weixin='Weixin'
+            self.FileTransfer='File Transfer'
             self.FriendProfile='Friend Profile'
             self.VoipCall='Weixin Voice & Video Calls '
             self.SelectFolder='Select folder'
@@ -941,6 +951,7 @@ class Special_Label():
             self.Transfer='WeChat Transfer'
             self.ChatHistory='Chat History'
             self.NotCare={'session_item_Service Accounts','session_item_Official Accounts'}
+            self.NeverReply=['Weixin Team','Weixin Pay','Subscriptions','Tencent News','Service Notifications','Weixin Games','Official Accounts','Service Accounts','Customer Service Messages']
             self.Minutes={f'{i} minute(s) ago' for i in range(1,60)}
             self.Hours={f'{i} hour(s) ago' for i in range(1,24)}
             self.WeekDays={f'{i} day(s) ago' for i in range(1,8)}
@@ -951,6 +962,7 @@ class Special_Label():
             self.MonthDays.update(self.WeekDays)
         if self.language=='繁體中文':
             self.Weixin='微信'
+            self.FileTransfer='檔案傳輸'
             self.FriendProfile='朋友資料'
             self.VoipCall='微信語音/視訊通話 '
             self.SelectFolder='選擇資料夾'
@@ -998,6 +1010,7 @@ class Special_Label():
             self.VoiceCall='語音通話'
             self.VideoCall='視訊通話'
             self.NotCare={'session_item_服務賬號','session_item_官方賬號'}
+            self.NeverReply=['微信團隊','Weixin Pay','訂閱賬號','騰訊新聞','服務通知','微信遊戲','官方賬號','服務賬號','客服訊息']
             self.Minutes={f'{i}分鐘前' for i in range(1,60)}
             self.Hours={f'{i}小時前' for i in range(1,24)}
             self.WeekDays={f'{i}天前' for i in range(1,8)}
@@ -1098,7 +1111,7 @@ class MousePos():
         self.EditAreaPos=(self.left+10,self.center_y)#编辑区域点击位置
         self.PathBarPos=(self.right-5,self.center_y)#windows本地选择文件夹窗口顶部路径栏点击位置
         self.ChatHistorySelectPos=(self.left+110,self.top+60)#多选状态下遍历聊天记录列表时右键(点击多选)的位置
-        self.ChatListSelectPos=(self.left+120,self.bottom-60)#多选状态下遍历聊天列表时右键(点击多选)的位置
+        self.ChatListSelectPos=(self.left+120,self.bottom-50)#多选状态下遍历聊天列表时右键(点击多选)的位置
         self.FriendProfilePos=(self.center_x-5,self.center_y)#打开好友profile时要点击好友头像的位置
         self.ActiveChatListPos=(self.right-12,self.center_y)#激活聊天界面内消息列表时鼠标移动或点击的位置
         self.ActiveChatHistoryListPos=(self.center_x,self.center_y)#激活聊天记录列表时鼠标移动或点击的位置

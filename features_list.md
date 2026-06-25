@@ -2,10 +2,9 @@
 
 ## Add
 
-> - Mcp:开发ing...
-> - Skill\openclaw\pyweixin-rpa:适用于openclaw的pyweixi kill目前已于clawhub发布，名称为pyweixin-rpa
-> - Skill\otherplatforms\pyweixin-rpa:适用于其他平台的pyweixin skill(codex,claude,cursor..)
-> - [QuickStart.md](/QuickStart.md):对上手使用pyweixin的说明
+> - src\pyweixin\WeChatAuto.py\class AutoReply\auto_reply_messages:在会话列表内自动回复所有新消息
+> - src\pyweixin\WeChatAuto.py\class Monitor\listen_on_sessionList:指定时间内监听会话列表内的新消息好友与数量
+> - src\pyweixin\WeChatAuto.py\class Monitor\listen_on_newMessages:在listen_on_sessionList的基础上最后把新消息好友的消息全部导出
 
 ## Changed
 

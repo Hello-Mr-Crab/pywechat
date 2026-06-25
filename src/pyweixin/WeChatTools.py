@@ -387,21 +387,18 @@ class Tools():
         '''
         判断是否是自己发送的消息（右侧是否存在头像区域）
         Args:
-            img: pywinauto截图对象 (capture_as_image)
-            right_width:右侧检测区域宽度（微信头像一般在最右60~80px）
-            threshold: 非背景像素的最小数量（可调）
+            img: pywinauto截图对象(capture_as_image)
+            right_width:右侧检测区域宽度,微信头像一般在最右60~80px
+            threshold:非背景像素的最小数量,默认100
         Returns:
-            is_my_bubble: 该条消息是否为自己发送
+            is_my_bubble:该条消息是否为自己发送
         '''
-        BG_DARK=(0x1E,0x1E,0x1F)  #微信深色背景
-        BG_LIGHT=(0xFA,0xFA,0xFA)  #微信浅色背景
-
-        def color_dist(c1, c2):
-            #欧式距离
+        BG_DARK=(0x1E,0x1E,0x1F)#微信深色背景
+        BG_LIGHT=(0xFA,0xFA,0xFA)#微信浅色背景
+        def color_dist(c1, c2):#欧式距离
             return sum((a-b)**2 for a, b in zip(c1, c2))**0.5
-
         w,h=img.size
-        # 取最右侧区域
+        #取最右侧区域
         x_start=max(w-right_width,0)
         region=img.crop((x_start,0,w,h))
         pixels=list(region.getdata())
@@ -410,10 +407,10 @@ class Tools():
             d1=color_dist((r, g, b), BG_DARK)
             d2=color_dist((r, g, b), BG_LIGHT)
             # 既不像深色背景，也不像浅色背景 → 认为是内容
-            if d1 > threshold and d2 > threshold:
-                non_bg_count += 1
+            if d1>threshold and d2>threshold:
+                non_bg_count+=1
                 # 提前结束，提高性能
-                if non_bg_count >= threshold * 2:
+                if non_bg_count>=threshold*2:
                     return True
         my_bubble=non_bg_count>=threshold
         return my_bubble
@@ -1235,7 +1232,7 @@ class Navigator():
             return main_window
     
     @staticmethod
-    def open_seperate_dialog_window(friend:str,select:bool=True,is_maximize:bool=None,window_minimize:bool=False,close_weixin:bool=None)->WindowSpecification:
+    def open_seperate_dialog_window(friend:str,select:bool=False,is_maximize:bool=None,window_minimize:bool=False,close_weixin:bool=None)->WindowSpecification:
         '''
         该方法用于单独打开某个好友(非公众号)的聊天窗口(主要用于监听消息)
         Args:

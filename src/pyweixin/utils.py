@@ -509,7 +509,7 @@ def parse_chat_history(friend:str,myName:str,details_with_name:list[str])->tuple
     return contents,senders,timestamps,message_types
 
 
-def parse_group_chat_history(details_with_name:list[tuple[str,str]],details_without_name:list[tuple[str,str]]=[],groupMembers:list[str]=[])->tuple[list,list,list]:
+def parse_group_chat_history(details_with_name:list[tuple[str,str]],details_without_name:list[tuple[str,str]]=[],groupMembers:list[str]=[])->tuple[list,list,list,list]:
     '''群聊内的聊天记录解析
     Args:
         details_with_name:开启多选遍历得到的(文本,类名)元祖列表(traverse_chat_history_list)
@@ -605,14 +605,14 @@ def parse_group_chat_history(details_with_name:list[tuple[str,str]],details_with
             timestamps.append(timestamp)
     return contents,senders,timestamps,message_types
 
-def parse_messages(friend:str,myName:str,details_with_name:list[tuple[str,str]]):
+def parse_messages(friend:str,myName:str,details_with_name:list[tuple[str,str]])->tuple[list,list,list]:
     '''私聊解析聊天界面内的信息,不是自己发的就是对方发的
     Args:
         friend:好友名称
         myName:本人昵称(Contacts.check_my_info)
         details_with_name:开启多选遍历得到的文本(traverse_chatList)
     Returns:
-        (contents,senders,timestamps):消息内容,消息发送人,时间戳
+        (contents,senders,message_types):消息内容,消息发送人,消息类型
     '''
     senders=[]
     contents=[]
@@ -655,14 +655,14 @@ def parse_messages(friend:str,myName:str,details_with_name:list[tuple[str,str]])
         message_types.append(message_type)
     return contents,senders,message_types
 
-def parse_group_messages(details_with_name:list[tuple[str]],details_without_name:list[tuple[str]]=[],groupMembers:list=[]):
+def parse_group_messages(details_with_name:list[tuple[str]],details_without_name:list[tuple[str]]=[],groupMembers:list=[])->tuple[list,list,list]:
     '''群聊提取信息
     Args:
         details_with_name:开启多选遍历得到的文本(traverse_chatList)
         details_without_name:不开启多选遍历得到的文本(traverse_chatList)
         groupMembers:群成员列表
     Returns:
-        (contents,senders):消息内容,消息发送人,时间戳
+        (contents,senders,message_types):消息内容,消息发送人,消息类型
     '''
     senders=[]
     contents=[]
