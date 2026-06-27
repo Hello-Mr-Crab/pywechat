@@ -7,34 +7,34 @@ WeChatAuto
 所有的方法都位于这些静态类内,导入后使用XX.yy的方式使用即可
 
     - `AutoReply`:微信自动回复的一些方法,自动回复指定好友,自动回复会话列表所有新消息
-    - `Call`: 给某个好友打视频或语音电话
-    - `Collections`: 与收藏相关的一些方法
-    - `Contacts`: 获取通讯录联系人的一些方法
-    - `Files`:  关于微信文件的一些方法,包括发送文件,导出文件等功能
-    - `Messages`: 关于微信消息的一些方法,包括收发消息,获取聊天记录,获取聊天会话等功能
-    - `Monitor`: 关于微信监听消息的一些方法,包括监听单个聊天窗口的消息
-    - `Moments`: 与朋友圈相关的一些方法,发布朋友圈,导出朋友圈,好友朋友圈内容
-    - `Settings`: 与微信设置相关的一些方法,更换主题,更换语言,修改自动下载文件大小
-    - `FriendSettings`: 与好友设置相关的一些方法
+    - `Call`:给某个好友打视频或语音电话
+    - `Collections`:与收藏相关的一些方法
+    - `Contacts`:获取通讯录联系人的一些方法
+    - `Files`:关于微信文件的一些方法,包括发送文件,导出文件等功能
+    - `Messages`:关于微信消息的一些方法,包括收发消息,获取聊天记录,获取聊天会话等功能
+    - `Monitor`:关于微信监听消息的一些方法,包括监听单个聊天窗口的消息
+    - `Moments`:与朋友圈相关的一些方法,发布朋友圈,导出朋友圈,好友朋友圈内容
+    - `Settings`:与微信设置相关的一些方法,更换主题,更换语言,修改自动下载文件大小
+    - `FriendSettings`:与好友设置相关的一些方法
 
 Examples:
 =========
 
 使用模块时,你可以:
-
+    ```
     >>> from pyweixin.WeChatAuto import Monitor
     >>> from pyweixin.WeChatTools import Navigator 
     >>> dialog_window=Navigator.open_seperate_dialog_window(friend='好友')
     >>> newMessages=Monitor.listen_on_chat(dialog_window,'1min')
     >>> print(newMessages)
-
+    ```
 或者:
-
+    ```
     >>> from pyweixin import Monitor,Navigator
     >>> dialog_window=Navigator.open_seperate_dialog_window(friend='好友')
     >>> newMessages=Monitor.listen_on_chat(dialog_window,'1min')
     >>> print(newMessages)
-
+    ```
 
 Also:
 ====
@@ -215,7 +215,7 @@ class AutoReply():
         def sacn_for_new_messages(sessionList:ListViewWrapper)->dict:
             new_message_dict={}
             full_desc=weixinButton.element_info.element.GetCurrentPropertyValue(30159)
-            new_message_num=int(re.search(r'\d+',full_desc).group(0))#正则提取数量
+            new_message_num=int(re.search(r'\d+',full_desc).group(0)) if re.search(r'\d+',full_desc) is not None else 0
             if new_message_num and scorllable:#有新消息且可以滚动的时候才滚动
                 if maxPages:#maxPages设置为0，只关注顶部置顶可见的好友
                     for _ in range(maxPages):
@@ -246,7 +246,6 @@ class AutoReply():
         #监听并且回复右侧聊天界面
         def reply_current_chat(initial_runtime_id):
             is_group_chat=Tools.is_group_chat(main_window)#判断是否是群聊
-            current_chat_name=main_window.child_window(**Texts.CurrentChatNameText).window_text()#主界面右半部分左上角的聊天对象文本
             chatList=main_window.child_window(**Main_window.FriendChatList)#聊天界面内存储所有聊天信息的消息列表
             #判断好友类型
             if is_group_chat:
@@ -255,6 +254,7 @@ class AutoReply():
                 friend_type='好友' if chat_history_button.exists(timeout=0.1) else '非好友'   
             if friend_type!='非好友' and chatList.children(control_type='ListItem'):
                 #自动回复逻辑
+                current_chat_name=main_window.child_window(**Texts.CurrentChatNameText).window_text()#主界面右半部分左上角的聊天对象文本
                 if friend_type=='好友' and current_chat_name not in NeverReply:
                     latest_message=chatList.children(control_type='ListItem')[-1]#最新的消息
                     runtime_id=latest_message.element_info.runtime_id
@@ -284,7 +284,6 @@ class AutoReply():
         def reply_other_chat(friend:str):
             Navigator.find_friend_in_SessionList(friend=friend,search_pages=maxPages+1,is_maximize=is_maximize)
             is_group_chat=Tools.is_group_chat(main_window)#判断是否是群聊
-            current_chat_name=main_window.child_window(**Texts.CurrentChatNameText).window_text()
             chatList=main_window.child_window(**Main_window.FriendChatList)
             if chatList.children(control_type='ListItem'):#有聊天记录时才判断然后回复,一片空白什么也不用做
                 latest_message=chatList.children(control_type='ListItem')[-1]
@@ -293,21 +292,25 @@ class AutoReply():
                     friend_type='群聊'
                 if not is_group_chat:
                     friend_type='好友' if chat_history_button.exists(timeout=0.1) else '非好友'                
-                if friend_type=='好友' and current_chat_name not in never_reply:
-                    input_edit.click_input()
-                    reply_content=callback(current_chat_name,latest_message.window_text())
-                    input_edit.set_text(reply_content)
-                    pyautogui.hotkey('alt','s',_pause=False)
-                    responded_friends.append(friend) 
-                if friend_type=='群聊' and not chatOnly and current_chat_name not in never_reply:
-                    input_edit.click_input()
-                    reply_content=callback(current_chat_name,latest_message.window_text())
-                    input_edit.set_text(reply_content)
-                    pyautogui.hotkey('alt','s',_pause=False)
-                    responded_friends.append(friend) 
-                    responded_groups.append(friend)
-                if friend_type=='群聊' and current_chat_name not in never_reply and chatOnly:#设置了仅回复私聊
-                    unresponded_groups.append(friend)
+                if friend_type=='好友':
+                    current_chat_name=main_window.child_window(**Texts.CurrentChatNameText).window_text()
+                    if current_chat_name not in never_reply:
+                        input_edit.click_input()
+                        reply_content=callback(current_chat_name,latest_message.window_text())
+                        input_edit.set_text(reply_content)
+                        pyautogui.hotkey('alt','s',_pause=False)
+                        responded_friends.append(friend) 
+                if friend_type=='群聊':
+                    current_chat_name=main_window.child_window(**Texts.CurrentChatNameText).window_text()
+                    if not chatOnly and current_chat_name not in never_reply:
+                        input_edit.click_input()
+                        reply_content=callback(current_chat_name,latest_message.window_text())
+                        input_edit.set_text(reply_content)
+                        pyautogui.hotkey('alt','s',_pause=False)
+                        responded_friends.append(friend) 
+                        responded_groups.append(friend)
+                    if current_chat_name not in never_reply and chatOnly:#设置了仅回复私聊
+                        unresponded_groups.append(friend)
 
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
@@ -338,10 +341,15 @@ class AutoReply():
         else:#打开后的界面不是好友可能是公众号或其他什么界面
             initial_runtime_id=0
         full_desc=weixinButton.element_info.element.GetCurrentPropertyValue(30159)
-        initial_newMessage_num=int(re.search(r'\d+',full_desc).group(0))
+        if re.search(r'\d+',full_desc) is not None:
+            has_newMessage=True
+            initial_newMessage_num=int(re.search(r'\d+',full_desc).group(0))
+        else:
+            has_newMessage=False
+            initial_newMessage_num=0
         scorllable=Tools.is_scrollable(sessionList)#只调用一次Scrollable函数来判断会话列表是否可以滚动
         if scorllable:sessionList.type_keys('{HOME}')
-        if has_newMessage:new_message_dict=sacn_for_new_messages(sessionList)
+        new_message_dict=sacn_for_new_messages(sessionList) if has_newMessage else {}
         end_timestamp=time.time()+duration
         SystemSettings.open_listening_mode()#开个不息屏,不然时间长息屏了就难办了
         #轮询自动回复，只干两件事儿，一边在会话列表查找新消息逐个回复，一边盯着当前聊天界面回复
@@ -352,7 +360,10 @@ class AutoReply():
             #盯着当前聊天界面
             initial_runtime_id=reply_current_chat(initial_runtime_id)
             full_desc=weixinButton.element_info.element.GetCurrentPropertyValue(30159)
-            newMessage_num=int(re.search(r'\d+',full_desc).group(0))#正则提取数量
+            if re.search(r'\d+',full_desc) is not None:
+                newMessage_num=int(re.search(r'\d+',full_desc).group(0))
+            else:
+                newMessage_num=0
             has_newMessage=newMessage_num-initial_newMessage_num#这个是关键，得判断用不用扫描，如果没变化不用扫描
             if has_newMessage:
                 new_message_dict=sacn_for_new_messages(sessionList)
@@ -509,6 +520,75 @@ class Collections():
         # main_window=Navigator.open_collections(is_maximize=is_maximize)
         # media_item=main_window.child_window(**ListItems.)
         # if close_weixin:main_window.close
+
+    @staticmethod
+    def save_notes(target_folder:str=None,number:int=None,is_maximize:bool=None,close_weixin:bool=None)->list[str]:
+        '''该方法用来将收藏内的笔记导出为MarkDown
+        Args:
+            target_folder:导出markdown的文件夹
+        Returns:
+            saved_detail:['今天','昨天','6月15日',...],微信笔记的保存时间
+        '''
+        def extract_info(listitem:ListItemWrapper):
+            text=listitem.window_text()
+            timestamp=Notes_Timestamp_pattern.findall(text)[-1]
+            return timestamp
+    
+        def export_favoriteTemp(listiem:ListItemWrapper):
+            listiem.click_input()
+            time.sleep(1)
+            files=[os.path.join(favoriteTemp_folder,item) for item in os.listdir(favoriteTemp_folder)]
+            output_dir=os.path.join(target_folder,str(saved_num))
+            #清空output_dir是因为如果内部还有其他的htm无法判断哪个是微信笔记缓存里的htm
+            SystemSettings.clear_folder_with_powershell(output_dir)
+            SystemSettings.copy_files(files,output_dir)#迁移到本地
+            os.makedirs(output_dir,exist_ok=True)
+            #清空微信收藏缓存文件夹,为了保证每次点击一个笔记只会把当前笔记内的所有东西保存到temp里
+            #如果不清空随着点击打开笔记的次数增加，temp里的内容会增加,有多个htm也无法准确导出
+            SystemSettings.clear_folder_with_powershell(favoriteTemp_folder)
+            remove_thumbs(output_dir)#去掉缩略图,微信缓存的缩略图tmd连个_t的后缀都不加根本无法直接区分！
+            note_window.close()
+            return output_dir
+        
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+        if target_folder is not None and not os.path.isdir(target_folder):
+            raise NotFolderError(f'所选路径不是文件夹!无法保存聊天记录,请重新选择!')
+        if target_folder is None:
+            target_folder=os.path.join(os.getcwd(),'save_notes收藏笔记保存')
+            os.makedirs(name=target_folder,exist_ok=True)
+            print(f'未传入文件夹路径,笔记内容将保存至 {target_folder}')
+       
+        saved_num=0
+        saved_details=[]
+        from .Notes2MD import remove_thumbs,export_weixin_note
+        favoriteTemp_folder=Tools.where_favoriteTemp_folder(False)
+        Notes_Timestamp_pattern=Regex_Patterns.Notes_Timestamp_pattern
+        SystemSettings.clear_folder_with_powershell(favoriteTemp_folder)
+        main_window=Navigator.open_collections(is_maximize=is_maximize)
+        note_window=desktop.window(**Windows.NoteWindow)
+        main_window.child_window(**ListItems.NotesListItem).click_input()
+        NotesList=main_window.child_window(**Lists.NotesList)
+        if not NotesList.exists(timeout=0.1):
+            main_window.close()
+            raise ValueError(f'你还未收藏过任何笔记,无法导出到本地!')
+        mouse.click(coords=(main_window.rectangle().right-20,main_window.rectangle().mid_point().y))
+        NotesList.type_keys('{HOME}')
+        while saved_num<number:
+            NotesList.type_keys('{DOWN}')
+            selected=[item for item in NotesList.children(control_type='ListItem') if item.has_keyboard_focus()]
+            if selected:
+                saved_num+=1
+                timestamp=extract_info(selected[0])
+                saved_details.append(timestamp) 
+                output_dir=export_favoriteTemp(selected[0])
+                export_weixin_note(output_dir,md_name=f'{timestamp}.md')
+            if not selected:
+                break
+        if close_weixin:main_window.close
+        return saved_details
 
     @staticmethod
     def cardLink_to_url(number:int,delete:bool=False,delay:float=0.5,is_maximize:bool=None,close_weixin:bool=None)->dict[str,str]:
@@ -4223,7 +4303,7 @@ class Monitor():
             '''扫描会话列表内的新消息,返回{'小号':3,'A群':4,'B群':5}这样的新消息列表'''
             new_message_dict={}
             full_desc=weixinButton.element_info.element.GetCurrentPropertyValue(30159)
-            new_message_num=int(re.search(r'\d+',full_desc).group(0))#正则提取数量
+            new_message_num=int(re.search(r'\d+',full_desc).group(0)) if re.search(r'\d+',full_desc) is not None else 0
             if new_message_num and scorllable:#有新消息且可以滚动的时候才滚动
                 if maxPages:#max_pages设置为0，只关注顶部置顶可见的好友
                     for _ in range(maxPages):
@@ -4246,7 +4326,6 @@ class Monitor():
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
         Navigator.open_dialog_window(friend='File Transfer')#打开到文件传输助手
-        has_newMessage=True#刚开始认为是有新消息
         newMessageDict={}
         NeverReply=Special_Labels.NeverReply#不回复的对象,这里监听时也同样不去监听
         duration=Tools.match_duration(duration)
@@ -4258,7 +4337,12 @@ class Monitor():
         new_message_pattern=Regex_Patterns.newMessage_pattern
         sessionList=main_window.child_window(**Main_window.SessionList)#左侧的会话列表
         full_desc=weixinButton.element_info.element.GetCurrentPropertyValue(30159)
-        initial_newMessage_num=int(re.search(r'\d+',full_desc).group(0))
+        if re.search(r'\d+',full_desc) is not None:
+            has_newMessage=True
+            initial_newMessage_num=int(re.search(r'\d+',full_desc).group(0))
+        else:
+            has_newMessage=False
+            initial_newMessage_num=0
         scorllable=Tools.is_scrollable(sessionList)#只调用一次Scrollable函数来判断会话列表是否可以滚动
         if scorllable:sessionList.type_keys('{HOME}')
         if has_newMessage:
@@ -4269,7 +4353,10 @@ class Monitor():
         #轮询监听会话列表
         while time.time()<end_timestamp:
             full_desc=weixinButton.element_info.element.GetCurrentPropertyValue(30159)
-            newMessage_num=int(re.search(r'\d+',full_desc).group(0))#正则提取数量
+            if re.search(r'\d+',full_desc) is not None:
+                newMessage_num=int(re.search(r'\d+',full_desc).group(0))
+            else:
+                newMessage_num=0
             #新消息增量
             has_newMessage=newMessage_num-initial_newMessage_num#这个是关键，得判断用不用扫描，如果没变化不用扫描
             if has_newMessage:
@@ -4307,8 +4394,8 @@ class Monitor():
         def sacn_for_new_messages(sessionList:ListViewWrapper)->dict:
             '''扫描会话列表内的新消息,返回{'小号':3,'A群':4,'B群':5}这样的新消息列表'''
             new_message_dict={}
-            full_desc=weixinButton.element_info.element.GetCurrentPropertyValue(30159)
-            new_message_num=int(re.search(r'\d+',full_desc).group(0))#正则提取数量
+            full_desc=weixinButton.element_info.element.GetCurrentPropertyValue(30159)     
+            new_message_num=int(re.search(r'\d+',full_desc).group(0)) if re.search(r'\d+',full_desc) is not None else 0
             if new_message_num and scorllable:#有新消息且可以滚动的时候才滚动
                 if maxPages:
                     for _ in range(maxPages):
@@ -4339,14 +4426,18 @@ class Monitor():
         NeverReply=Special_Labels.NeverReply#不回复的对象,这里监听时也同样不去监听
         duration=Tools.match_duration(duration)
         if not duration:raise TimeNotCorrectError
-        has_newMessage=True#刚开始认为是有新消息
         main_window=Navigator.open_dialog_window(friend=FileTransfer_Label,is_maximize=is_maximize)#打开到文件传输助手
         myName=Contacts.check_my_info(is_maximize=is_maximize,close_weixin=False).get('昵称')
         weixinButton=main_window.child_window(**Buttons.WeixinButton)
         weixinButton.click_input()
         sessionList=main_window.child_window(**Main_window.SessionList)#左侧的会话列表
         full_desc=weixinButton.element_info.element.GetCurrentPropertyValue(30159)
-        initial_newMessage_num=int(re.search(r'\d+',full_desc).group(0))
+        if re.search(r'\d+',full_desc) is not None:
+            has_newMessage=True
+            initial_newMessage_num=int(re.search(r'\d+',full_desc).group(0))
+        else:
+            has_newMessage=False
+            initial_newMessage_num=0
         scorllable=Tools.is_scrollable(sessionList)#只调用一次Scrollable函数来判断会话列表是否可以滚动
         if scorllable:sessionList.type_keys('{HOME}')
         if has_newMessage:
@@ -4357,7 +4448,10 @@ class Monitor():
         #轮询监听会话列表
         while time.time()<end_timestamp:
             full_desc=weixinButton.element_info.element.GetCurrentPropertyValue(30159)
-            newMessage_num=int(re.search(r'\d+',full_desc).group(0))#正则提取数量
+            if re.search(r'\d+',full_desc) is not None:
+                newMessage_num=int(re.search(r'\d+',full_desc).group(0))
+            else:
+                newMessage_num=0
             #新消息增量
             has_newMessage=newMessage_num-initial_newMessage_num#这个是关键，得判断用不用扫描，如果没变化不用扫描
             if has_newMessage:

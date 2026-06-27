@@ -146,6 +146,17 @@ for friend,result in zip(friends,results):
 ![listen_on_chat](https://github.com/Hello-Mr-Crab/pywechat/blob/main//pics/listen_on_chat多线程.png "listen_on_chat")
 </br>
 
+#### 监听会话列表内的新消息
+
+```python
+from pyweixin import Monitor
+result=Monitor.listen_on_newMessages(duration='30s')
+print(result)
+```
+
+!["监听会话列表新消息"](https://github.com/Hello-Mr-Crab/pywechat/blob/main//pics/自动回复.png "监听会话列表新消息")
+</br>
+
 #### 多线程监听消息并自动回复
 
 ```python

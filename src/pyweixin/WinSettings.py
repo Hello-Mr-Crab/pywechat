@@ -31,8 +31,9 @@ Examples:
 import os
 import shutil
 import ctypes
+import subprocess
 import win32clipboard
-import ctypes
+from pathlib import Path
 from ctypes import cast, POINTER
 from comtypes import CLSCTX_ALL
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
@@ -277,3 +278,26 @@ class SystemSettings():
             except Exception:
                 pass
         return is_saved
+
+    @staticmethod
+    def clear_folder_with_powershell(folder:str):
+        '''
+        使用PowerShell命令清空文件夹内容
+        Args:
+            folder:文件夹
+        '''
+        folder=Path(folder).resolve()
+        ps_script=f"""
+        Get-ChildItem -Path \"{folder}\" -Recurse -Force |
+        Where-Object {{ -not $_.PSIsContainer }} |
+        Remove-Item -Force -ErrorAction SilentlyContinue
+
+        Get-ChildItem -Path \"{folder}\" -Recurse -Force |
+        Where-Object {{ $_.PSIsContainer }} |
+        Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
+        """
+        subprocess.run(
+            ["powershell", "-NoProfile", "-Command", ps_script],
+            shell=False,
+            check=False
+    )

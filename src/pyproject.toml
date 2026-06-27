@@ -21,7 +21,9 @@ classifiers = [
 requires-python=">=3.10"
 
 dependencies=[
+    "bs4>=0.0.1",
     "emoji>=2.14.1",
+    "markdownify>=1.2.2",
     "PyAutoGUI>=0.9.54",
     "pycaw>=20240210.0",
     "pywin32>=308",

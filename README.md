@@ -132,7 +132,10 @@ from pyweixin import Tools
 print(Tools.about_weixin())
 ```
 
-#### 多线性监听聊天窗口消息
+![微信基本信息](/pics/微信基本信息.png "微信基本信息")
+</br>
+
+#### 多线性监听某个聊天窗口消息
 
 ```python
 from concurrent.futures import ThreadPoolExecutor
@@ -154,38 +157,32 @@ for friend,result in zip(friends,results):
 ![listen_on_chat](/pics/listen_on_chat多线程.png "listen_on_chat")
 </br>
 
-#### 多线程监听消息并自动回复
+#### 监听会话列表内的新消息
 
 ```python
-from pyweixin import Navigator
-from concurrent.futures import ThreadPoolExecutor
-from pyweixin import Navigator,AutoReply
-#自动回复函数传入参数是字符串和字符串列表(消息列表内所有可见的文本,可作为上下文),返回值须为字符串类型
-def reply_func1(newMessage:str,contexts:list[str]):
-    if '你好' in newMessage:
-        return '你好,有什么可以帮您的吗[呲牙]?'
-    if '在吗' in message:
-        return '在的[旺柴]'
-    return '自动回复[微信机器人]:您好,我当前不在,请您稍后再试'
-
-def reply_func2(newMessage:str,contexts:list[str]):
-    return '自动回复[微信机器人]:您好,我当前不在,请您稍后再试'
-
-#先打开所有好友的独立窗口
-dialog_windows=[]
-friends=['abcdefghijklmnopqrstuvwxyz123456','Pywechat测试群']
-for friend in friends:
-    dialog_window=Navigator.open_seperate_dialog_window(friend=friend,window_minimize=True,close_weixin=True)
-    dialog_windows.append(dialog_window)
-durations=['1min','1min']
-callbacks=[reply_func1,reply_func2]
-with ThreadPoolExecutor() as pool:
-    results=pool.map(lambda args: AutoReply.auto_reply_to_friend(*args),list(zip(dialog_windows,durations,callbacks)))
-for friend,result in zip(friends,results):
-    print(friend,result)
+from pyweixin import Monitor
+#maxPages设置为0不滚动,只在顶部可见部分监听,全屏+maxPages为0+需要监听对象置顶=稳定安全
+result=Monitor.listen_on_newMessages(duration='30s',maxPages=0)
+print(result)
 ```
 
-!["自动回复"](/pics/自动回复.png "自动回复")
+!["监听会话列表"](/pics/监听会话列表.png "监听会话列表")
+
+!["监听会话列表结果"](/pics/监听会话列表结果.png "监听会话列表结果")
+</br>
+
+#### 自动回复会话列表内的新消息
+
+```python
+from pyweixin import AutoReply
+def reply_func(friend,newMessage):
+    return f'我在自动回复:{friend},这是对方发送的新消息:{newMessage}'
+#maxPages设置为0不滚动,只在顶部可见部分自动回复,全屏+maxPages为0+需要回复对象置顶=稳定安全
+responded_detail=AutoReply.auto_reply_messages(callback=reply_func,duration='1min',maxPages=0)
+print(responded_detail)
+```
+
+!["自动回复会话列表新消息"](/pics/自动回复会话列表新消息.png "自动回复会话列表新消息")
 </br>
 
 #### 朋友圈内容导出
@@ -211,6 +208,7 @@ Moments.post_moments(texts='''发布朋友圈测试[旺柴]''',medias=[r"E:\Desk
 <p align="center">
   <img src="/pics/发朋友圈.png" alt='发朋友圈'>
 </p>
+</br>
 
 #### 好友朋友圈内容导出
 
@@ -234,6 +232,8 @@ def comment_func(content):
 Moments.like_friend_posts(friend='xxx',number=20,callback=comment_func,use_green_send=True)
 ```
 
+</br>
+
 #### 公众号文章url获取
 
 ```python
@@ -248,6 +248,16 @@ for url,text in urls.items():
 ![公众号文章url获取](/pics/公众号文章url获取.png "公众号文章url获取")
 </br>
 
+#### 收藏内的笔记导出为MarkDown
+
+```python
+from pyweixin import Collections
+Collections.save_notes(number=1)
+```
+
+![微信笔记导出](/pics/微信收藏笔记.png "微信收藏笔记导出")
+</br>
+
 #### 此外pyweixin内所有方法及函数的一些位置参数支持全局设定,be like
 
 ```python
@@ -260,7 +270,7 @@ Navigator.search_miniprogram(name='问卷星')
 Navigator.search_official_account(name='微信')
 ```
 
-#### 其他类内method使用方法可见代码中详细的文档注释以及pyweixin操作手册.docx
+#### 其他使用方法可见代码中详细的文档注释以及pyweixin操作手册.docx
 
 ### Pywechat(3.9+微信)
 

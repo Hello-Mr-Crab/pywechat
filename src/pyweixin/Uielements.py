@@ -1,7 +1,8 @@
 '''
 Uielements
 ---------
-PC微信中的各种Ui-Object,使用于多语言,包括:
+PC微信中的各种Ui-Object,使用于多语言,包括
+
     - `Button_Control`:Button类型Ui
     - `CheckBoxe_Control`:复选框类型Ui
     - `Custom_Control`:自定义类型Ui
@@ -388,6 +389,7 @@ class ListItem_Control():
         self.SessionListItem={'control_type':'ListItem','class_name':'mmui::ChatSessionCell'}#微信会话列表中的聊天对象
         self.SnsContentListItem={'control_type':'ListItem','class_name':'mmui::TimeLineContentCell'}#朋友圈内容ListItem
         if self.language=='简体中文':
+            self.NotesListItem={'control_type':'ListItem','title':'笔记'}#微信收藏界面中的笔记
             self.CollectionsTagListItem={'control_type':'ListItem','class_name':'mmui::XTabelCell','title':'标签'}#微信收藏界面中的标签
             self.MediaListItem={'title':'圖片與影片','control_type':'ListItem','class_name':'mmui::XTabelCell'}#微信收藏界面里的照片和视频项目
             self.GroupLabelListItem={'title':'群聊','control_type':'ListItem','class_name':'mmui::XTableCell'}#微信顶部搜索内容后搜索结果中的群聊标签(分隔符)
@@ -409,6 +411,7 @@ class ListItem_Control():
             self.MobileSearchListItem={'title':'网络查找手机/QQ号：','control_type':'ListItem'}#在顶部搜索的是数字组合时出现的查找手机号qq好
             self.SenderListItem={'title':'发送人','control_type':'ListItem'}#聊天文件窗口左侧的发送人选项
         if self.language=='English':
+            self.NotesListItem={'control_type':'ListItem','title':'Notes'}#微信收藏界面中的笔记
             self.CollectionsTagListItem={'control_type':'ListItem','class_name':'mmui::XTabelCell','title':'Tags'}#微信收藏界面中的标签
             self.MediaListItem={'title':'Media','control_type':'ListItem','class_name':'mmui::XTabelCell'}#微信收藏界面里的照片和视频项目
             self.GroupLabelListItem={'title':'Group Chats','control_type':'ListItem','class_name':'mmui::XTableCell'}#微信顶部搜索内容后搜索结果中的群聊标签(分隔符)
@@ -430,6 +433,7 @@ class ListItem_Control():
             self.MobileSearchListItem={'title':'Search mobile/QQ ID:','control_type':'ListItem'}#在顶部搜索的是数字组合时出现的查找手机号qq好
             self.SenderListItem={'title':'Sender','control_type':'ListItem'}#聊天文件窗口左侧的发送人选项
         if self.language=='繁體中文':
+            self.NotesListItem={'control_type':'ListItem','title':'筆記'}#微信收藏界面中的笔记
             self.CollectionsTagListItem={'control_type':'ListItem','class_name':'mmui::XTabelCell','title':'標籤'}#微信收藏界面中的标签
             self.MediaListItem={'title':'圖片與影片','control_type':'ListItem','class_name':'mmui::XTabelCell'}#微信收藏界面里的照片和视频项目
             self.GroupLabelListItem={'title':'群組','control_type':'ListItem','class_name':'mmui::XTableCell'}#微信顶部搜索内容后搜索结果中的群聊标签(分隔符)
@@ -466,16 +470,19 @@ class List_Control():
         self.CollectionList={'auto_id':'fav_category_list','control_type':'List'}#收藏界面左侧的列表
         self.LinkList={'auto_id':'fav_detail_list','control_type':'List'}#收藏界面内的链接列表
         if self.language=='简体中文':
+            self.NotesList={'title':'笔记','control_type':'List','auto_id':'fav_detail_list'}#收藏界面点击笔记后右侧的笔记列表
             self.QuickActionsList={'title':'快捷操作','control_type':'List'}#主界面点击+号后弹出的快捷操作列表
             self.ChatHistoryList={'title':'聊天记录','control_type':'List'}#聊天记录窗口中的存放聊天消息的列表
             self.ConversationList={'title':'会话','control_type':'List'}#主界面左侧的好友聊天会话列表
             self.FriendChatList={'title':'消息','control_type':'List'}#聊天界面内的消息列表
         if self.language=='English':
+            self.NotesList={'title':'Notes','control_type':'List','auto_id':'fav_detail_list'}#收藏界面点击笔记后右侧的笔记列表
             self.QuickActionsList={'title':'Shortcuts','control_type':'List'}#主界面点击+号后弹出的快捷操作列表
             self.ChatHistoryList={'title':'Chat History','control_type':'List'}#聊天记录窗口中的存放聊天消息的列表
             self.ConversationList={'title':'Chats','control_type':'List'}#主界面左侧的好友聊天会话列表
             self.FriendChatList={'title':'Messages','control_type':'List'}#聊天界面内的消息列表
         if self.language=='繁體中文':
+            self.NotesList={'title':'筆記','control_type':'List','auto_id':'fav_detail_list'}#收藏界面点击笔记后右侧的笔记列表
             self.QuickActionsList={'title':'快捷操作','control_type':'List'}#主界面点击+号后弹出的快捷操作列表
             self.ChatHistoryList={'title':'聊天記錄','control_type':'List'}#聊天记录窗口中的存放聊天消息的列表
             self.ConversationList={'title':'對話','control_type':'List'}#主界面左侧的好友聊天会话列表
@@ -794,6 +801,7 @@ class Regex_Pattern():
         if self.language=='简体中文':
             #|表示或的逻辑关系,关于Python正则表达式的任何问题和入门级教程可以看这篇博客:https://blog.csdn.net/weixin_73953650/article/details/151123336?spm=1001.2014.3001.5501
             self.Audio_pattern=re.compile(r'(?<=语音)\d+"秒(.*)$')#语音转文字后的文本内容
+            self.Notes_Timestamp_pattern=re.compile(r'(\d+月\d+日|今天|昨天|星期一|星期二|星期三|星期四|星期五|星期六|星期日|\d+年\d+月\d+日)$')#收藏界面中笔记内的时间戳,注意使用findall()[-1]获取不要直接search
             self.Sns_Timestamp_pattern=re.compile(r'\s(\d+分钟前|\d+小时前|昨天|\d+天前)\s')#朋友圈好友发布内容左下角的时间戳,注意使用findall()[-1]获取不要直接search因为朋友群文本内容内可能也有类似的,但无论如何真正的时间戳永远是最后被匹配到,所以[-1]
             self.Contain_Images_pattern=re.compile(r'\s包含(\d+)张图片\s')#朋友圈包含\d+张图片
             self.Chafile_Timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日|\d{1,2}月\d{1,2}日|昨天|星期\w|\d{1,2}:\d{2})')#微信聊天文件时间戳
@@ -805,6 +813,7 @@ class Regex_Pattern():
             self.newMessage_pattern=re.compile(r'\n\[(\d+)条\]')#微信主页左侧会话列表内带有新消息提示的好友
         if self.language=='English':
             self.Audio_pattern=re.compile(r'(?<=Audio)\d+"sec(.*)$')#语音转文字后的文本内容
+            self.Notes_Timestamp_pattern=re.compile(r'(Today|Yesterday|Wednesday|Tuesday|Monday|Thursday|Friday|Saturday|Sunday|\d+/\d+|\d+-\d+-\d+)$')#收藏界面中笔记内的时间戳,注意使用findall()[-1]获取不要直接search
             self.Sns_Timestamp_pattern=re.compile(r'\s(\d+\sminute\(s\)\sago|\d+\shour\(s\)\sago|Yesterday|\d+\sday\(s\)\sago)\s')#朋友圈好友发布内容左下角的时间戳
             self.Contain_Images_pattern=re.compile(r'\sContain\s(\d+)\simage\(s\)\s')#朋友圈包含\d+张图片
             self.Chafile_Timestamp_pattern=re.compile(r'(\d{4}-\d{1,2}-\d{1,2}|Yesterday|\w+day|\d{1,2}:\d{2})')#微信聊天文件界面内文件右下角的时间戳
@@ -816,6 +825,7 @@ class Regex_Pattern():
             self.newMessage_pattern=re.compile(r'\n\[(\d+)\]')#微信主页左侧会话列表内带有新消息提示的好友
         if self.language=='繁體中文':
             self.Audio_pattern=re.compile(r'(?<=語音)\d+"秒(.*)$')#语音转文字后的文本内容
+            self.Notes_Timestamp_pattern=re.compile(r'(\d+\s月\s\d+\s日|今天|昨天|\d+年\d+月\d+日)$')#收藏界面中笔记内的时间戳,注意使用findall()[-1]获取不要直接search
             self.Sns_Timestamp_pattern=re.compile(r'\s(\d+分鐘前|\d+小時前|昨天|\d+天前)\s')#朋友圈好友发布内容左下角的时间戳,注意使用findall()[-1]获取不要直接search因为朋友群文本内容内可能也有类似的,但无论如何真正的时间戳永远是最后被匹配到,所以[-1]
             self.Contain_Images_pattern=re.compile(r'\s包含\s(\d+)\s張圖片\s')#朋友圈包含\d+张图片
             self.Chafile_Timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日|\d{1,2}月\d{1,2}日|昨天|星期\w|\d{1,2}:\d{2})')#微信聊天文件时间戳
