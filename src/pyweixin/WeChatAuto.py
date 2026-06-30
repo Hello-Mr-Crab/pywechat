@@ -522,32 +522,38 @@ class Collections():
         # if close_weixin:main_window.close
 
     @staticmethod
-    def save_notes(target_folder:str=None,number:int=None,is_maximize:bool=None,close_weixin:bool=None)->list[str]:
+    def save_notes(target_folder:str=None,number:int=None,scroll_delay:float=0.1,load_delay:float=1.5,is_maximize:bool=None,close_weixin:bool=None)->list[str]:
         '''该方法用来将收藏内的笔记导出为MarkDown
         Args:
             target_folder:导出markdown的文件夹
+            number:需要导出的笔记数量
+            scroll_delay:滚动暂停时间,默认0.15s
+            load_delay:等待点击笔记后笔记窗口弹出的时间,默认1.5s
         Returns:
             saved_detail:['今天','昨天','6月15日',...],微信笔记的保存时间
         '''
-        def extract_info(listitem:ListItemWrapper):
-            text=listitem.window_text()
+        def extract_info(NoteListiem:ListItemWrapper):
+            text=NoteListiem.window_text()
             timestamp=Notes_Timestamp_pattern.findall(text)[-1]
             return timestamp
     
-        def export_favoriteTemp(listiem:ListItemWrapper):
-            listiem.click_input()
-            time.sleep(1)
-            files=[os.path.join(favoriteTemp_folder,item) for item in os.listdir(favoriteTemp_folder)]
+        def export_favoriteTemp(NoteListiem:ListItemWrapper):
             output_dir=os.path.join(target_folder,str(saved_num))
-            #清空output_dir是因为如果内部还有其他的htm无法判断哪个是微信笔记缓存里的htm
-            SystemSettings.clear_folder_with_powershell(output_dir)
-            SystemSettings.copy_files(files,output_dir)#迁移到本地
-            os.makedirs(output_dir,exist_ok=True)
-            #清空微信收藏缓存文件夹,为了保证每次点击一个笔记只会把当前笔记内的所有东西保存到temp里
-            #如果不清空随着点击打开笔记的次数增加，temp里的内容会增加,有多个htm也无法准确导出
-            SystemSettings.clear_folder_with_powershell(favoriteTemp_folder)
-            remove_thumbs(output_dir)#去掉缩略图,微信缓存的缩略图tmd连个_t的后缀都不加根本无法直接区分！
-            note_window.close()
+            NoteListiem.double_click_input()
+            try:
+                note_window.wait(wait_for='ready',timeout=load_delay)
+                files=[os.path.join(favoriteTemp_folder,item) for item in os.listdir(favoriteTemp_folder)]
+                #清空output_dir是因为如果内部还有其他的htm无法判断哪个是微信笔记缓存里的htm
+                SystemSettings.clear_folder_with_powershell(output_dir)
+                SystemSettings.copy_files(files,output_dir)#迁移到本地来
+                os.makedirs(output_dir,exist_ok=True)
+                #清空微信收藏缓存文件夹,为了保证每次点击一个笔记只会把当前笔记内的所有东西保存到temp里
+                #如果不清空随着点击打开笔记的次数增加，temp里的内容会增加,有多个htm也无法准确导出
+                SystemSettings.clear_folder_with_powershell(favoriteTemp_folder)#必须用powershell命令才能删除,直接os.remove或shutil.rmtree都会遇到permission error
+                remove_thumbs(output_dir)#去掉缩略图,微信缓存的缩略图tmd连个_t的后缀都不加根本无法直接区分,必须分组匹配比大小再删
+                note_window.close()
+            except Exception:
+                pass
             return output_dir
         
         if is_maximize is None:
@@ -569,15 +575,15 @@ class Collections():
         SystemSettings.clear_folder_with_powershell(favoriteTemp_folder)
         main_window=Navigator.open_collections(is_maximize=is_maximize)
         note_window=desktop.window(**Windows.NoteWindow)
-        main_window.child_window(**ListItems.NotesListItem).click_input()
-        NotesList=main_window.child_window(**Lists.NotesList)
-        if not NotesList.exists(timeout=0.1):
+        note_listitem=main_window.child_window(**ListItems.NotesListItem)
+        if not note_listitem.exists(timeout=0.1):
             main_window.close()
             raise ValueError(f'你还未收藏过任何笔记,无法导出到本地!')
-        mouse.click(coords=(main_window.rectangle().right-20,main_window.rectangle().mid_point().y))
+        NotesList=main_window.child_window(**Lists.NotesList)
+        mouse.click(coords=MousePos(main_window).ActiveNoteListPos)
         NotesList.type_keys('{HOME}')
         while saved_num<number:
-            NotesList.type_keys('{DOWN}')
+            NotesList.type_keys('{DOWN}',pause=scroll_delay)
             selected=[item for item in NotesList.children(control_type='ListItem') if item.has_keyboard_focus()]
             if selected:
                 saved_num+=1
@@ -591,36 +597,36 @@ class Collections():
         return saved_details
 
     @staticmethod
-    def cardLink_to_url(number:int,delete:bool=False,delay:float=0.5,is_maximize:bool=None,close_weixin:bool=None)->dict[str,str]:
-        '''该方法用来获取收藏界面内指定数量卡片链接的url
+    def cardLink_to_url(number:int,delete:bool=False,scroll_delay:float=0.15,load_delay:float=0.3,is_maximize:bool=None,close_weixin:bool=None)->dict[str,str]:
+        '''该方法用来获取收藏界面内指定数量的卡片链接的url,返回值为字典
         Args:
             number:卡片链接的数量
             delete:复制链接后是否将该条卡片链接移除掉
-            delay:复制链接后的等待时间,默认为0.5s,不要设置太低
+            scroll_delay:滚动暂停时间,默认0.15s
+            load_delay:复制链接的等待时间,默认为0.3s,不要设置太低
             is_maximize:微信界面是否全屏,默认全屏
             close_weixin:任务结束后是否关闭微信,默认关闭
+        Returns:
+            links:{'https//':'卡片标题',...},url做key不可能重复,标题就不一定了
         '''
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
 
-        def copy_url(listitem):
-            y=listitem.rectangle().mid_point().y#竖直方向上居中,水平方向上靠右
-            x=listitem.rectangle().right-offset
-            mouse.right_click(coords=(x,y))
+        def copy_url(LinkListitem:ListItemWrapper):
+            LinkListitem.right_click_input()
             copylink_item.click_input()
             win32clipboard.OpenClipboard()
             url=win32clipboard.GetClipboardData(win32clipboard.CF_UNICODETEXT)
             win32clipboard.CloseClipboard()
             if delete:
-                mouse.right_click(coords=(x,y))
+                LinkListitem.right_click_input()
                 deletelink_item.click_input()
                 delete_button.click_input()
-            time.sleep(delay)#0.3是极限,等待复制到剪贴板标签消失
+            time.sleep(load_delay)#0.3是极限,等待复制到剪贴板标签消失
             return url
-        links=dict()
-        offset=120#固定的offset,右键都在右边点
+        links={}
         timestamp_pattern=Regex_Patterns.Article_Timestamp_pattern
         main_window=Navigator.open_collections(is_maximize=is_maximize)
         copylink_item=main_window.child_window(**MenuItems.CopyLinkMenuItem)
@@ -631,28 +637,18 @@ class Collections():
             return links
         link_item.double_click_input()
         link_list=main_window.child_window(**Lists.LinkList)
-        link_list.type_keys('{END}')
-        last_item=link_list.children(control_type='ListItem')[-2].window_text()
         link_list.type_keys('{HOME}')
-        link_list.type_keys('{DOWN}')
-        selected_item=[listitem for listitem in link_list.children(control_type='ListItem') if listitem.has_keyboard_focus() and listitem.window_text()!=''][0]
-        CardLinkPos=MousePos(selected_item).CardLinkPos
-        while selected_item.window_text()!=last_item:#while循环的结束条件是到达底部
-            url=copy_url(selected_item)
-            title=selected_item.window_text()[2:]#前两个字是固定的,为链接二字,后边的文本才是需要的
-            title=timestamp_pattern.sub('',title)#替换掉时间戳
-            links[url]=title
-            mouse.click(coords=CardLinkPos)
-            link_list.type_keys('{DOWN}',pause=0.15)
-            selected_item=[listitem for listitem in link_list.children(control_type='ListItem') if listitem.has_keyboard_focus() and listitem.window_text()!=''][0]
+        while True:
+            link_list.type_keys('{DOWN}',pause=scroll_delay)
+            selected=[listitem for listitem in link_list.children(control_type='ListItem') if listitem.has_keyboard_focus() and listitem.window_text()!='']
+            if selected:
+                title=timestamp_pattern.sub('',selected[0].window_text()[2:])#前两个字是固定的,为链接二字,后边的文本才是需要的替换掉时间戳
+                url=copy_url(selected[0])
+                links[url]=title
+            if not selected:
+                break
             if len(links)>=number:
                 break
-        if selected_item.window_text()==last_item:#已经到达底部需要将最后一条也记录一下
-            last_item=link_list.children(control_type='ListItem')[-1]
-            last_url=copy_url(last_item)
-            last_title=last_item.window_text()[2:]#前两个字是固定的,为链接二字,后边的文本才是需要的
-            last_title=timestamp_pattern.sub('',title)#替换掉时间戳
-            links[last_url]=last_title
         if close_weixin:main_window.close()
         return links
     

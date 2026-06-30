@@ -23,7 +23,7 @@ def remove_thumbs(folder_path)->None:
     Args:
         folder_path:存放微信收藏笔记缓存的文件夹
     '''
-    #缩略图中没有任何表识,好在原图和缩略图的数字是挨着成对出现,所以只能采取这种方式
+    #缩略图中没有任何标识(非常sb),好在原图和缩略图名字结尾的数字是挨着成对出现,所以只能采取这种方式
     #按文件名排序（让同组的图挨在一起）
     #两两一组，比较大小，保留大的（原图），删小的（缩略图）
     #落单的是视频或者Gif缩略图直接删除
@@ -180,7 +180,7 @@ def html_to_markdown_with_resources(html:str, resource_dir:str)->str:
         prefix="- [x]" if checked == "1" else "- [ ]"
         todo.replace_with(f"\n{prefix} {text}\n")
 
-    #位置其他链接卡片（从<u>提取）,其实压根不会显示,可能是只有在点击发送请求后才嵌入
+    #位置等其他链接卡片（从<u>提取）,其实压根不会显示,可能是只有在点击然后发送请求后才嵌入
     for u in soup.find_all("u"):
         text=u.get_text(strip=True)
         if text.startswith("http://") or text.startswith("https://"):

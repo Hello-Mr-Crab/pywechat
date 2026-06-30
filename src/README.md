@@ -1,4 +1,4 @@
-# pywechat🥇
+# pyweixin🥇
 
 ![image](/pics/wechat.png)
 
@@ -9,37 +9,49 @@ pywechat是一个基于pywinauto实现的Windows系统下PC微信自动化(pure 
 
 ### 适用环境
 
-> 1. **微信版本**:3.9.12.x，4.1.6.x
-> 2. **操作系统**:🪟7 🪟10 🪟11
+> 1. **微信版本**:4.1.6+
+> 2. **操作系统**:🪟10 🪟11
 > 3. **python版本**:3.10+(支持TypeHint)
 > 4. **支持语言**:简体中文,English,繁體中文
 
-### pyweixin 与 pywechat 项目结构(pywechat只能用于32位x86🪟10,32位x86🪟7)
+### UI可见性说明
 
-![pyweixin结构](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/pyweixin结构.png "pyweixin结构")
+- 1.使用UI树可见账号手机铺后面
+- 2.将账号于UI树可见电脑上登录,后续可以使用
+- 3.打补丁,改内存(安全性低,不建议)
+
+![pyweixin结构](/pics/pyweixin结构.png "pyweixin结构")
 </br>
 
 ### Skill
 
 目前,可以使用的Skill的Agent主流平台:
-![Skill主流平台](https://github.com/Hello-Mr-Crab/pywechat/blob/main//pics/支持Skill平台.png)
-具体使用方法可见[点击查看QuickStart.md](/QuickStart.md)
 
-![openclaw评价](https://github.com/Hello-Mr-Crab/pywechat/blob/main//pics/openclaw评价.png "openclaw评价")
-</br>
+<p align="center">
+  <img src="/pics/支持Skill平台.png" alt="Skill主流平台" />
+</p>
+
+具体使用方法可见[QuickStart.md](/QuickStart.md)
+
+<p align="center">
+  <img src="/pics/openclaw评价.png" alt="openclaw评价" />
+</p>
 
 使用示例：
 
-![image](https://github.com/Hello-Mr-Crab/pywechat/blob/main//pics/pyweixin-rpa测试.png "pyweixin-rpa测试")
-</br>
+<p align="center">
+  <img src="/pics/pyweixin-rpa测试.png" alt="pyweixin-rpa测试" />
+</p>
 
 实际效果:
 
-![openclaw测试案例](https://github.com/Hello-Mr-Crab/pywechat/blob/main//pics/openclaw测试案例.png "openclaw测试案例")
+<p align="center">
+  <img src="/pics/openclaw测试案例.png" alt="openclaw测试案例" />
+</p>
 
 ### 快速上手✌️
 
-[点击查看QuickStart.md](https://github.com/Hello-Mr-Crab/pywechat/blob/main/QuickStart.md)
+[点击查看QuickStart.md](/QuickStart.md)
 
 ### pyweixin模块介绍(适用于4.1+微信)
 
@@ -124,7 +136,10 @@ from pyweixin import Tools
 print(Tools.about_weixin())
 ```
 
-#### 多线性监听聊天窗口消息
+![微信基本信息](/pics/微信基本信息.png "微信基本信息")
+</br>
+
+#### 多线性监听某个聊天窗口消息
 
 ```python
 from concurrent.futures import ThreadPoolExecutor
@@ -143,52 +158,35 @@ for friend,result in zip(friends,results):
 #返回值 {'新消息总数':x,'文本数量':x,'文件数量':x,'图片数量':x,'视频数量':x,'链接数量':x,'文本内容':x,'消息发送人':x}
 ```
 
-![listen_on_chat](https://github.com/Hello-Mr-Crab/pywechat/blob/main//pics/listen_on_chat多线程.png "listen_on_chat")
+![listen_on_chat](/pics/listen_on_chat多线程.png "listen_on_chat")
 </br>
 
 #### 监听会话列表内的新消息
 
 ```python
 from pyweixin import Monitor
-result=Monitor.listen_on_newMessages(duration='30s')
+#maxPages设置为0不滚动,只在顶部可见部分监听,全屏+maxPages为0+需要监听对象置顶=稳定安全
+result=Monitor.listen_on_newMessages(duration='30s',maxPages=0)
 print(result)
 ```
 
-!["监听会话列表新消息"](https://github.com/Hello-Mr-Crab/pywechat/blob/main//pics/自动回复.png "监听会话列表新消息")
+!["监听会话列表"](/pics/监听会话列表.png "监听会话列表")
+
+!["监听会话列表结果"](/pics/监听会话列表结果.png "监听会话列表结果")
 </br>
 
-#### 多线程监听消息并自动回复
+#### 自动回复会话列表内的新消息
 
 ```python
-from pyweixin import Navigator
-from concurrent.futures import ThreadPoolExecutor
-from pyweixin import Navigator,AutoReply
-#自动回复函数传入参数是字符串和字符串列表(消息列表内所有可见的文本,可作为上下文),返回值须为字符串类型
-def reply_func1(newMessage:str,contexts:list[str]):
-    if '你好' in newMessage:
-        return '你好,有什么可以帮您的吗[呲牙]?'
-    if '在吗' in message:
-        return '在的[旺柴]'
-    return '自动回复[微信机器人]:您好,我当前不在,请您稍后再试'
-
-def reply_func2(newMessage:str,contexts:list[str]):
-    return '自动回复[微信机器人]:您好,我当前不在,请您稍后再试'
-
-#先打开所有好友的独立窗口
-dialog_windows=[]
-friends=['abcdefghijklmnopqrstuvwxyz123456','Pywechat测试群']
-for friend in friends:
-    dialog_window=Navigator.open_seperate_dialog_window(friend=friend,window_minimize=True,close_weixin=True)
-    dialog_windows.append(dialog_window)
-durations=['1min','1min']
-callbacks=[reply_func1,reply_func2]
-with ThreadPoolExecutor() as pool:
-    results=pool.map(lambda args: AutoReply.auto_reply_to_friend(*args),list(zip(dialog_windows,durations,callbacks)))
-for friend,result in zip(friends,results):
-    print(friend,result)
+from pyweixin import AutoReply
+def reply_func(friend,newMessage):
+    return f'我在自动回复:{friend},这是对方发送的新消息:{newMessage}'
+#maxPages设置为0不滚动,只在顶部可见部分自动回复,全屏+maxPages为0+需要回复对象置顶=稳定安全
+responded_detail=AutoReply.auto_reply_messages(callback=reply_func,duration='1min',maxPages=0)
+print(responded_detail)
 ```
 
-!["自动回复"](https://github.com/Hello-Mr-Crab/pywechat/blob/main//pics/自动回复.png "自动回复")
+!["自动回复会话列表新消息"](/pics/自动回复会话列表新消息.png "自动回复会话列表新消息")
 </br>
 
 #### 朋友圈内容导出
@@ -201,7 +199,7 @@ for dic in posts:
     print(dic)
 ```
 
-![朋友圈内容导出](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/朋友圈内容导出.png "朋友圈内容导出")
+![朋友圈内容导出](pics/朋友圈内容导出.png "朋友圈内容导出")
 </br>
 
 #### 发布朋友圈
@@ -211,7 +209,9 @@ from pyweixin import Moments
 Moments.post_moments(texts='''发布朋友圈测试[旺柴]''',medias=[r"E:\Desktop\test0.png",r"E:\Desktop\test1.png"])
 ```
 
-![发朋友圈](https://github.com/Hello-Mr-Crab/pywechat/blob/main//pics/发朋友圈.png "发朋友圈")
+<p align="center">
+  <img src="/pics/发朋友圈.png" alt='发朋友圈'>
+</p>
 </br>
 
 #### 好友朋友圈内容导出
@@ -221,8 +221,8 @@ from pyweixin import Moments
 Moments.dump_friend_posts(friend='xxx',number=3,save_detail=True,target_folder=r"E:\Desktop\好友朋友圈内容导出")
 ```
 
-![好友朋友圈内容导出](https://github.com/Hello-Mr-Crab/pywechat/blob/main//pics/好友朋友圈内容导出.png "好友朋友圈内容导出")
-![好友朋友圈内容](https://github.com/Hello-Mr-Crab/pywechat/blob/main//pics/好友朋友圈内容.png "好友朋友圈内容")
+![好友朋友圈内容导出](/pics/好友朋友圈内容导出.png "好友朋友圈内容导出")
+![好友朋友圈内容](/pics/好友朋友圈内容.png "好友朋友圈内容")
 </br>
 
 #### 好友朋友圈自定义评论
@@ -236,6 +236,8 @@ def comment_func(content):
 Moments.like_friend_posts(friend='xxx',number=20,callback=comment_func,use_green_send=True)
 ```
 
+</br>
+
 #### 公众号文章url获取
 
 ```python
@@ -247,7 +249,17 @@ for url,text in urls.items():
     print(f'{text}\n{url}')
 ```
 
-![公众号文章url获取](https://github.com/Hello-Mr-Crab/pywechat/blob/main//pics/公众号文章url获取.png "公众号文章url获取")
+![公众号文章url获取](/pics/公众号文章url获取.png "公众号文章url获取")
+</br>
+
+#### 收藏内的笔记导出为MarkDown
+
+```python
+from pyweixin import Collections
+Collections.save_notes(number=1)
+```
+
+![微信笔记导出](/pics/微信收藏笔记.png "微信收藏笔记导出")
 </br>
 
 #### 此外pyweixin内所有方法及函数的一些位置参数支持全局设定,be like
@@ -262,7 +274,7 @@ Navigator.search_miniprogram(name='问卷星')
 Navigator.search_official_account(name='微信')
 ```
 
-#### 其他类内method使用方法可见代码中详细的文档注释以及pyweixin操作手册.docx
+#### 其他使用方法可见代码中详细的文档注释以及pyweixin操作手册.docx
 
 ### Pywechat(3.9+微信)
 
@@ -297,139 +309,9 @@ Navigator.search_official_account(name='微信')
 
 - Systemsettings:该模块中提供了一些修改windows系统设置的方法
 
-##### 函数：该模块内所有函数与类内方法一致
-
-### pywechat使用示例
-
-#### 所有自动化操作只需两行代码即可实现
-
-```python
-from pywechat import xxx
-xxx.yy
-
-from pyweixin import xxx
-xxx,yy
-```
-
-</br>
-
-#### 在某个群聊自动回复(使用装饰器自定义回复内容)
-
-```python
-from pywechat.utils import auto_reply_to_group_decorator
-@auto_reply_to_group_decorator(duration='2min',group_name='Pywechat测试群',at_only=True,at_other=True)
-def reply_func(newMessage):
-    if '你好' in newMessage:
-        return '你好,请问有什么可以帮您的吗?'
-    if '在吗' in newMessage:
-        return '在的,请问有什么可以帮您的吗?'
-    if '售后' in newMessage:
-        return '''您好，您可以点击下方链接申请售后:
-        https://github.com/Hello-Mr-Crab/pywechat'''
-    if '算了' in newMessage or '不需要了' in newMessage:
-        return '不好意思.未能为您提供满意的服务,欢迎下次光临'
-    return '不好意思，未能理解您的需求'#最后总是要返回一个值，不要出现newMessage不在列举的情况,返回None
-reply_func()
-```
-
-![decorator](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/decorator.png "decorator")
-</br>
-
-#### 监听某个群聊或好友的窗口(自动保存聊天文件与图片和视频)
-
-```python
-from pywechat import listen_on_chat
-filesave_folder=r"E:\Desktop\保存文件"
-mediasave_folder=r"E:\Desktop\聊天图片与视频保存"
-contents,senders,types=listen_on_chat(friend='测试群',duration='10min',save_file=True,file_folder=filesave_folder,save_media=True,media_folder=mediasave_folder)
-print(contents,senders,types)
-```
-
-#### 朋友圈数据获取
-
-```python
-from pywechat import dump_recent_moments
-moments=dump_recent_moments(recent='Today',number=20,save_detail=True)
-for dict in moments:
-    print(dict)
-```
-
-![朋友圈数据获取](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/朋友圈数据获取.png "朋友圈")
-
-注意，导出的结果为list[dict],每一条朋友圈对应一个dict,dict具体内容
-
-{'好友备注':'','发布时间':'','文本内容':'','点赞者':'','评论内容':'','图片数量':'','视频数量':'','卡片链接':'','卡片链接内容':'','视频号':'','公众号链接内容':''}
-
-</br>
-
-#### 监听整个会话列表内所有好友的新消息(自动保存聊天文件)
-
-```python
-from pywechat import check_new_message
-filesave_folder=r"E:\Desktop\文件保存"
-newMessages=check_new_message(duration='5min',save_file=True,target_folder=filesave_folder)
-#newMessages是[{'好友名称':'路人甲','好友类型':'群聊,好友或公众号','新消息条数':xx,'消息内容':[],'消息类型':[]}]
-#格式的list[dict]
-```
-
-#### 转发与某个好友的一定数量文件给其他好友
-
-```python
- #注意:微信转发消息单次上线为9,pywechat内转发消息,文件,链接,小程序等支持多个好友按9个为一组分批发送
- from pywechat import forward_files
- others=['路人甲','路人乙','路人丙','路人丁']
- forward_files(friend='测试群',others=others,number=20)
-```
-
-#### 保存指定数量聊天文件到本地
-
-```python
-from pywechat import save_files
-folder_path=r'E:\Desktop\新建文件夹'
-save_files(friend='测试群',number=20,folder_path=folder_path)
-```
-
-#### 群聊内自动回复(被@时触发)
-
-```python
-from pywechat import auto_reply_to_group
-auto_reply_to_group(group_name='测试群',duration='20min',content='我被@了',at_only=True,at_others=True)
-```
-
-![群聊自动回复](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/auto_reply_to_group.png "群聊自动回复")
-</br>
-
-#### 给某个好友发送多条信息
-
-```python
-from pywechat.WechatAuto import Messages
-Messages.send_messages_to_friend(friend="文件传输助手",messages=['你好','我正在使用pywechat操控微信给你发消息','收到请回复'])
-```
-
-### 多任务使用示例
-
-注意,微信不支持多线程，只支持单线程多任务轮流执行，pywechat也支持单线程多任务轮流执行，在运行多个实例时尽量请将所有函数与方法内的close_wechat参数设为False(默认为True)
-这样只需要打开一次微信，多个任务便可以共享资源,更加高效，否则，每个实例在运行时都会重启一次微信，较为低效
-多个线程同时操作一个微信界面,必然产生死锁,会导致界面卡死
-
-### 检查新消息示例
-
-```python
-from pywechat import check_new_message
-print(check_new_message())
-```
-
-![检查新消息](https://github.com/Hello-Mr-Crab/pywechat/blob/main/pics/check_new_message.gif "检查新消息")
-
-若你开启了语音自动转消息功能后,新消息中含有语音消息的话,可以将其转换结果一并记录。（1.9.7版本支持此功能）
-
-</br>
-
 ## 注意
 
->👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！
-
-</br>
+> 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！
 
 ## 本项目相关博客
 
