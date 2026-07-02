@@ -6,35 +6,35 @@ WeChatAuto
 微信4.0版本自动化主模块,实现了绝大多数的自动化功能,包括发送消息,文件,音视频通话等
 所有的方法都位于这些静态类内,导入后使用XX.yy的方式使用即可
 
-    - `AutoReply`:微信自动回复的一些方法
-    - `Call`: 给某个好友打视频或语音电话
-    - `Collections`: 与收藏相关的一些方法
-    - `Contacts`: 获取通讯录联系人的一些方法
-    - `Files`:  关于微信文件的一些方法,包括发送文件,导出文件等功能
-    - `Messages`: 关于微信消息的一些方法,包括收发消息,获取聊天记录,获取聊天会话等功能
-    - `Monitor`: 关于微信监听消息的一些方法,包括监听单个聊天窗口的消息
-    - `Moments`: 与朋友圈相关的一些方法,发布朋友圈,导出朋友圈,好友朋友圈内容
-    - `Settings`: 与微信设置相关的一些方法,更换主题,更换语言,修改自动下载文件大小
-    - `FriendSettings`: 与好友设置相关的一些方法
+    - `AutoReply`:微信自动回复的一些方法,自动回复指定好友,自动回复会话列表所有新消息
+    - `Call`:给某个好友打视频或语音电话
+    - `Collections`:与收藏相关的一些方法
+    - `Contacts`:获取通讯录联系人的一些方法
+    - `Files`:关于微信文件的一些方法,包括发送文件,导出文件等功能
+    - `Messages`:关于微信消息的一些方法,包括收发消息,获取聊天记录,获取聊天会话等功能
+    - `Monitor`:关于微信监听消息的一些方法,包括监听单个聊天窗口的消息
+    - `Moments`:与朋友圈相关的一些方法,发布朋友圈,导出朋友圈,好友朋友圈内容
+    - `Settings`:与微信设置相关的一些方法,更换主题,更换语言,修改自动下载文件大小
+    - `FriendSettings`:与好友设置相关的一些方法
 
 Examples:
 =========
 
 使用模块时,你可以:
-
+    ```
     >>> from pyweixin.WeChatAuto import Monitor
     >>> from pyweixin.WeChatTools import Navigator 
     >>> dialog_window=Navigator.open_seperate_dialog_window(friend='好友')
     >>> newMessages=Monitor.listen_on_chat(dialog_window,'1min')
     >>> print(newMessages)
-
+    ```
 或者:
-
+    ```
     >>> from pyweixin import Monitor,Navigator
     >>> dialog_window=Navigator.open_seperate_dialog_window(friend='好友')
     >>> newMessages=Monitor.listen_on_chat(dialog_window,'1min')
     >>> print(newMessages)
-
+    ```
 
 Also:
 ====
@@ -72,7 +72,7 @@ from .Config import GlobalConfig
 from .utils import At,At_all,ColorMatch
 from .utils import traverse_chat_history,traverse_message
 from .utils import parse_chat_history,parse_group_chat_history
-from .utils import parse_messages,parse_group_messages,NativeChooseFolder
+from .utils import parse_messages,parse_group_messages
 from .utils import scan_for_new_messages,get_new_message_num,process_audios
 from .Warnings import LongTextWarning,NoChatHistoryWarning
 from .WeChatTools import Tools,Navigator,mouse,Desktop
@@ -105,16 +105,16 @@ class AutoReply():
             close_dialog_window:是否关闭dialog_window,默认关闭
         Examples:
             >>> from pyweixin import AutoReply,Navigator
-            >>> def reply_func2(newMessage:str,contexts:list[str]):
+            >>> def reply_func(newMessage:str,contexts:list[str]):
             >>>     return '自动回复[微信机器人]:您好,我当前不在,请您稍后再试'
             >>> main_window=Navigator.open_dialog_window(friend='abcdefghijklmnopqrstuvwxyz123456')
-            >>> AutoReply.auto_reply_to_friend(dialog_window=main_window,duration='20s',callback=reply_func2)
+            >>> AutoReply.auto_reply_to_friend(dialog_window=main_window,duration='5min',callback=reply_func)
         Returns:
             details:该聊天窗口内的新消息(文本内容),格式为{'新消息总数':x,'文本数量':x,'文件数量':x,'图片数量':x,'视频数量':x,'链接数量':x,'文本内容':x}
         '''
         duration=Tools.match_duration(duration)#将's','min','h'转换为秒
-        if duration is None:#不按照指定的时间格式输入,需要提前中断退出
-            raise TimeNotCorrectError
+        #不按照指定的时间格式输入,需要提前中断退出
+        if duration is None:raise TimeNotCorrectError
         if save_file and target_folder is None:
             target_folder=os.path.join(os.getcwd(),f'{dialog_window.window_text()}_auto_reply_to_friend聊天文件保存')
             print(f'未传入文件夹路径,文件,图片,群昵称截图将分别保存到{target_folder}内的Files,Images,Alias文件夹下\n')
@@ -140,7 +140,7 @@ class AutoReply():
         timestamp=time.strftime('%Y-%m')
         friend=dialog_window.window_text()
         chatName=dialog_window.child_window(**Texts.CurrentChatNameText)
-        if chatName.exists(timeout=0.2):friend=chatName.window_text()
+        if chatName.exists(timeout=0.1):friend=chatName.window_text()
         chatfile_folder=Tools.where_chatfile_folder()
         chatList=dialog_window.child_window(**Lists.FriendChatList)#聊天界面内存储所有信息的容器
         input_edit=dialog_window.child_window(**Edits.InputEdit)
@@ -185,6 +185,197 @@ class AutoReply():
         if save_media and media_count:Messages.save_media(friend=friend,number=media_count,target_folder=target_folder)#保存图片到target_folder/Images内
         details={'新消息总数':total,'文本数量':len(texts),'文件数量':len(files),'图片数量':image_count,'视频数量':video_count,'链接数量':link_count,'文本内容':texts}
         return details
+    
+    @staticmethod
+    def auto_reply_messages(callback:Callable[[str,str],str],duration:str,chatOnly:bool=False,maxPages:int=1,never_reply:list=[],scroll_delay:float=0.5,is_maximize:bool=None,close_weixin:bool=None)->dict:
+        '''
+        该方法用来遍历会话列表查找新消息自动回复,最大回复数量=max_pages*(8~10)
+        Args:
+            callback:新消息处理函数,入参是好友名称和当前消息
+            duration:自动回复持续时长,格式:'s','min','h'单位:s/秒,min/分,h/小时
+            chatOnly:不回复群聊只回复私聊(即使有群聊新消息也不回复)
+            maxPages:遍历会话列表页数,一页为8~10人,为0时只在可见顶部置顶会话列表中查找不滚动遍历
+            never_reply:在never_reply列表中的好友即使有新消息时也不会回复
+            scroll_delay:滚动遍历max_pages页会话列表间隔
+            is_maximize:微信界面是否全屏,默认全屏
+            close_weixin:任务结束后是否关闭微信,默认关闭
+        Examples:
+            >>> from pyweixin import AutoReply
+            >>> def reply_func(friend,newMessage):
+            >>>     if friend!='家族群':
+            >>>         if '你好' in newMessage:
+            >>>             return '你好,亲~，在的,[呲牙]'#微信emoji表情可以用[表情名称]的格式文本输入
+            >>>         if '产品A' in newMessage:
+            >>>             return '产品A是我们的旗舰产品,详情可见 https:'
+            >>>         return '不好意思,智能客服暂时未能理解您的需求,正在为您转人工服务,请稍等...'
+            >>> AutoReply.auto_reply_messages(callback=reply_func,duration='3min',maxPages=0)#maxPages为0只在顶部置顶的好友中回复,不滚动遍历,安全性高
+        Returns:
+            responded_detail:{'好友':responded_friends,'群聊':responded_groups,'未回复群聊':unresponded_groups}
+        '''
+        def sacn_for_new_messages(sessionList:ListViewWrapper)->dict:
+            new_message_dict={}
+            full_desc=weixinButton.element_info.element.GetCurrentPropertyValue(30159)
+            new_message_num=int(re.search(r'\d+',full_desc).group(0)) if re.search(r'\d+',full_desc) is not None else 0
+            if new_message_num and scorllable:#有新消息且可以滚动的时候才滚动
+                if maxPages:#maxPages设置为0，只关注顶部置顶可见的好友
+                    for _ in range(maxPages):
+                        traverse_result=traverse_session_list(sessionList)
+                        new_message_dict.update(traverse_result)
+                        sessionList.type_keys('{PGDN}',pause=scroll_delay)
+                        if sum(new_message_dict.values())>=new_message_num:
+                            break
+                    sessionList.type_keys('{HOME}',pause=scroll_delay)
+                else:#
+                    traverse_result=traverse_session_list(sessionList)
+                    new_message_dict.update(traverse_result)
+            if new_message_num and not scorllable:
+                traverse_result=traverse_session_list(sessionList)
+                new_message_dict.update(traverse_result)
+            return new_message_dict
+        
+        def traverse_session_list(sessionList:ListViewWrapper)->dict:
+            listItems=[listItem for listItem in sessionList.children(control_type='ListItem') if listItem.automation_id().replace('session_item_','') not in NeverReply
+            and muteNotifications_Lable not in listItem.window_text()]
+            listItems=[listItem for listItem in listItems if new_message_pattern.search(listItem.window_text())]
+            newMessageTips=[listItem.window_text() for listItem in listItems]
+            senders=[listItem.automation_id().replace('session_item_','') for listItem in listItems]
+            nums=[int(new_message_pattern.search(text).group(1)) for text in newMessageTips]
+            newMessages_dict=dict(zip(senders,nums))
+            return newMessages_dict
+
+        #监听并且回复右侧聊天界面
+        def reply_current_chat(initial_runtime_id):
+            is_group_chat=Tools.is_group_chat(main_window)#判断是否是群聊
+            chatList=main_window.child_window(**Main_window.FriendChatList)#聊天界面内存储所有聊天信息的消息列表
+            #判断好友类型
+            if is_group_chat:
+                friend_type='群聊'
+            if not is_group_chat:
+                friend_type='好友' if chat_history_button.exists(timeout=0.1) else '非好友'   
+            if friend_type!='非好友' and chatList.children(control_type='ListItem'):
+                #自动回复逻辑
+                current_chat_name=main_window.child_window(**Texts.CurrentChatNameText).window_text()#主界面右半部分左上角的聊天对象文本
+                if friend_type=='好友' and current_chat_name not in NeverReply:
+                    latest_message=chatList.children(control_type='ListItem')[-1]#最新的消息
+                    runtime_id=latest_message.element_info.runtime_id
+                    if runtime_id!=initial_runtime_id and not Tools.is_my_bubble(latest_message.capture_as_image()):#不等于刚打开页面时的那条消息且发送者是对方
+                        input_edit.click_input()
+                        reply_content=callback(current_chat_name,latest_message.window_text())
+                        input_edit.set_text(reply_content)
+                        pyautogui.hotkey('alt','s',_pause=False)
+                        responded_friends.append(current_chat_name)
+                if friend_type=='群聊' and current_chat_name not in NeverReply:
+                    latest_message=chatList.children(control_type='ListItem')[-1]#最新的消息
+                    runtime_id=latest_message.element_info.runtime_id
+                    if runtime_id!=initial_runtime_id and not Tools.is_my_bubble(latest_message.capture_as_image()):
+                        if not chatOnly:
+                            input_edit.click_input()
+                            reply_content=callback(current_chat_name,latest_message.window_text())
+                            input_edit.set_text(reply_content)
+                            pyautogui.hotkey('alt','s',_pause=False)
+                            responded_friends.append(current_chat_name)
+                            responded_groups.append(current_chat_name)
+                        if chatOnly:#设置了仅回复私聊
+                            unresponded_groups.append(current_chat_name)
+                initial_runtime_id=chatList.children(control_type='ListItem')[-1].element_info.runtime_id
+            return initial_runtime_id
+
+        #用来回复在会话列表中找到的头顶有红色数字新消息提示的好友
+        def reply_other_chat(friend:str):
+            Navigator.find_friend_in_SessionList(friend=friend,search_pages=maxPages+1,is_maximize=is_maximize)
+            is_group_chat=Tools.is_group_chat(main_window)#判断是否是群聊
+            chatList=main_window.child_window(**Main_window.FriendChatList)
+            if chatList.children(control_type='ListItem'):#有聊天记录时才判断然后回复,一片空白什么也不用做
+                latest_message=chatList.children(control_type='ListItem')[-1]
+                #判断好友类型
+                if is_group_chat:
+                    friend_type='群聊'
+                if not is_group_chat:
+                    friend_type='好友' if chat_history_button.exists(timeout=0.1) else '非好友'                
+                if friend_type=='好友':
+                    current_chat_name=main_window.child_window(**Texts.CurrentChatNameText).window_text()
+                    if current_chat_name not in never_reply:
+                        input_edit.click_input()
+                        reply_content=callback(current_chat_name,latest_message.window_text())
+                        input_edit.set_text(reply_content)
+                        pyautogui.hotkey('alt','s',_pause=False)
+                        responded_friends.append(friend) 
+                if friend_type=='群聊':
+                    current_chat_name=main_window.child_window(**Texts.CurrentChatNameText).window_text()
+                    if not chatOnly and current_chat_name not in never_reply:
+                        input_edit.click_input()
+                        reply_content=callback(current_chat_name,latest_message.window_text())
+                        input_edit.set_text(reply_content)
+                        pyautogui.hotkey('alt','s',_pause=False)
+                        responded_friends.append(friend) 
+                        responded_groups.append(friend)
+                    if current_chat_name not in never_reply and chatOnly:#设置了仅回复私聊
+                        unresponded_groups.append(friend)
+
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+        has_newMessage=True
+        NeverReply=Special_Labels.NeverReply
+        responded_friends=[]
+        responded_groups=[]
+        unresponded_groups=[]
+        NeverReply.extend(never_reply)#所有不需要回复的对象合并在一起
+        duration=Tools.match_duration(duration)
+        if not duration:raise TimeNotCorrectError
+        main_window=Navigator.open_weixin(is_maximize=is_maximize)
+        weixinButton=main_window.child_window(**Buttons.WeixinButton)
+        weixinButton.click_input()
+        muteNotifications_Lable=Special_Labels.MuteNotifications
+        new_message_pattern=Regex_Patterns.newMessage_pattern
+        sessionList=main_window.child_window(**Main_window.SessionList)#左侧的会话列表
+        input_edit=main_window.child_window(**Edits.CurrentChatEdit)
+        chat_history_button=main_window.child_window(**Buttons.ChatHistoryButton)
+        if chat_history_button.exists(timeout=0.1):#打开后的主界面是好友
+            chatList=main_window.child_window(**Main_window.FriendChatList)#有聊天记录
+            if chatList.children(control_type='ListItem'):
+                initial_runtime_id=chatList.children(control_type='ListItem')[-1].element_info.runtime_id#刚打开聊天界面时的最后一条消息的runtime_id
+            else:#无聊天记录
+                initial_runtime_id=0
+        else:#打开后的界面不是好友可能是公众号或其他什么界面
+            initial_runtime_id=0
+        full_desc=weixinButton.element_info.element.GetCurrentPropertyValue(30159)
+        if re.search(r'\d+',full_desc) is not None:
+            has_newMessage=True
+            initial_newMessage_num=int(re.search(r'\d+',full_desc).group(0))
+        else:
+            has_newMessage=False
+            initial_newMessage_num=0
+        scorllable=Tools.is_scrollable(sessionList)#只调用一次Scrollable函数来判断会话列表是否可以滚动
+        if scorllable:sessionList.type_keys('{HOME}')
+        new_message_dict=sacn_for_new_messages(sessionList) if has_newMessage else {}
+        end_timestamp=time.time()+duration
+        SystemSettings.open_listening_mode()#开个不息屏,不然时间长息屏了就难办了
+        #轮询自动回复，只干两件事儿，一边在会话列表查找新消息逐个回复，一边盯着当前聊天界面回复
+        while time.time()<end_timestamp:
+            if new_message_dict:#如果有新消息就挨个回复
+                for sender,num in new_message_dict.items():reply_other_chat(sender)
+                new_message_dict.clear()#回复完清空记录
+            #盯着当前聊天界面
+            initial_runtime_id=reply_current_chat(initial_runtime_id)
+            full_desc=weixinButton.element_info.element.GetCurrentPropertyValue(30159)
+            if re.search(r'\d+',full_desc) is not None:
+                newMessage_num=int(re.search(r'\d+',full_desc).group(0))
+            else:
+                newMessage_num=0
+            has_newMessage=newMessage_num-initial_newMessage_num#这个是关键，得判断用不用扫描，如果没变化不用扫描
+            if has_newMessage:
+                new_message_dict=sacn_for_new_messages(sessionList)
+                initial_newMessage_num=newMessage_num
+        SystemSettings.close_listening_mode()#最后把不息屏关掉
+        #回复明细
+        responded_friends=list(dict.fromkeys(responded_friends))
+        responded_groups=list(dict.fromkeys(responded_groups))
+        unresponded_groups=list(dict.fromkeys(unresponded_groups))
+        responded_detail={'好友':responded_friends,'群聊':responded_groups,'未回复群聊':unresponded_groups}
+        if close_weixin:main_window.close()
+        return responded_detail
     
 class Call():
     @staticmethod
@@ -310,11 +501,10 @@ class Collections():
         note_window.close()
 
     @staticmethod
-    def save_media(target_folder:str=None,number:int=None,is_maximize:bool=None,close_weixin:bool=None)->None:
-        '''该方法用来保存收藏内的图片与视频
+    def save_media(target_folder:str=None,number:int=None,scroll_delay:float=0.15,load_delay:float=0.5,is_maximize:bool=None,close_weixin:bool=None)->None:
+        '''该方法用来保存收藏内的图片与视频(图片与视频的ui与其他项目并不完全相同,实现难度较大,建议先选择并设为标签后导出不然无法获取时间)
             Args:
             开发ing
-        
         '''
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
@@ -323,78 +513,212 @@ class Collections():
         if target_folder is not None and not os.path.isdir(target_folder):
             raise NotFolderError(f'所选路径不是文件夹!无法保存聊天记录,请重新选择!')
         if target_folder is None:
-            target_folder=os.path.join(os.getcwd(),'save_media收藏图片视频保存',friend)
+            target_folder=os.path.join(os.getcwd(),'save_media收藏图片视频保存')
             os.makedirs(name=target_folder,exist_ok=True)
             print(f'未传入文件夹路径,聊天图片或视频将保存至 {target_folder}')
-        pass
-        # main_window=Navigator.open_collections(is_maximize=is_maximize)
-        # media_item=main_window.child_window(**ListItems.)
-        # copylink_item=main_window.child_window(**MenuItems.CopyLinkMenuItem)
-        # if close_weixin:main_window.close
+
+        main_window=Navigator.open_collections(is_maximize=is_maximize)
+        media_listitem=main_window.child_window(**ListItems.MediaListItem)
+        if not media_listitem.exists(timeout=0.2):
+            main_window.close()
+            return []
+        saved_details=[]
+        MediaGroup=main_window.child_window(control_type='Group',auto_id='fav_photo_list')
+        mutltiselect_item=main_window.child_window(**MenuItems.SelectMenuItem)
+        MediaGroup.type_keys('{HOME}')
+        container=MediaGroup.children()[0].children()[0]
+        visible_items=[listitem for listitem in container.children() if listitem.is_visible() and listitem.window_text()!=""]
+        visible_items[-1].right_click_input()
+        mutltiselect_item.click_input()
+
+    
+    @staticmethod
+    def save_files(number:int,target_folder:str=None,scroll_delay:float=0.15,load_delay:float=0.5,is_maximize:bool=None,close_weixin:bool=None)->list[tuple]:
+        '''该方法用来保存收藏内的文件
+        Args:
+            target_folder:导出收藏文件的文件夹
+            number:需要导出的笔记数量
+            scroll_delay:滚动暂停时间,默认0.15s
+            load_delay:等待复制文件到剪贴板的时间,默认0.5s
+        Returns:
+            saved_details:[(6月2日,xxx.docx),(2021年6月2日,yyy.ppt)...]
+        '''
+        def save_file(FileListiem:ListItemWrapper):
+            FileListiem.right_click_input()
+            copy_item.click_input()
+            filename=SystemSettings.save_pasted_file(target_folder)
+            time.sleep(load_delay)#必须等待一会儿,不然剪贴板获取不到内容
+            text=FileListiem.window_text()
+            timestamp=Fav_Timestamp_pattern.findall(text)[-1]
+            return filename,timestamp
+        
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+        if target_folder is not None and not os.path.isdir(target_folder):
+            raise NotFolderError(f'所选路径不是文件夹!无法保存聊天记录,请重新选择!')
+        if target_folder is None:
+            target_folder=os.path.join(os.getcwd(),'save_files收藏文件保存')
+            os.makedirs(name=target_folder,exist_ok=True)
+            print(f'未传入文件夹路径,文件将保存至 {target_folder}')
+
+        saved_num=0
+        Fav_Timestamp_pattern=Regex_Patterns.Fav_Timestamp_pattern
+        main_window=Navigator.open_collections(is_maximize=is_maximize)
+        files_listitem=main_window.child_window(**ListItems.FilesListItem)
+        copy_item=main_window.child_window(**MenuItems.CopyMenuItem)
+        if not files_listitem.exists(timeout=0.3):
+            main_window.close()
+            return []
+        saved_details=[]
+        FilesList=main_window.child_window(**Lists.CollectionRightList)
+        FilesList.type_keys('{HOME}')
+        while saved_num<number:
+            FilesList.type_keys('{DOWN}',pause=scroll_delay)
+            selected=[item for item in FilesList.children(control_type='ListItem') if item.has_keyboard_focus()]
+            if selected:
+                saved_num+=1
+                filename,timestamp=save_file(selected[0])
+                saved_details.append((timestamp,filename)) 
+            if not selected:
+                break
+        FilesList.type_keys('{HOME}')
+        if close_weixin:main_window.close
+        return saved_details
+        
+    @staticmethod
+    def save_notes(number:int,target_folder:str=None,scroll_delay:float=0.1,load_delay:float=1.5,is_maximize:bool=None,close_weixin:bool=None)->list[str]:
+        '''该方法用来将收藏内的笔记导出为MarkDown
+        Args:
+            number:需要导出的笔记数量
+            target_folder:导出markdown的文件夹
+            scroll_delay:滚动暂停时间,默认0.15s
+            load_delay:等待点击笔记后笔记窗口弹出的时间,默认1.5s
+        Returns:
+            saved_detail:['今天','昨天','6月15日',...],微信笔记的保存时间
+        '''
+        def extract_info(NoteListiem:ListItemWrapper):
+            text=NoteListiem.window_text()
+            timestamp=Fav_Timestamp_pattern.findall(text)[-1]
+            return timestamp
+    
+        def export_favoriteTemp(NoteListiem:ListItemWrapper):
+            output_dir=os.path.join(target_folder,str(saved_num))
+            NoteListiem.double_click_input()
+            try:
+                note_window.wait(wait_for='ready',timeout=load_delay)
+                files=[os.path.join(favoriteTemp_folder,item) for item in os.listdir(favoriteTemp_folder)]
+                #清空output_dir是因为如果内部还有其他的htm无法判断哪个是微信笔记缓存里的htm
+                SystemSettings.clear_folder_with_powershell(output_dir)
+                SystemSettings.copy_files(files,output_dir)#迁移到本地来
+                os.makedirs(output_dir,exist_ok=True)
+                #清空微信收藏缓存文件夹,为了保证每次点击一个笔记只会把当前笔记内的所有东西保存到temp里
+                #如果不清空随着点击打开笔记的次数增加，temp里的内容会增加,有多个htm也无法准确导出
+                SystemSettings.clear_folder_with_powershell(favoriteTemp_folder)#必须用powershell命令才能删除,直接os.remove或shutil.rmtree都会遇到permission error
+                remove_thumbs(output_dir)#去掉缩略图,微信缓存的缩略图tmd连个_t的后缀都不加根本无法直接区分,必须分组匹配比大小再删
+                note_window.close()
+            except Exception:
+                pass
+            return output_dir
+        
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+        if target_folder is not None and not os.path.isdir(target_folder):
+            raise NotFolderError(f'所选路径不是文件夹!无法保存聊天记录,请重新选择!')
+        if target_folder is None:
+            target_folder=os.path.join(os.getcwd(),'save_notes收藏笔记保存')
+            os.makedirs(name=target_folder,exist_ok=True)
+            print(f'未传入文件夹路径,笔记内容将保存至 {target_folder}')
+       
+        main_window=Navigator.open_collections(is_maximize=is_maximize)
+        note_window=desktop.window(**Windows.NoteWindow)
+        note_listitem=main_window.child_window(**ListItems.NotesListItem)
+        if not note_listitem.exists(timeout=0.3):
+            main_window.close()
+            return []
+        saved_num=0
+        saved_details=[]
+        from .Notes2MD import remove_thumbs,export_weixin_note
+        favoriteTemp_folder=Tools.where_favoriteTemp_folder(False)
+        Fav_Timestamp_pattern=Regex_Patterns.Fav_Timestamp_pattern
+        SystemSettings.clear_folder_with_powershell(favoriteTemp_folder)
+        NotesList=main_window.child_window(**Lists.CollectionRightList)
+        mouse.click(coords=MousePos(main_window).ActiveNoteListPos)
+        NotesList.type_keys('{HOME}')
+        while saved_num<number:
+            NotesList.type_keys('{DOWN}',pause=scroll_delay)
+            selected=[item for item in NotesList.children(control_type='ListItem') if item.has_keyboard_focus()]
+            if selected:
+                saved_num+=1
+                timestamp=extract_info(selected[0])
+                saved_details.append(timestamp) 
+                output_dir=export_favoriteTemp(selected[0])
+                export_weixin_note(output_dir,md_name=f'{timestamp}.md')
+            if not selected:
+                break
+        NotesList.type_keys('{HOME}')
+        if close_weixin:main_window.close
+        return saved_details
 
     @staticmethod
-    def cardLink_to_url(number:int,delete:bool=False,delay:float=0.5,is_maximize:bool=None,close_weixin:bool=None)->dict[str,str]:
-        '''该方法用来获取收藏界面内指定数量卡片链接的url
+    def cardLink_to_url(number:int,delete:bool=False,scroll_delay:float=0.15,load_delay:float=0.3,is_maximize:bool=None,close_weixin:bool=None)->dict[str,str]:
+        '''该方法用来获取收藏界面内指定数量的卡片链接的url,返回值为字典
         Args:
             number:卡片链接的数量
             delete:复制链接后是否将该条卡片链接移除掉
-            delay:复制链接后的等待时间,默认为0.5s,不要设置太低
+            scroll_delay:滚动暂停时间,默认0.15s
+            load_delay:复制链接后的等待时间,默认为0.3s,不要设置太低,建议在0.3~0.5s左右。
             is_maximize:微信界面是否全屏,默认全屏
             close_weixin:任务结束后是否关闭微信,默认关闭
+        Returns:
+            links:{'https//':'卡片标题',...},url做key不可能重复,标题就不一定了
         '''
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
 
-        def copy_url(listitem):
-            y=listitem.rectangle().mid_point().y#竖直方向上居中,水平方向上靠右
-            x=listitem.rectangle().right-offset
-            mouse.right_click(coords=(x,y))
+        def copy_url(LinkListitem:ListItemWrapper):
+            LinkListitem.right_click_input()
             copylink_item.click_input()
             win32clipboard.OpenClipboard()
             url=win32clipboard.GetClipboardData(win32clipboard.CF_UNICODETEXT)
             win32clipboard.CloseClipboard()
             if delete:
-                mouse.right_click(coords=(x,y))
+                LinkListitem.right_click_input()
                 deletelink_item.click_input()
                 delete_button.click_input()
-            time.sleep(delay)#0.3是极限,等待复制到剪贴板标签消失
+            time.sleep(load_delay)#0.3是极限,等待复制到剪贴板
             return url
-        links=dict()
-        offset=120#固定的offset,右键都在右边点
+       
         timestamp_pattern=Regex_Patterns.Article_Timestamp_pattern
         main_window=Navigator.open_collections(is_maximize=is_maximize)
+        link_item=main_window.child_window(**ListItems.LinkListItem)
+        if not link_item.exists(timeout=0.3):
+            main_window.close()
+            return {}
+        links={}
         copylink_item=main_window.child_window(**MenuItems.CopyLinkMenuItem)
         deletelink_item=main_window.child_window(**MenuItems.DeleteMenuItem)
         delete_button=main_window.child_window(**Buttons.DeleteButton)
-        link_item=main_window.child_window(**ListItems.LinkListItem)
-        if not link_item.exists(timeout=0.1):
-            return links
         link_item.double_click_input()
-        link_list=main_window.child_window(**Lists.LinkList)
-        link_list.type_keys('{END}')
-        last_item=link_list.children(control_type='ListItem')[-2].window_text()
-        link_list.type_keys('{HOME}')
-        link_list.type_keys('{DOWN}')
-        selected_item=[listitem for listitem in link_list.children(control_type='ListItem') if listitem.has_keyboard_focus() and listitem.window_text()!=''][0]
-        CardLinkPos=MousePos(selected_item).CardLinkPos
-        while selected_item.window_text()!=last_item:#while循环的结束条件是到达底部
-            url=copy_url(selected_item)
-            title=selected_item.window_text()[2:]#前两个字是固定的,为链接二字,后边的文本才是需要的
-            title=timestamp_pattern.sub('',title)#替换掉时间戳
-            links[url]=title
-            mouse.click(coords=CardLinkPos)
-            link_list.type_keys('{DOWN}',pause=0.15)
-            selected_item=[listitem for listitem in link_list.children(control_type='ListItem') if listitem.has_keyboard_focus() and listitem.window_text()!=''][0]
+        LinkList=main_window.child_window(**Lists.CollectionRightList)
+        LinkList.type_keys('{HOME}')
+        while True:
+            LinkList.type_keys('{DOWN}',pause=scroll_delay)
+            selected=[listitem for listitem in LinkList.children(control_type='ListItem') if listitem.has_keyboard_focus() and listitem.window_text()!='']
+            if selected:
+                title=timestamp_pattern.sub('',selected[0].window_text()[2:])#前两个字是固定的,为链接二字,后边的文本才是需要的替换掉时间戳
+                url=copy_url(selected[0])
+                links[url]=title
+            if not selected:
+                break
             if len(links)>=number:
                 break
-        if selected_item.window_text()==last_item:#已经到达底部需要将最后一条也记录一下
-            last_item=link_list.children(control_type='ListItem')[-1]
-            last_url=copy_url(last_item)
-            last_title=last_item.window_text()[2:]#前两个字是固定的,为链接二字,后边的文本才是需要的
-            last_title=timestamp_pattern.sub('',title)#替换掉时间戳
-            links[last_url]=last_title
+        LinkList.type_keys('{HOME}')
         if close_weixin:main_window.close()
         return links
     
@@ -686,7 +1010,7 @@ class Contacts():
         area=(contact_custom.rectangle().mid_point().x,contact_custom.rectangle().mid_point().y)
         Tools.collapse_contacts(main_window,contact_list)
         official_item=main_window.child_window(**ListItems.OfficialAccountsListItem)
-        if not official_item.exists(timeout=0.1):
+        if not official_item.exists(timeout=0.2):
             print(f'你没有关注过任何公众号,无法获取公众号信息！')
         else:
             official_item.click_input()
@@ -2490,8 +2814,7 @@ class Moments():
             #保存截图
             image_obj=content_listitem.capture_as_image()
             if image_obj is not None:image_obj.save(capture_path)
-            with open(content_path,'w',encoding='utf-8') as f:
-                f.write(content) if content else f.write(f'无文本内容')
+            with open(content_path,'w',encoding='utf-8') as f:f.write(content) if content else f.write(f'无文本内容')
             PostImagePos=MousePos(content_listitem).PostImagePos
             #保存视频
             if video_num: 
@@ -2564,6 +2887,10 @@ class Moments():
             os.makedirs(target_folder,exist_ok=True)
         posts=[]
         recorded_num=0
+        month_days=Special_Labels.MonthDays
+        week_days=Special_Labels.WeekDays
+        yesterday=Special_Labels.Yesterday
+        days_ago=Special_Labels.DaysAgo
         if save_detail:with_name=True
         illegal_chars=r'[\\/*?:"<>|]'#windows文件系统中的非法字符,好友名字中如果有需要替换
         sns_timestamp_pattern=Regex_Patterns.Sns_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳
@@ -2575,13 +2902,10 @@ class Moments():
         image_preview_window=desktop.window(**Windows.ImagePreviewWindow)
         profile_window=desktop.window(**Windows.PopUpProfileWindow)
         moments_list=moments_window.child_window(**Lists.MomentsList)
-        moments_list.type_keys('{HOME}')
         #微信朋友圈当天发布时间是xx分钟前,xx小时前,一周内的时间在7天内,且包含当天时间,同理一月内的时间在30天内,包含本周的时间
-        month_days=Special_Labels.MonthDays
-        week_days=Special_Labels.WeekDays
-        yesterday=Special_Labels.Yesterday
-        days_ago=Special_Labels.DaysAgo
-        time.sleep(2)#等待一下朋友圈自动刷新,不然获取的可能是过去的内容
+        moments_window.child_window(**Buttons.RefreshButton).click_input()
+        time.sleep(1.5)#等待一下朋友圈自动刷新,不然获取的可能是过去的内容
+        moments_list.type_keys('{HOME}')
         if moments_list.children(control_type='ListItem'):
             while True:
                 listitems=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.class_name() not in not_contents]
@@ -2602,7 +2926,7 @@ class Moments():
                         break
                     if recent=='Month' and post_time not in month_days:#当前的朋友圈内容发布时间不在一个月的时间内
                         break
-                moments_list.type_keys('{DOWN}',pause=0.1)
+                moments_list.type_keys('{DOWN}',pause=0.2)
             if recent=='Today':
                 posts=[post for post in posts if  yesterday not in post.get('发布时间')]
             if recent=='Yesterday':
@@ -2658,7 +2982,7 @@ class Moments():
             content=re.sub(r'^\s+','',content)
             return friend,content,photo_num,video_num,post_time
         
-        def like(content_listitem:ListItemWrapper):
+        def click_like_button(content_listitem:ListItemWrapper):
             #点赞操作
             # mouse.move(coords=center_point)
             rectangle=content_listitem.rectangle()
@@ -2678,7 +3002,7 @@ class Moments():
                 SystemSettings.copy_text_to_clipboard(text=reply)
                 pyautogui.hotkey('ctrl','v')
                 rectangle=comment_listitem.rectangle()
-                ColorMatch.click_green_send_button(rectangle,x_offset=70,y_offset=42)
+                ColorMatch.click_green_send_button(rectangle,x_offset=80,y_offset=32)
 
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
@@ -2697,20 +3021,21 @@ class Moments():
         'mmui::TimelineAdBaseCardImageCell','mmui::TimelineAdVideoCell','mmui::TimelineAdNormalCell']#评论区，余下x条,广告,这三种不需要
         moments_window=Navigator.open_moments(is_maximize=is_maximize,close_weixin=close_weixin)
         Tools.cancel_pin(moments_window)
-        profile_window=desktop.window(**Windows.PopUpProfileWindow)
-        time.sleep(2)#等待刷新
+        moments_window.child_window(**Buttons.RefreshButton).click_input()
+        time.sleep(1.5)#等待刷新
         like_button=moments_window.child_window(**Buttons.LikeButton)
         comment_button=moments_window.child_window(**Buttons.CommentButton)
         moments_list=moments_window.child_window(**Lists.MomentsList)
+        profile_window=desktop.window(**Windows.PopUpProfileWindow)
         moments_list.type_keys('{HOME}')
         if moments_list.children(control_type='ListItem'):
             while True:
-                moments_list.type_keys('{DOWN}',pause=0.1)
+                moments_list.type_keys('{DOWN}',pause=0.2)
                 selected=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
                 if selected and selected[0].class_name() not in not_contents:
                     friend,content,photo_num,video_num,post_time=parse_post(selected[0])
                     posts.append({'好友':friend,'内容':content,'图片数量':photo_num,'视频数量':video_num,'发布时间':post_time})
-                    like(selected[0])
+                    click_like_button(selected[0])
                     liked_num+=1
                     if callback is not None:
                         comment_listitem=Tools.get_next_item(moments_list,selected[0])
@@ -2758,8 +3083,7 @@ class Moments():
             #保存截图
             sns_detail_list.children(control_type='ListItem')[0].capture_as_image().save(capture_path)
             #保存内容
-            with open(content_path,'w',encoding='utf-8') as f:
-                f.write(content) if content else f.write(f'无文本内容')
+            with open(content_path,'w',encoding='utf-8') as f:f.write(content) if content else f.write(f'无文本内容')
             #保存视频
             if video_num: 
                 content_listitem=sns_detail_list.children(control_type='ListItem',title='')[0]
@@ -2852,7 +3176,7 @@ class Moments():
         contents=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.class_name() not in not_contents]
         if contents:
             while True:
-                moments_list.type_keys('{DOWN}')
+                moments_list.type_keys('{DOWN}',pause=0.2)
                 selected=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
                 if selected and selected[0].class_name() not in not_contents:
                     selected[0].click_input()
@@ -2913,7 +3237,7 @@ class Moments():
             content=re.sub(r'^\s+','',content)
             return content,photo_num,video_num,post_time
 
-        def like(listview:ListViewWrapper,content_listitem:ListItemWrapper):
+        def click_like_button(listview:ListViewWrapper,content_listitem:ListItemWrapper):
             #点赞操作
             center_point=(listview.rectangle().mid_point().x,listview.rectangle().mid_point().y)
             mouse.move(coords=center_point)
@@ -2952,19 +3276,19 @@ class Moments():
         sns_detail_list=moments_window.child_window(**Lists.SnsDetailList)
         like_button=moments_window.child_window(**Buttons.LikeButton)
         comment_button=moments_window.child_window(**Buttons.CommentButton)
-        moments_list.type_keys('{END}')
-        moments_list.type_keys('{HOME}')
+        moments_list.type_keys('{END}',pause=0.2)
+        moments_list.type_keys('{HOME}',pause=0.2)
         contents=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.class_name() not in not_contents]
         if contents:
             while True:
-                moments_list.type_keys('{DOWN}')
+                moments_list.type_keys('{DOWN}',pause=0.2)
                 selected=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
                 if selected and selected[0].class_name() not in not_contents:
                     selected[0].click_input()
                     content_listitem=sns_detail_list.children(control_type='ListItem')[0]
                     content,photo_num,video_num,post_time=parse_friend_post(content_listitem)
                     posts.append({'内容':content,'图片数量':photo_num,'视频数量':video_num,'发布时间':post_time})
-                    like(sns_detail_list,content_listitem)
+                    click_like_button(sns_detail_list,content_listitem)
                     if callback is not None:
                         comment(sns_detail_list,content_listitem,content)
                     liked_num+=1
@@ -3475,13 +3799,14 @@ class Messages():
         return sessions
 
     @staticmethod
-    def pull_messages(friend:str,number:int,is_json:bool=False,groupMembers:list=[],search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
+    def pull_messages(friend:str,number:int,is_json:bool=False,myName:str=None,groupMembers:list=[],search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
         '''
         该方法用来从聊天界面向上滚动获取聊天消息
         Args:
             friend:好友或群聊备注
             number:获取的消息数量
             is_json:返回结果是否为json字符串,便于导出
+            myName:个人昵称
             groupMembers:friend对应的群成员列表(可提前通过Contacts.get_groupMembers_info导出保存至本地),如果friend是群聊且传入了该参数则无需遍历二次
             search_pages:打开好友聊天窗口时在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
             is_maximize:微信界面是否全屏，默认不全屏
@@ -3510,7 +3835,7 @@ class Messages():
                 return messages
             else:
                 is_group_chat=Tools.is_group_chat(main_window)
-                if not is_group_chat:myName=Contacts.check_my_info(close_weixin=False).get('昵称')
+                if not is_group_chat and myName is None:myName=Contacts.check_my_info(close_weixin=False).get('昵称')
                 details_with_name=traverse_message(main_window,select=True,number=number)
                 if not is_group_chat:
                     contents,senders,message_tpyes=parse_messages(friend,myName,details_with_name)
@@ -3859,7 +4184,7 @@ class Monitor():
             >>> friends=['Hello,Mr Crab','Pywechat测试群']
             >>> durations=['1min']*len(friends)
             >>> for friend in friends:
-            >>>    dialog_window=Navigator.open_seperate_dialog_window(friend=friend,window_minimize=True,close_weixin=True)
+            >>>    dialog_window=Navigator.open_seperate_dialog_window(friend=friend,select=True,window_minimize=True,close_weixin=True)
             >>>    dialog_windows.append(dialog_window)
             >>> with ThreadPoolExecutor() as pool:
             >>>    results=pool.map(lambda args: Monitor.listen_on_chat(*args),list(zip(dialog_windows,durations)))
@@ -4017,49 +4342,193 @@ class Monitor():
         return details
 
     @staticmethod
-    def grab_red_packet(dialog_window:WindowSpecification,duration:str,close_dialog_window:bool=True)->int:
+    def listen_on_sessionList(duration:str,maxPages:int=0,scroll_delay:float=0.5,is_maximize:bool=None,close_weixin:bool=None)->dict:
         '''
-        该方法用来点击领取好友发送的红包
+        该方法用来监听会话列表中新消息对应的好友及数量,最大查找数量=maxPages*(8~10)
         Args:
-            dialog_window:好友单独的聊天窗口,可使用Navigator内的方法打开
-            duraiton:监听持续时长,监听消息持续时长,格式:'s','min','h'单位:s/秒,min/分,h/小时
-            close_dialog_window:是否关闭dialog_window
+            duration:监听持续时长,格式:'s','min','h'单位:s/秒,min/分,h/小时
+            maxPages:遍历会话列表页数,一页为8~10人,为0时只在可见顶部置顶会话列表中查找不滚动遍历
+            scroll_delay:滚动遍历maxPages页会话列表间隔
+            is_maximize:微信界面是否全屏,默认全屏
+            close_weixin:任务结束后是否关闭微信,默认关闭
         Returns:
-            red_packet_count:该聊天窗口内抢到红包个数
+            newMessageDict:{'好友A':10,'好友B':11,...}
         '''
-        def open_redpacket(red_packet):
-            red_packet.click_input()
-            open_button=red_envelop_view.child_window(**Buttons.OpenButton)
-            open_button.click_input()
-            time.sleep(1)
-            red_envelop_detail.close()
+        def traverse_session_list(sessionList:ListViewWrapper)->dict:
+            '''遍历会话列表内的lisitem获取新消息'''
+            listItems=[listItem for listItem in sessionList.children(control_type='ListItem') if listItem.automation_id().replace('session_item_','') not in NeverReply
+            and muteNotifications_Lable not in listItem.window_text()]
+            listItems=[listItem for listItem in listItems if new_message_pattern.search(listItem.window_text())]
+            newMessageTips=[listItem.window_text() for listItem in listItems]
+            senders=[listItem.automation_id().replace('session_item_','') for listItem in listItems]
+            nums=[int(new_message_pattern.search(text).group(1)) for text in newMessageTips]
+            newMessages_dict=dict(zip(senders,nums))
+            return newMessages_dict
         
-        duration=Tools.match_duration(duration)#将's','min','h'转换为秒
-        if not duration:#不按照指定的时间格式输入,需要提前中断退出
-            raise TimeNotCorrectError
-        red_packet_count=0
-        red_packet_label=Special_Labels.RedPacket
-        chatList=dialog_window.child_window(**Lists.FriendChatList)#聊天界面内存储所有信息的容器
-        chatList.type_keys('{END}')
-        red_envelop_view=dialog_window.child_window(class_name='mmui::PayRedEnvelopeInfoView',title='',control_type='Group')#微信红包点击后弹出的界面
-        red_envelop_detail=desktop.window(class_name='mmui::PayRedEnvelopDetailWindow',control_type='Window')
-        initial_message=chatList.children(control_type='ListItem')[-1]#刚打开聊天界面时的最后一条消息的listitem
-        initial_runtime_id=initial_message.element_info.runtime_id
-        end_timestamp=time.time()+duration#根据秒数计算截止时间
-        SystemSettings.open_listening_mode(volume=False)
+        def sacn_for_new_messages(sessionList:ListViewWrapper)->dict:
+            '''扫描会话列表内的新消息,返回{'小号':3,'A群':4,'B群':5}这样的新消息列表'''
+            new_message_dict={}
+            full_desc=weixinButton.element_info.element.GetCurrentPropertyValue(30159)
+            new_message_num=int(re.search(r'\d+',full_desc).group(0)) if re.search(r'\d+',full_desc) is not None else 0
+            if new_message_num and scorllable:#有新消息且可以滚动的时候才滚动
+                if maxPages:#max_pages设置为0，只关注顶部置顶可见的好友
+                    for _ in range(maxPages):
+                        traverse_result=traverse_session_list(sessionList)
+                        new_message_dict.update(traverse_result)
+                        sessionList.type_keys('{PGDN}',pause=scroll_delay)
+                        if sum(new_message_dict.values())>=new_message_num:
+                            break
+                    sessionList.type_keys('{HOME}',pause=scroll_delay)
+                else:#
+                    traverse_result=traverse_session_list(sessionList)
+                    new_message_dict.update(traverse_result)
+            if new_message_num and not scorllable:
+                traverse_result=traverse_session_list(sessionList)
+                new_message_dict.update(traverse_result)
+            return new_message_dict
+        
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+        Navigator.open_dialog_window(friend='File Transfer')#打开到文件传输助手
+        newMessageDict={}
+        NeverReply=Special_Labels.NeverReply#不回复的对象,这里监听时也同样不去监听
+        duration=Tools.match_duration(duration)
+        if not duration:raise TimeNotCorrectError
+        main_window=Navigator.open_weixin(is_maximize=is_maximize)
+        weixinButton=main_window.child_window(**Buttons.WeixinButton)
+        weixinButton.click_input()
+        muteNotifications_Lable=Special_Labels.MuteNotifications
+        new_message_pattern=Regex_Patterns.newMessage_pattern
+        sessionList=main_window.child_window(**Main_window.SessionList)#左侧的会话列表
+        full_desc=weixinButton.element_info.element.GetCurrentPropertyValue(30159)
+        if re.search(r'\d+',full_desc) is not None:
+            has_newMessage=True
+            initial_newMessage_num=int(re.search(r'\d+',full_desc).group(0))
+        else:
+            has_newMessage=False
+            initial_newMessage_num=0
+        scorllable=Tools.is_scrollable(sessionList)#只调用一次Scrollable函数来判断会话列表是否可以滚动
+        if scorllable:sessionList.type_keys('{HOME}')
+        if has_newMessage:
+            new_message_dict=sacn_for_new_messages(sessionList)
+            newMessageDict.update(new_message_dict)
+        end_timestamp=time.time()+duration
+        SystemSettings.open_listening_mode()#开个不息屏,不然时间长息屏了就难办了
+        #轮询监听会话列表
         while time.time()<end_timestamp:
-            newMessage=chatList.children(control_type='ListItem')[-1]
-            text=newMessage.window_text()
-            class_name=newMessage.class_name()
-            runtime_id=newMessage.element_info.runtime_id
-            if runtime_id!=initial_runtime_id and red_packet_label in text and class_name=='mmui::ChatBubbleItemView': 
-                open_redpacket(newMessage)
-                red_packet_count+=1
-                initial_runtime_id=runtime_id
-        SystemSettings.close_listening_mode()
-        if close_dialog_window:dialog_window.close()
-        return red_packet_count
+            full_desc=weixinButton.element_info.element.GetCurrentPropertyValue(30159)
+            if re.search(r'\d+',full_desc) is not None:
+                newMessage_num=int(re.search(r'\d+',full_desc).group(0))
+            else:
+                newMessage_num=0
+            #新消息增量
+            has_newMessage=newMessage_num-initial_newMessage_num#这个是关键，得判断用不用扫描，如果没变化不用扫描
+            if has_newMessage:
+                new_message_dict=sacn_for_new_messages(sessionList)
+                initial_newMessage_num=newMessage_num
+                newMessageDict.update(new_message_dict)
+        SystemSettings.close_listening_mode()#最后把不息屏关掉
+        if close_weixin:main_window.close()
+        return newMessageDict
 
+    @staticmethod
+    def listen_on_newMessages(duration:str,maxPages:int=0,scroll_delay:float=0.5,is_maximize:bool=None,close_weixin:bool=None)->dict:
+        '''
+        该方法用来遍历会话列表监听新消息,最大查找数量=maxPages*(8~10)
+        Args:
+            duration:监听持续时长,格式:'s','min','h'单位:s/秒,min/分,h/小时
+            maxPages:遍历会话列表页数,一页为8~10人,为0时只在可见顶部置顶会话列表中查找不滚动遍历
+            scroll_delay:滚动遍历maxPages页会话列表间隔
+            is_maximize:微信界面是否全屏,默认全屏
+            close_weixin:任务结束后是否关闭微信,默认关闭
+        Returns:
+            newMessageDetail:{'好友A':[{},{}],'好友B':[{},{}],...}
+        '''
+        def traverse_session_list(sessionList:ListViewWrapper)->dict:
+            '''遍历会话列表内的lisitem获取新消息'''
+            listItems=[listItem for listItem in sessionList.children(control_type='ListItem') if listItem.automation_id().replace('session_item_','') not in NeverReply
+            and muteNotifications_Lable not in listItem.window_text()]
+            listItems=[listItem for listItem in listItems if new_message_pattern.search(listItem.window_text())]
+            newMessageTips=[listItem.window_text() for listItem in listItems]
+            senders=[listItem.automation_id().replace('session_item_','') for listItem in listItems]
+            nums=[int(new_message_pattern.search(text).group(1)) for text in newMessageTips]
+            newMessages_dict=dict(zip(senders,nums))
+            return newMessages_dict
+        
+        def sacn_for_new_messages(sessionList:ListViewWrapper)->dict:
+            '''扫描会话列表内的新消息,返回{'小号':3,'A群':4,'B群':5}这样的新消息列表'''
+            new_message_dict={}
+            full_desc=weixinButton.element_info.element.GetCurrentPropertyValue(30159)     
+            new_message_num=int(re.search(r'\d+',full_desc).group(0)) if re.search(r'\d+',full_desc) is not None else 0
+            if new_message_num and scorllable:#有新消息且可以滚动的时候才滚动
+                if maxPages:
+                    for _ in range(maxPages):
+                        traverse_result=traverse_session_list(sessionList)
+                        new_message_dict.update(traverse_result)
+                        sessionList.type_keys('{PGDN}',pause=scroll_delay)
+                        if sum(new_message_dict.values())>=new_message_num:
+                            break
+                    sessionList.type_keys('{HOME}',pause=scroll_delay)
+                else:#max_pages设置为0，只关注顶部置顶可见的好友
+                    traverse_result=traverse_session_list(sessionList)
+                    new_message_dict.update(traverse_result)
+            if new_message_num and not scorllable:
+                traverse_result=traverse_session_list(sessionList)
+                new_message_dict.update(traverse_result)
+            return new_message_dict
+        
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+
+        newMessageDict={}
+        newMessageDetail={}
+        FileTransfer_Label=Special_Labels.FileTransfer
+        muteNotifications_Lable=Special_Labels.MuteNotifications
+        new_message_pattern=Regex_Patterns.newMessage_pattern
+        NeverReply=Special_Labels.NeverReply#不回复的对象,这里监听时也同样不去监听
+        duration=Tools.match_duration(duration)
+        if not duration:raise TimeNotCorrectError
+        main_window=Navigator.open_dialog_window(friend=FileTransfer_Label,is_maximize=is_maximize)#打开到文件传输助手
+        myName=Contacts.check_my_info(is_maximize=is_maximize,close_weixin=False).get('昵称')
+        weixinButton=main_window.child_window(**Buttons.WeixinButton)
+        weixinButton.click_input()
+        sessionList=main_window.child_window(**Main_window.SessionList)#左侧的会话列表
+        full_desc=weixinButton.element_info.element.GetCurrentPropertyValue(30159)
+        if re.search(r'\d+',full_desc) is not None:
+            has_newMessage=True
+            initial_newMessage_num=int(re.search(r'\d+',full_desc).group(0))
+        else:
+            has_newMessage=False
+            initial_newMessage_num=0
+        scorllable=Tools.is_scrollable(sessionList)#只调用一次Scrollable函数来判断会话列表是否可以滚动
+        if scorllable:sessionList.type_keys('{HOME}')
+        if has_newMessage:
+            new_message_dict=sacn_for_new_messages(sessionList)
+            newMessageDict.update(new_message_dict)
+        end_timestamp=time.time()+duration
+        SystemSettings.open_listening_mode()#开个不息屏,不然时间长息屏了就难办了
+        #轮询监听会话列表
+        while time.time()<end_timestamp:
+            full_desc=weixinButton.element_info.element.GetCurrentPropertyValue(30159)
+            if re.search(r'\d+',full_desc) is not None:
+                newMessage_num=int(re.search(r'\d+',full_desc).group(0))
+            else:
+                newMessage_num=0
+            #新消息增量
+            has_newMessage=newMessage_num-initial_newMessage_num#这个是关键，得判断用不用扫描，如果没变化不用扫描
+            if has_newMessage:
+                new_message_dict=sacn_for_new_messages(sessionList)
+                initial_newMessage_num=newMessage_num
+                newMessageDict.update(new_message_dict)
+        for friend,num in newMessageDict.items():
+            newMessageDetail[friend]=Messages.pull_messages(friend=friend,number=num,myName=myName,search_pages=maxPages+1,close_weixin=False)
+        SystemSettings.close_listening_mode()#最后把不息屏关掉
+        if close_weixin:main_window.close()
+        return newMessageDetail
 
 class Settings():
 

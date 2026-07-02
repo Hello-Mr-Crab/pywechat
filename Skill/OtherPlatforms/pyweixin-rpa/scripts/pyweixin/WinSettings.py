@@ -31,8 +31,9 @@ Examples:
 import os
 import shutil
 import ctypes
+import subprocess
 import win32clipboard
-import ctypes
+from pathlib import Path
 from ctypes import cast, POINTER
 from comtypes import CLSCTX_ALL
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
@@ -277,3 +278,50 @@ class SystemSettings():
             except Exception:
                 pass
         return is_saved
+
+    @staticmethod
+    def save_pasted_file(target_folder:str)->bool:
+        '''
+        从剪贴板保存微信文件
+        Args:
+            target_folder:保存文件导出的文件夹
+            
+        Returns:
+            filename:保存的文件名
+        '''
+        file_path=''
+        win32clipboard.OpenClipboard()
+        if win32clipboard.IsClipboardFormatAvailable(win32clipboard.CF_HDROP):
+            hdrop=win32clipboard.GetClipboardData(win32clipboard.CF_HDROP)
+            file_path=hdrop[0]
+        win32clipboard.CloseClipboard()
+        try:
+            filename=os.path.basename(file_path)
+            output=os.path.join(target_folder,filename)
+            shutil.copy2(file_path,output)
+        except Exception:
+            pass
+        return filename
+
+    @staticmethod
+    def clear_folder_with_powershell(folder:str):
+        '''
+        使用PowerShell命令清空文件夹内容
+        Args:
+            folder:文件夹
+        '''
+        folder=Path(folder).resolve()
+        ps_script=f"""
+        Get-ChildItem -Path \"{folder}\" -Recurse -Force |
+        Where-Object {{ -not $_.PSIsContainer }} |
+        Remove-Item -Force -ErrorAction SilentlyContinue
+
+        Get-ChildItem -Path \"{folder}\" -Recurse -Force |
+        Where-Object {{ $_.PSIsContainer }} |
+        Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
+        """
+        subprocess.run(
+            ["powershell", "-NoProfile", "-Command", ps_script],
+            shell=False,
+            check=False
+    )

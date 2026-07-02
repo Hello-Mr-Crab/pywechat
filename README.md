@@ -5,7 +5,7 @@
 ## 🍬🍬微信RPA工具,支持4.1+微信自动化
 
 pywechat是一个基于pywinauto实现的Windows系统下PC微信自动化(pure uiautomation)的项目(**不涉及逆向Hook操作**)，可以用来收发消息和数据获取。
-注意，本项目开发的初衷为使用UI自动化和分享UI自动化技术，请勿将该工具用于违反微信使用条例的操作！
+注意，本项目开发的初衷为使用UI自动化和分享UI自动化技术，**忌勿将该工具用于违反微信使用条例的操作！**
 
 ### 适用环境
 
@@ -19,7 +19,10 @@ pywechat是一个基于pywinauto实现的Windows系统下PC微信自动化(pure 
 ![pyweixin结构](/pics/pyweixin结构.png "pyweixin结构")
 </br>
 
-### Skill
+pywechat只支持旧版本微信(大部分方法仍然稳定可用)，现在主要维护与更新支持4.1系列自动化的pyweixin
+[pywechat使用说明](/README(3.9).MD)
+
+### Skill使用
 
 目前,可以使用的Skill的Agent主流平台:
 
@@ -86,12 +89,7 @@ xx(class).yy(method)
 
 #### utils🍬🍬
 
-##### 内部的一些函数主要用来二次开发,大部分传入的参数是main_window,pywinauto实例化的对象(使用Navigator.open_weixin打开)
-
-##### class 包括
-
-- `Regex_Patterns`:自动化过程中用到的正则pattern。
-- `Special_Label`:微信内一些特殊的标签,比如:“消息已置顶”，这些标签随着微信的语言会变化。
+内部的一些函数主要用来二次开发,大部分传入的参数是main_window,pywinauto实例化的对象(使用Navigator.open_weixin打开)
 
 ##### func包括
 
@@ -189,7 +187,7 @@ print(responded_detail)
 
 ```python
 from pyweixin import Moments
-#获取并导出今日前20个好友发布的朋友圈的具体内容
+#获取并导出今日前10个好友发布的朋友圈的具体内容
 posts=Moments.dump_recent_posts(recent='Today',save_detail=True,number=10)
 for dic in posts:
     print(dic)
@@ -229,7 +227,7 @@ def comment_func(content):
     if 'xxx' in content:
         return 'yyy'
     return 'zzz'
-Moments.like_friend_posts(friend='xxx',number=20,callback=comment_func,use_green_send=True)
+Moments.like_friend_posts(friend='xxx',number=20,callback=comment_func)
 ```
 
 </br>
@@ -237,7 +235,7 @@ Moments.like_friend_posts(friend='xxx',number=20,callback=comment_func,use_green
 #### 公众号文章url获取
 
 ```python
-#注意,该方法不稳定
+#注意,该方法不稳定！
 from pyweixin import Collections
 Collections.collect_offAcc_articles(name='新华社',number=10)
 urls=Collections.cardLink_to_url(number=10)
@@ -272,168 +270,11 @@ Navigator.search_official_account(name='微信')
 
 #### 其他使用方法可见代码中详细的文档注释以及pyweixin操作手册.docx
 
-### Pywechat(3.9+微信)
-
-#### WechatTools🌪️
-
-##### 类包括
-
-- Tools:关于PC微信的一些工具,包括打开PC微信内各个界面的open系列方法
-
-- API:打开指定微信小程序，指定公众号,打开视频号的功能，若有其他开发者想自动化操作上述程序可调用此API
-
-函数:该模块内所有函数与方法一致
-
-#### WechatAuto🛏️
-
-##### class
-
-- `Messages`: 5种类型的发送消息方法，包括:单人单条,单人多条,多人单条,多人多条,转发消息:多人同一条。
-- `Files`: 5种类型的发送文件方法，包括:单人单个,单人多个,多人单个,多人多个,转发文件:多人同一个。发送多个文件时，你只需将所有文件放入文件夹内，将文件夹路径传入即可。
-- `FriendSettings`: 涵盖了PC微信针对某个好友的全部操作的方法。
-- `GroupSettings`: 涵盖了PC微信针对某个群聊的全部操作的方法。
-- `Contacts`: 获取3种类型通讯录好友的备注与昵称包括:微信好友,企业号微信,群聊名称与人数，数据返回格式为json。
-- `Call`: 给某个好友打视频或语音电话。
-- `AutoReply`:自动接听微信视频或语音电话,自动回复指定好友消息,自动回复所有好友消息。
-- `Moments`:针对微信朋友圈的一些方法,包括数据获取，图片视频导出
-
-##### 该模块内所有函数与方法一致
-
-#### WinSettings🔹
-
-##### 类
-
-- Systemsettings:该模块中提供了一些修改windows系统设置的方法
-
-##### 函数：该模块内所有函数与类内方法一致
-
-### pywechat使用示例
-
-#### 所有自动化操作只需两行代码即可实现
-
-```python
-from pywechat import xxx
-xxx.yy
-
-from pyweixin import xxx
-xxx,yy
-```
-
-</br>
-
-#### 在某个群聊自动回复(使用装饰器自定义回复内容)
-
-```python
-from pywechat.utils import auto_reply_to_group_decorator
-@auto_reply_to_group_decorator(duration='2min',group_name='Pywechat测试群',at_only=True,at_other=True)
-def reply_func(newMessage):
-    if '你好' in newMessage:
-        return '你好,请问有什么可以帮您的吗?'
-    if '在吗' in newMessage:
-        return '在的,请问有什么可以帮您的吗?'
-    if '售后' in newMessage:
-        return '''您好，您可以点击下方链接申请售后:
-        https://github.com/Hello-Mr-Crab/pywechat'''
-    if '算了' in newMessage or '不需要了' in newMessage:
-        return '不好意思.未能为您提供满意的服务,欢迎下次光临'
-    return '不好意思，未能理解您的需求'#最后总是要返回一个值，不要出现newMessage不在列举的情况,返回None
-reply_func()
-```
-
-![decorator](/pics/decorator.png "decorator")
-</br>
-
-#### 监听某个群聊或好友的窗口(自动保存聊天文件与图片和视频)
-
-```python
-from pywechat import listen_on_chat
-filesave_folder=r"E:\Desktop\保存文件"
-mediasave_folder=r"E:\Desktop\聊天图片与视频保存"
-contents,senders,types=listen_on_chat(friend='测试群',duration='10min',save_file=True,file_folder=filesave_folder,save_media=True,media_folder=mediasave_folder)
-print(contents,senders,types)
-```
-
-#### 朋友圈数据获取
-
-```python
-from pywechat import dump_recent_moments
-moments=dump_recent_moments(recent='Today',number=20,save_detail=True)
-for dict in moments:
-    print(dict)
-```
-
-![朋友圈数据获取](/pics/朋友圈数据获取.png "朋友圈")
-
-注意，导出的结果为list[dict],每一条朋友圈对应一个dict,dict具体内容
-
-{'好友备注':'','发布时间':'','文本内容':'','点赞者':'','评论内容':'','图片数量':'','视频数量':'','卡片链接':'','卡片链接内容':'','视频号':'','公众号链接内容':''}
-
-</br>
-
-#### 监听整个会话列表内所有好友的新消息(自动保存聊天文件)
-
-```python
-from pywechat import check_new_message
-filesave_folder=r"E:\Desktop\文件保存"
-newMessages=check_new_message(duration='5min',save_file=True,target_folder=filesave_folder)
-#newMessages是[{'好友名称':'路人甲','好友类型':'群聊,好友或公众号','新消息条数':xx,'消息内容':[],'消息类型':[]}]
-#格式的list[dict]
-```
-
-#### 转发与某个好友的一定数量文件给其他好友
-
-```python
- #注意:微信转发消息单次上线为9,pywechat内转发消息,文件,链接,小程序等支持多个好友按9个为一组分批发送
- from pywechat import forward_files
- others=['路人甲','路人乙','路人丙','路人丁']
- forward_files(friend='测试群',others=others,number=20)
-```
-
-#### 保存指定数量聊天文件到本地
-
-```python
-from pywechat import save_files
-folder_path=r'E:\Desktop\新建文件夹'
-save_files(friend='测试群',number=20,folder_path=folder_path)
-```
-
-#### 群聊内自动回复(被@时触发)
-
-```python
-from pywechat import auto_reply_to_group
-auto_reply_to_group(group_name='测试群',duration='20min',content='我被@了',at_only=True,at_others=True)
-```
-
-![群聊自动回复](/pics/auto_reply_to_group.png "群聊自动回复")
-</br>
-
-#### 给某个好友发送多条信息
-
-```python
-from pywechat.WechatAuto import Messages
-Messages.send_messages_to_friend(friend="文件传输助手",messages=['你好','我正在使用pywechat操控微信给你发消息','收到请回复'])
-```
-
-### 多任务使用示例
-
-注意,微信不支持多线程，只支持单线程多任务轮流执行，pywechat也支持单线程多任务轮流执行，在运行多个实例时尽量请将所有函数与方法内的close_wechat参数设为False(默认为True)
-这样只需要打开一次微信，多个任务便可以共享资源,更加高效，否则，每个实例在运行时都会重启一次微信，较为低效
-多个线程同时操作一个微信界面,必然产生死锁,会导致界面卡死
-
-### 检查新消息示例
-
-```python
-from pywechat import check_new_message
-print(check_new_message())
-```
-
-![检查新消息](/pics/check_new_message.gif "检查新消息")
-
 ## 注意
 
 > 👎👎请勿将pywechat用于任何非法商业活动,因此造成的一切后果由使用者自行承担！
 
-## 本项目相关博客
+## 本项目相关教程博客
 
 > - [pywinauto使用教程](https://mrcrab.blog.csdn.net/article/details/157546162?fromshare=blogdetail&sharetype=blogdetail&sharerId=157546162&sharerefer=PC&sharesource=weixin_73953650&sharefrom=from_link)
 > - [python正则表达式](https://mrcrab.blog.csdn.net/article/details/151123336?fromshare=blogdetail&sharetype=blogdetail&sharerId=151123336&sharerefer=PC&sharesource=weixin_73953650&sharefrom=from_link)

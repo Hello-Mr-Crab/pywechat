@@ -7,6 +7,7 @@ WeChatTools
 
 Tools
 ------
+
     - `is_weixin_running`: 判断微信是否在运行
     - `where_weixin`: 查找微信路径
     - `get_current_wxid`: 获取当前登录账号wxid
@@ -23,6 +24,7 @@ Tools
 
 Navigator
 ----------
+
     - `open_weixin`: 打开微信主界面
     - `find_friend_in_SessionList`: 在会话列表中查找好友
     - `open_moments`: 打开通讯录界面
@@ -48,15 +50,15 @@ Navigator
 Examples
 ========
 使用该模块的方法时,你可以:
-
+    ```
     >>> from pyweixin.WeChatTools import Navigator
     >>> Navigator.open_dialog_window(name='一家人')
-
+    ```
 或者:
-
+    ```
     >>> from pyweixin import Navigator
     >>> Navigator.open_dialog_window(friend='一家人')
-
+    ```
 
 Also:
 =====
@@ -205,6 +207,21 @@ class Tools():
         if wxid_folder:msg_folder=os.path.join(wxid_folder,'msg')
         if open_folder:os.startfile(msg_folder)
         return msg_folder
+
+    @staticmethod
+    def where_favoriteTemp_folder(open_folder:bool=False)->str:
+        '''
+        该方法用来获取微信收藏的缓存文件夹路径(收藏界面内预览过的所有东西都会存在这里)
+        Args:
+            open_folder:是否打开该文件夹,默认不打开
+        Returns:
+            msg_folder:msg文件夹路径
+        '''
+        favoriteTemp_folder=''
+        wxid_folder=Tools.where_wxid_folder(open_folder=False)
+        if wxid_folder:favoriteTemp_folder=os.path.join(wxid_folder,'business','favorite','temp')
+        if open_folder:os.startfile(favoriteTemp_folder)
+        return favoriteTemp_folder
 
     @staticmethod
     def where_db_folder(open_folder:bool=False)->str:
@@ -387,21 +404,18 @@ class Tools():
         '''
         判断是否是自己发送的消息（右侧是否存在头像区域）
         Args:
-            img: pywinauto截图对象 (capture_as_image)
-            right_width:右侧检测区域宽度（微信头像一般在最右60~80px）
-            threshold: 非背景像素的最小数量（可调）
+            img: pywinauto截图对象(capture_as_image)
+            right_width:右侧检测区域宽度,微信头像一般在最右60~80px
+            threshold:非背景像素的最小数量,默认100
         Returns:
-            is_my_bubble: 该条消息是否为自己发送
+            is_my_bubble:该条消息是否为自己发送
         '''
-        BG_DARK=(0x1E,0x1E,0x1F)  #微信深色背景
-        BG_LIGHT=(0xFA,0xFA,0xFA)  #微信浅色背景
-
-        def color_dist(c1, c2):
-            #欧式距离
+        BG_DARK=(0x1E,0x1E,0x1F)#微信深色背景
+        BG_LIGHT=(0xFA,0xFA,0xFA)#微信浅色背景
+        def color_dist(c1, c2):#欧式距离
             return sum((a-b)**2 for a, b in zip(c1, c2))**0.5
-
         w,h=img.size
-        # 取最右侧区域
+        #取最右侧区域
         x_start=max(w-right_width,0)
         region=img.crop((x_start,0,w,h))
         pixels=list(region.getdata())
@@ -410,10 +424,10 @@ class Tools():
             d1=color_dist((r, g, b), BG_DARK)
             d2=color_dist((r, g, b), BG_LIGHT)
             # 既不像深色背景，也不像浅色背景 → 认为是内容
-            if d1 > threshold and d2 > threshold:
-                non_bg_count += 1
+            if d1>threshold and d2>threshold:
+                non_bg_count+=1
                 # 提前结束，提高性能
-                if non_bg_count >= threshold * 2:
+                if non_bg_count>=threshold*2:
                     return True
         my_bubble=non_bg_count>=threshold
         return my_bubble
@@ -458,7 +472,16 @@ class Tools():
         mouse.move(coords=ActivatePos)
         chat_history_list.type_keys('{HOME}'*2)
         
-        
+    # @staticmethod
+    # def activate_favdetailList(favdetailList:ListViewWrapper):
+    #     '''收藏主界面右侧的收藏列表激活并至于底部
+    #     Args:
+    #         favdetailList:主界面右侧的收藏列表
+    #     '''
+    #     ActivatePos=MousePos(favdetailList).ActiveChatListPos
+    #     mouse.click(coords=ActivatePos)
+    #     avdetailList.type_keys('{Home}') 
+    
     @staticmethod
     def get_next_item(listview:ListViewWrapper,listitem:ListItemWrapper)->(ListItemWrapper|None):
         '''获取当前listview中给定的listitem的下一个,如果该listitem是最后一个或不在该listview则返回None
@@ -860,7 +883,7 @@ class Navigator():
             close_weixin=GlobalConfig.close_weixin
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
         main_window.child_window(**SideBar.Collections).click_input()
-        side_list=main_window.child_window(**Lists.CollectionList)
+        side_list=main_window.child_window(**Lists.CollectionLeftList)
         side_list.children(control_type='ListItem')[0].click_input()
         NoteWindow=Tools.move_window_to_center(Window=Windows.NoteWindow)
         if close_weixin:
@@ -1235,7 +1258,7 @@ class Navigator():
             return main_window
     
     @staticmethod
-    def open_seperate_dialog_window(friend:str,select:bool=True,is_maximize:bool=None,window_minimize:bool=False,close_weixin:bool=None)->WindowSpecification:
+    def open_seperate_dialog_window(friend:str,select:bool=False,is_maximize:bool=None,window_minimize:bool=False,close_weixin:bool=None)->WindowSpecification:
         '''
         该方法用于单独打开某个好友(非公众号)的聊天窗口(主要用于监听消息)
         Args:

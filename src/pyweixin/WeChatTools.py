@@ -883,7 +883,7 @@ class Navigator():
             close_weixin=GlobalConfig.close_weixin
         main_window=Navigator.open_weixin(is_maximize=is_maximize)
         main_window.child_window(**SideBar.Collections).click_input()
-        side_list=main_window.child_window(**Lists.CollectionList)
+        side_list=main_window.child_window(**Lists.CollectionLeftList)
         side_list.children(control_type='ListItem')[0].click_input()
         NoteWindow=Tools.move_window_to_center(Window=Windows.NoteWindow)
         if close_weixin:

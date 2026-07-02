@@ -1,3 +1,6 @@
+bs4>=0.0.1
+emoji>=2.14.1
+markdownify>=1.2.2
 psutil>=5.9.5
 pyautogui>=0.9.54
 pycaw>=20240210
@@ -5,7 +8,6 @@ pywin32>=308
 pywin32-ctypes>=0.2.2
 pywinauto>=0.6.8
 pillow>=10.4.0
-emoji>=2.14.1
 sounddevice>=0.5.1
 soundfile>=0.13.1
 packaging>=23.2

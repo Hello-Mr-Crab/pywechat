@@ -501,11 +501,10 @@ class Collections():
         note_window.close()
 
     @staticmethod
-    def save_media(target_folder:str=None,number:int=None,is_maximize:bool=None,close_weixin:bool=None)->None:
-        '''该方法用来保存收藏内的图片与视频
+    def save_media(target_folder:str=None,number:int=None,scroll_delay:float=0.15,load_delay:float=0.5,is_maximize:bool=None,close_weixin:bool=None)->None:
+        '''该方法用来保存收藏内的图片与视频(图片与视频的ui与其他项目并不完全相同,实现难度较大,建议先选择并设为标签后导出不然无法获取时间)
             Args:
             开发ing
-        
         '''
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
@@ -514,19 +513,86 @@ class Collections():
         if target_folder is not None and not os.path.isdir(target_folder):
             raise NotFolderError(f'所选路径不是文件夹!无法保存聊天记录,请重新选择!')
         if target_folder is None:
-            target_folder=os.path.join(os.getcwd(),'save_media收藏图片视频保存',friend)
+            target_folder=os.path.join(os.getcwd(),'save_media收藏图片视频保存')
             os.makedirs(name=target_folder,exist_ok=True)
             print(f'未传入文件夹路径,聊天图片或视频将保存至 {target_folder}')
-        # main_window=Navigator.open_collections(is_maximize=is_maximize)
-        # media_item=main_window.child_window(**ListItems.)
-        # if close_weixin:main_window.close
 
+        main_window=Navigator.open_collections(is_maximize=is_maximize)
+        media_listitem=main_window.child_window(**ListItems.MediaListItem)
+        if not media_listitem.exists(timeout=0.2):
+            main_window.close()
+            return []
+        saved_details=[]
+        MediaGroup=main_window.child_window(control_type='Group',auto_id='fav_photo_list')
+        mutltiselect_item=main_window.child_window(**MenuItems.SelectMenuItem)
+        MediaGroup.type_keys('{HOME}')
+        container=MediaGroup.children()[0].children()[0]
+        visible_items=[listitem for listitem in container.children() if listitem.is_visible() and listitem.window_text()!=""]
+        visible_items[-1].right_click_input()
+        mutltiselect_item.click_input()
+
+    
     @staticmethod
-    def save_notes(target_folder:str=None,number:int=None,scroll_delay:float=0.1,load_delay:float=1.5,is_maximize:bool=None,close_weixin:bool=None)->list[str]:
+    def save_files(number:int,target_folder:str=None,scroll_delay:float=0.15,load_delay:float=0.5,is_maximize:bool=None,close_weixin:bool=None)->list[tuple]:
+        '''该方法用来保存收藏内的文件
+        Args:
+            target_folder:导出收藏文件的文件夹
+            number:需要导出的笔记数量
+            scroll_delay:滚动暂停时间,默认0.15s
+            load_delay:等待复制文件到剪贴板的时间,默认0.5s
+        Returns:
+            saved_details:[(6月2日,xxx.docx),(2021年6月2日,yyy.ppt)...]
+        '''
+        def save_file(FileListiem:ListItemWrapper):
+            FileListiem.right_click_input()
+            copy_item.click_input()
+            filename=SystemSettings.save_pasted_file(target_folder)
+            time.sleep(load_delay)#必须等待一会儿,不然剪贴板获取不到内容
+            text=FileListiem.window_text()
+            timestamp=Fav_Timestamp_pattern.findall(text)[-1]
+            return filename,timestamp
+        
+        if is_maximize is None:
+            is_maximize=GlobalConfig.is_maximize
+        if close_weixin is None:
+            close_weixin=GlobalConfig.close_weixin
+        if target_folder is not None and not os.path.isdir(target_folder):
+            raise NotFolderError(f'所选路径不是文件夹!无法保存聊天记录,请重新选择!')
+        if target_folder is None:
+            target_folder=os.path.join(os.getcwd(),'save_files收藏文件保存')
+            os.makedirs(name=target_folder,exist_ok=True)
+            print(f'未传入文件夹路径,文件将保存至 {target_folder}')
+
+        saved_num=0
+        Fav_Timestamp_pattern=Regex_Patterns.Fav_Timestamp_pattern
+        main_window=Navigator.open_collections(is_maximize=is_maximize)
+        files_listitem=main_window.child_window(**ListItems.FilesListItem)
+        copy_item=main_window.child_window(**MenuItems.CopyMenuItem)
+        if not files_listitem.exists(timeout=0.3):
+            main_window.close()
+            return []
+        saved_details=[]
+        FilesList=main_window.child_window(**Lists.CollectionRightList)
+        FilesList.type_keys('{HOME}')
+        while saved_num<number:
+            FilesList.type_keys('{DOWN}',pause=scroll_delay)
+            selected=[item for item in FilesList.children(control_type='ListItem') if item.has_keyboard_focus()]
+            if selected:
+                saved_num+=1
+                filename,timestamp=save_file(selected[0])
+                saved_details.append((timestamp,filename)) 
+            if not selected:
+                break
+        FilesList.type_keys('{HOME}')
+        if close_weixin:main_window.close
+        return saved_details
+        
+    @staticmethod
+    def save_notes(number:int,target_folder:str=None,scroll_delay:float=0.1,load_delay:float=1.5,is_maximize:bool=None,close_weixin:bool=None)->list[str]:
         '''该方法用来将收藏内的笔记导出为MarkDown
         Args:
-            target_folder:导出markdown的文件夹
             number:需要导出的笔记数量
+            target_folder:导出markdown的文件夹
             scroll_delay:滚动暂停时间,默认0.15s
             load_delay:等待点击笔记后笔记窗口弹出的时间,默认1.5s
         Returns:
@@ -534,7 +600,7 @@ class Collections():
         '''
         def extract_info(NoteListiem:ListItemWrapper):
             text=NoteListiem.window_text()
-            timestamp=Notes_Timestamp_pattern.findall(text)[-1]
+            timestamp=Fav_Timestamp_pattern.findall(text)[-1]
             return timestamp
     
         def export_favoriteTemp(NoteListiem:ListItemWrapper):
@@ -567,19 +633,19 @@ class Collections():
             os.makedirs(name=target_folder,exist_ok=True)
             print(f'未传入文件夹路径,笔记内容将保存至 {target_folder}')
        
+        main_window=Navigator.open_collections(is_maximize=is_maximize)
+        note_window=desktop.window(**Windows.NoteWindow)
+        note_listitem=main_window.child_window(**ListItems.NotesListItem)
+        if not note_listitem.exists(timeout=0.3):
+            main_window.close()
+            return []
         saved_num=0
         saved_details=[]
         from .Notes2MD import remove_thumbs,export_weixin_note
         favoriteTemp_folder=Tools.where_favoriteTemp_folder(False)
-        Notes_Timestamp_pattern=Regex_Patterns.Notes_Timestamp_pattern
+        Fav_Timestamp_pattern=Regex_Patterns.Fav_Timestamp_pattern
         SystemSettings.clear_folder_with_powershell(favoriteTemp_folder)
-        main_window=Navigator.open_collections(is_maximize=is_maximize)
-        note_window=desktop.window(**Windows.NoteWindow)
-        note_listitem=main_window.child_window(**ListItems.NotesListItem)
-        if not note_listitem.exists(timeout=0.1):
-            main_window.close()
-            raise ValueError(f'你还未收藏过任何笔记,无法导出到本地!')
-        NotesList=main_window.child_window(**Lists.NotesList)
+        NotesList=main_window.child_window(**Lists.CollectionRightList)
         mouse.click(coords=MousePos(main_window).ActiveNoteListPos)
         NotesList.type_keys('{HOME}')
         while saved_num<number:
@@ -593,6 +659,7 @@ class Collections():
                 export_weixin_note(output_dir,md_name=f'{timestamp}.md')
             if not selected:
                 break
+        NotesList.type_keys('{HOME}')
         if close_weixin:main_window.close
         return saved_details
 
@@ -603,7 +670,7 @@ class Collections():
             number:卡片链接的数量
             delete:复制链接后是否将该条卡片链接移除掉
             scroll_delay:滚动暂停时间,默认0.15s
-            load_delay:复制链接的等待时间,默认为0.3s,不要设置太低
+            load_delay:复制链接后的等待时间,默认为0.3s,不要设置太低,建议在0.3~0.5s左右。
             is_maximize:微信界面是否全屏,默认全屏
             close_weixin:任务结束后是否关闭微信,默认关闭
         Returns:
@@ -624,23 +691,25 @@ class Collections():
                 LinkListitem.right_click_input()
                 deletelink_item.click_input()
                 delete_button.click_input()
-            time.sleep(load_delay)#0.3是极限,等待复制到剪贴板标签消失
+            time.sleep(load_delay)#0.3是极限,等待复制到剪贴板
             return url
-        links={}
+       
         timestamp_pattern=Regex_Patterns.Article_Timestamp_pattern
         main_window=Navigator.open_collections(is_maximize=is_maximize)
+        link_item=main_window.child_window(**ListItems.LinkListItem)
+        if not link_item.exists(timeout=0.3):
+            main_window.close()
+            return {}
+        links={}
         copylink_item=main_window.child_window(**MenuItems.CopyLinkMenuItem)
         deletelink_item=main_window.child_window(**MenuItems.DeleteMenuItem)
         delete_button=main_window.child_window(**Buttons.DeleteButton)
-        link_item=main_window.child_window(**ListItems.LinkListItem)
-        if not link_item.exists(timeout=0.1):
-            return links
         link_item.double_click_input()
-        link_list=main_window.child_window(**Lists.LinkList)
-        link_list.type_keys('{HOME}')
+        LinkList=main_window.child_window(**Lists.CollectionRightList)
+        LinkList.type_keys('{HOME}')
         while True:
-            link_list.type_keys('{DOWN}',pause=scroll_delay)
-            selected=[listitem for listitem in link_list.children(control_type='ListItem') if listitem.has_keyboard_focus() and listitem.window_text()!='']
+            LinkList.type_keys('{DOWN}',pause=scroll_delay)
+            selected=[listitem for listitem in LinkList.children(control_type='ListItem') if listitem.has_keyboard_focus() and listitem.window_text()!='']
             if selected:
                 title=timestamp_pattern.sub('',selected[0].window_text()[2:])#前两个字是固定的,为链接二字,后边的文本才是需要的替换掉时间戳
                 url=copy_url(selected[0])
@@ -649,6 +718,7 @@ class Collections():
                 break
             if len(links)>=number:
                 break
+        LinkList.type_keys('{HOME}')
         if close_weixin:main_window.close()
         return links
     
