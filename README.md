@@ -5,11 +5,12 @@
 ## 🍬🍬微信RPA工具,支持4.1+微信自动化
 
 pywechat是一个基于pywinauto实现的Windows系统下PC微信自动化(pure uiautomation)的项目(**不涉及逆向Hook操作**)，可以用来收发消息和数据获取。
-注意，本项目开发的初衷为使用UI自动化和分享UI自动化技术，**忌勿将该工具用于违反微信使用条例的操作！**
+注意，本项目开发的初衷为使用UI自动化和分享UI自动化技术。
+**切勿将该工具用于违反微信使用条例的操作！**
 
 ### 适用环境
 
-> 1. **微信版本**:3.9.12.x，4.1.6.x
+> 1. **微信版本**:3.9.12.x，4.1.6+
 > 2. **操作系统**:🪟7 🪟10 🪟11
 > 3. **python版本**:3.10+(支持TypeHint)
 > 4. **支持语言**:简体中文,English,繁體中文
@@ -133,7 +134,7 @@ print(Tools.about_weixin())
 ![微信基本信息](/pics/微信基本信息.png "微信基本信息")
 </br>
 
-#### 多线性监听某个聊天窗口消息
+#### 多线程监听几个聊天窗口消息
 
 ```python
 from concurrent.futures import ThreadPoolExecutor
@@ -235,7 +236,6 @@ Moments.like_friend_posts(friend='xxx',number=20,callback=comment_func)
 #### 公众号文章url获取
 
 ```python
-#注意,该方法不稳定！
 from pyweixin import Collections
 Collections.collect_offAcc_articles(name='新华社',number=10)
 urls=Collections.cardLink_to_url(number=10)

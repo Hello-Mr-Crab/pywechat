@@ -39,6 +39,7 @@ Examples
 import re
 import time
 from.Config import GlobalConfig
+from packaging import version
 from pywinauto.controls.uia_controls import ListItemWrapper
 language=GlobalConfig.language
 Version=GlobalConfig.Version
@@ -51,8 +52,8 @@ class Button_Control():
         self.Version=Version
         self.WeixinButton={'control_type':'Button','found_index':0}#主界面下的第一个按钮,侧边栏的微信按钮
         self.SubScribeButton={'title':'关注','control_type':'Button'}#公众号窗口内的关注按钮
-        self.HomePageButton={'title':'公众号主页','control_type':'Button'}#公众号主页内右上角的公众号主页按钮
         if self.language=='简体中文':
+            self.HomePageButton={'title':'公众号主页','control_type':'Button'}#公众号主页内右上角的公众号主页按钮
             self.OpenButton={'title':'拆开','control_type':'Button'}#微信红包拆开按钮
             self.SaveButton={'title':'保存','control_type':'Button'}#聊天记录界面内选中后的保存按钮
             self.AccountSettingsButton={'title':'账号设置','control_type':'Button'}#微信设置界面里左侧的账号设置
@@ -172,6 +173,7 @@ class Button_Control():
             self.SolitaireButton={'title':'Create Group Note','control_type':'Button'}#接龙窗口内的发起接龙按钮
             self.MomentsButton={'title':'Moments','control_type':'Button','auto_id':'button'}#好友个人简介界面内的朋友圈按钮(不是主页左侧的)
         if self.language=='繁體中文':
+            self.HomePageButton={'title':'官方賬號首頁','control_type':'Button'}#公众号主页内右上角的公众号主页按钮
             self.OpenButton={'title':'拆开','control_type':'Button'}#微信红包拆开按钮
             self.SaveButton={'title':'保存','control_type':'Button'}#聊天记录界面内选中后的保存按钮
             self.AccountSettingsButton={'title':'賬號與儲存','control_type':'Button'}#微信设置界面里左侧的账号设置
@@ -278,10 +280,7 @@ class Custom_Control():
         self.Version=Version
         self.ContactCustom={'control_type':'Custom','auto_id':'MainView.main_window_main_splitter_view','class_name':'mmui::XSplitterView'}#微信切换到通讯录后通讯录整个界面
         self.ContactDetailCustom={'control_type':'Custom','class_name':'mmui::XSplitterView','found_index':1}#微信切换到通讯录界面后的右侧好友信息面板的上一级自定义
-        if '4.1.9' in self.Version:
-             self.ContactDetailCustom={'control_type':'Custom','class_name':'mmui::XSplitterView','auto_id':'MainView.main_window_corner_view.MainView.main_window_main_splitter_view'}#微信切换到通讯录界面后的右侧好友信息面板的上一级自定义
-
-
+        
 class Edit_Control():
     '''微信主界面内所有类型为Edit(不包含独立窗口)的UI控件'''
     def __init__(self,language=language,Version=Version):
@@ -314,13 +313,13 @@ class Edit_Control():
 class Group_Control():
     def __init__(self,language=language,Version=Version):
         self.language=language
-        #版本
         self.Version=Version
-        self.ContactProfileGroup={'auto_id':"profile_view",'control_type':'Group'}#通讯录的好友详细信息所处面板
+        self.ContactProfileGroup={'auto_id':'contact_profile_view','control_type':'Group'}#通讯录的好友详细信息所处面板
         self.SnsPublishGroup={'auto_id':'SnsPublishPanel','control_type':'Group'}#微信朋友圈后发布按钮点击后的面板
         self.ContactProfileViewGroup={'title':'','control_type':'Group','class_name':'mmui::ContactProfileView'}#添加好友界面内搜索微信号后弹出的好友信息(带有添加到通讯录按钮)组
-        if '4.1.9' in self.Version:
-             self.ContactProfileViewGroup={'title':'','control_type':'Group','class_name':'mmui::ProfileView'}#添加好友界面内搜索微信号后弹出的好友信息(带有添加到通讯录按钮)组
+        if version.parse(self.Version)>=version.parse('4.1.9'):
+            self.ContactProfileGroup={'auto_id':'profile_view','control_type':'Group'}
+            self.ContactProfileViewGroup={'title':'','control_type':'Group','class_name':'mmui::ProfileView'}#添加好友界面内搜索微信号后弹出的好友信息(带有添加到通讯录按钮)组
         if self.language=='简体中文':
             self.AtGroup={'title':'提醒谁看','class_name':'mmui::PublishComponent','control_type':'Group'}#发布微信朋友圈内的提醒谁看
             self.WhoCanSeeGroup={'title':'谁可以看','class_name':'mmui::PublishComponent','control_type':'Group'}#发布微信朋友圈内的谁可以看

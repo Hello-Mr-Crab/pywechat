@@ -500,36 +500,36 @@ class Collections():
             pyautogui.press('enter')
         note_window.close()
 
-    @staticmethod
-    def save_media(target_folder:str=None,number:int=None,scroll_delay:float=0.15,load_delay:float=0.5,is_maximize:bool=None,close_weixin:bool=None)->None:
-        '''该方法用来保存收藏内的图片与视频(图片与视频的ui与其他项目并不完全相同,实现难度较大,建议先选择并设为标签后导出不然无法获取时间)
-            Args:
-            开发ing
-        '''
-        if is_maximize is None:
-            is_maximize=GlobalConfig.is_maximize
-        if close_weixin is None:
-            close_weixin=GlobalConfig.close_weixin
-        if target_folder is not None and not os.path.isdir(target_folder):
-            raise NotFolderError(f'所选路径不是文件夹!无法保存聊天记录,请重新选择!')
-        if target_folder is None:
-            target_folder=os.path.join(os.getcwd(),'save_media收藏图片视频保存')
-            os.makedirs(name=target_folder,exist_ok=True)
-            print(f'未传入文件夹路径,聊天图片或视频将保存至 {target_folder}')
+    # @staticmethod
+    # def save_media(target_folder:str=None,number:int=None,scroll_delay:float=0.15,load_delay:float=0.5,is_maximize:bool=None,close_weixin:bool=None)->None:
+    #     '''该方法用来保存收藏内的图片与视频(图片与视频的ui与其他项目并不完全相同,实现难度较大,建议先选择并设为标签后导出不然无法获取时间)
+    #         Args:
+    #         开发ing
+    #     '''
+    #     if is_maximize is None:
+    #         is_maximize=GlobalConfig.is_maximize
+    #     if close_weixin is None:
+    #         close_weixin=GlobalConfig.close_weixin
+    #     if target_folder is not None and not os.path.isdir(target_folder):
+    #         raise NotFolderError(f'所选路径不是文件夹!无法保存聊天记录,请重新选择!')
+    #     if target_folder is None:
+    #         target_folder=os.path.join(os.getcwd(),'save_media收藏图片视频保存')
+    #         os.makedirs(name=target_folder,exist_ok=True)
+    #         print(f'未传入文件夹路径,聊天图片或视频将保存至 {target_folder}')
 
-        main_window=Navigator.open_collections(is_maximize=is_maximize)
-        media_listitem=main_window.child_window(**ListItems.MediaListItem)
-        if not media_listitem.exists(timeout=0.2):
-            main_window.close()
-            return []
-        saved_details=[]
-        MediaGroup=main_window.child_window(control_type='Group',auto_id='fav_photo_list')
-        mutltiselect_item=main_window.child_window(**MenuItems.SelectMenuItem)
-        MediaGroup.type_keys('{HOME}')
-        container=MediaGroup.children()[0].children()[0]
-        visible_items=[listitem for listitem in container.children() if listitem.is_visible() and listitem.window_text()!=""]
-        visible_items[-1].right_click_input()
-        mutltiselect_item.click_input()
+    #     main_window=Navigator.open_collections(is_maximize=is_maximize)
+    #     media_listitem=main_window.child_window(**ListItems.MediaListItem)
+    #     if not media_listitem.exists(timeout=0.2):
+    #         main_window.close()
+    #         return []
+    #     saved_details=[]
+    #     MediaGroup=main_window.child_window(control_type='Group',auto_id='fav_photo_list')
+    #     mutltiselect_item=main_window.child_window(**MenuItems.SelectMenuItem)
+    #     MediaGroup.type_keys('{HOME}')
+    #     container=MediaGroup.children()[0].children()[0]
+    #     visible_items=[listitem for listitem in container.children() if listitem.is_visible() and listitem.window_text()!=""]
+    #     visible_items[-1].right_click_input()
+    #     mutltiselect_item.click_input()
 
     
     @staticmethod
@@ -549,7 +549,7 @@ class Collections():
             filename=SystemSettings.save_pasted_file(target_folder)
             time.sleep(load_delay)#必须等待一会儿,不然剪贴板获取不到内容
             text=FileListiem.window_text()
-            timestamp=Fav_Timestamp_pattern.findall(text)[-1]
+            timestamp=Fav_Timestamp_pattern.findall(text)[-1].replace(' ','')
             return filename,timestamp
         
         if is_maximize is None:
@@ -572,6 +572,7 @@ class Collections():
             main_window.close()
             return []
         saved_details=[]
+        files_listitem.click_input()
         FilesList=main_window.child_window(**Lists.CollectionRightList)
         FilesList.type_keys('{HOME}')
         while saved_num<number:
@@ -664,13 +665,13 @@ class Collections():
         return saved_details
 
     @staticmethod
-    def cardLink_to_url(number:int,delete:bool=False,scroll_delay:float=0.15,load_delay:float=0.3,is_maximize:bool=None,close_weixin:bool=None)->dict[str,str]:
+    def cardLink_to_url(number:int,delete:bool=False,scroll_delay:float=0.15,load_delay:float=0.5,is_maximize:bool=None,close_weixin:bool=None)->dict[str,str]:
         '''该方法用来获取收藏界面内指定数量的卡片链接的url,返回值为字典
         Args:
             number:卡片链接的数量
             delete:复制链接后是否将该条卡片链接移除掉
             scroll_delay:滚动暂停时间,默认0.15s
-            load_delay:复制链接后的等待时间,默认为0.3s,不要设置太低,建议在0.3~0.5s左右。
+            load_delay:复制链接后的等待时间,默认为0.5s,不要设置太低,建议在0.5s左右。
             is_maximize:微信界面是否全屏,默认全屏
             close_weixin:任务结束后是否关闭微信,默认关闭
         Returns:
@@ -691,7 +692,7 @@ class Collections():
                 LinkListitem.right_click_input()
                 deletelink_item.click_input()
                 delete_button.click_input()
-            time.sleep(load_delay)#0.3是极限,等待复制到剪贴板
+            time.sleep(load_delay)#0.5是极限,等待复制到剪贴板
             return url
        
         timestamp_pattern=Regex_Patterns.Article_Timestamp_pattern
@@ -745,17 +746,16 @@ class Collections():
         collected_num=0
         seperate_window=Navigator.open_seperate_dialog_window(friend=name,is_maximize=is_maximize,close_weixin=close_weixin)
         homepage_button=seperate_window.child_window(**Buttons.HomePageButton)
-        homepage_button.click_input()
+        homepage_button.double_click_input()
         offAcc_window=Tools.move_window_to_center(Window=Panes.OfficialAccountPane)
         seperate_window.close()
         offAcc_window.maximize()
         cardLinkPos=MousePos(offAcc_window).CardLinkPos
-        articles_link=offAcc_window.child_window(title='文章',control_type='Hyperlink')
-        articles_link.click_input()
+        offAcc_window.child_window(title='文章',control_type='Hyperlink').click_input()
         container=offAcc_window.child_window(control_type='Group')
         timestamp_pattern=Regex_Patterns.Article_Timestamp_pattern
         while collected_num<number:
-            visible_texts=[child for child in container.children(control_type='Text') if child.is_visible() and timestamp_pattern.search(child.window_text()) and child.element_info.runtime_id not in clicked]
+            visible_texts=[child for child in container.children() if child.is_visible() and timestamp_pattern.search(child.window_text()) and child.element_info.runtime_id not in clicked]
             if visible_texts:
                 for child in visible_texts:
                     collected_num+=1
@@ -766,9 +766,7 @@ class Collections():
                     if collected_num>=number:
                         break
                 mouse.click(coords=cardLinkPos)
-                pyautogui.press('pagedown',_pause=False)
-            else:
-                break
+                container.type_keys('{DOWN}'*4)
         offAcc_window.close()
         return collected_num
 
@@ -1031,11 +1029,11 @@ class Contacts():
         return friends_name
 
     @staticmethod
-    def get_friends_detail(is_maximize:bool=None,close_weixin:bool=None,is_json:bool=False)->(list[dict]|str):
+    def get_friends_detail(interval:float=0.1,is_maximize:bool=None,close_weixin:bool=None,is_json:bool=False)->(list[dict]|str):
         '''
         该方法用来获取通讯录内好友信息
         Args:
-
+            interval:遍历过程中的停留间隔,默认为0.1秒
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
             is_json:是否以json格式返回
@@ -1118,15 +1116,11 @@ class Contacts():
         contact_item=main_window.child_window(**ListItems.ContactsListItem)
         if contact_item.exists(timeout=0.1):
             total_num=int(re.search(r'\d+',contact_item.window_text()).group(0))
-            if total_num>2000:interval=0.3
-            if 1000<total_num<2000:interval=0.1
-            if total_num<1000:interval=0
             contact_item.click_input()
-            #有具体的数量,后续可以更换为for循环
-            switch_to_first_friend()
-            info=get_specific_info()
+            switch_to_first_friend()#找到别切换到第一个好友
+            info=get_specific_info()#获取该好友信息
             friends_detail.append(info)
-            mouse.move(coords=area)
+            mouse.move(coords=area)#把鼠标移动右侧profile面板,如果在左侧
             for _ in range(total_num-1):
                 if interval:time.sleep(interval)
                 pyautogui.keyDown('down',_pause=False)#不能press,press比keydown更频繁容易被检测,keydown是一直长按
@@ -1140,11 +1134,11 @@ class Contacts():
         return friends_detail
 
     @staticmethod
-    def get_wecom_friends_detail(is_maximize:bool=None,close_weixin:bool=None,is_json:bool=False)->(list[dict]|str):
+    def get_wecom_friends_detail(interval:float=0.1,is_maximize:bool=None,close_weixin:bool=None,is_json:bool=False)->(list[dict]|str):
         '''
         该方法用来获取通讯录内企业微信好友详细信息
         Args:
-
+            interval:遍历过程中的停留间隔,默认为0.1秒
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
             is_json:是否以json格式返回
@@ -1234,9 +1228,6 @@ class Contacts():
             print(f'你没有企业微信联系人,无法获取企业微信好友信息！')
         else:
             total_num=int(re.search(r'\d+',wecom_item.window_text()).group(0))
-            if total_num>2000:interval=0.3
-            if 1000<total_num<2000:interval=0.1
-            if total_num<1000:interval=0
             wecom_item.click_input()
             switch_to_first_friend()
             info=get_specific_info()
@@ -1254,11 +1245,11 @@ class Contacts():
         return friends_detail 
     
     @staticmethod
-    def get_serAcc_detail(is_maximize:bool=None,close_weixin:bool=None,is_json:bool=False)->(list[dict]|str):
+    def get_serAcc_detail(interval:float=0.1,is_maximize:bool=None,close_weixin:bool=None,is_json:bool=False)->(list[dict]|str):
         '''
         该方法用来获取通讯录内服务号信息
         Args:
-
+            interval:遍历过程中的停留间隔,默认为0.1秒
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
             is_json:是否以json格式返回
@@ -1320,9 +1311,6 @@ class Contacts():
             print(f'你没有关注过任何服务号,无法获取服务号信息！')
         else:
             total_num=int(re.search(r'\d+',service_item.window_text()).group(0))
-            if total_num>2000:interval=0.3
-            if 1000<total_num<2000:interval=0.1
-            if total_num<1000:interval=0
             service_item.click_input()
             switch_to_first_friend()
             info=get_specific_info()
@@ -1341,11 +1329,11 @@ class Contacts():
         return friends_detail 
 
     @staticmethod
-    def get_offAcc_detail(is_maximize:bool=None,close_weixin:bool=None,is_json:bool=False)->(list[dict]|str):
+    def get_offAcc_detail(interval:float=0.1,is_maximize:bool=None,close_weixin:bool=None,is_json:bool=False)->(list[dict]|str):
         '''
         该方法用来获取通讯录内公众号信息
         Args:
-
+            interval:遍历过程中的停留间隔,默认为0.1秒
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
             is_json:是否以json格式返回
@@ -1407,9 +1395,6 @@ class Contacts():
             print(f'你没有关注过任何公众号,无法获取公众号信息！')
         else:
             total_num=int(re.search(r'\d+',official_item.window_text()).group(0))
-            if total_num<1000:interval=0
-            if 1000<total_num<2000:interval=0.1
-            if total_num>2000:interval=0.3
             official_item.click_input()
             switch_to_first_friend()
             info=get_specific_info()
@@ -4010,7 +3995,7 @@ class Messages():
         if target_folder is not None and not os.path.isdir(target_folder):
             raise NotFolderError(f'所选路径不是文件夹!无法保存聊天记录,请重新选择!')
         if target_folder is None:
-            target_folder=os.path.join(os.getcwd(),'save_media聊天图片保存',friend)
+            target_folder=os.path.join(os.getcwd(),'Messages.save_media聊天图片保存',friend)
             os.makedirs(name=target_folder,exist_ok=True)
             print(f'未传入文件夹路径,聊天图片或视频将保存至 {target_folder}')
         saved_num=0
@@ -4391,12 +4376,13 @@ class Monitor():
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
-        Navigator.open_dialog_window(friend='File Transfer')#打开到文件传输助手
+        
         newMessageDict={}
         NeverReply=Special_Labels.NeverReply#不回复的对象,这里监听时也同样不去监听
+        FileTransfer_Label=Special_Labels.FileTransfer#文件传输助手
         duration=Tools.match_duration(duration)
         if not duration:raise TimeNotCorrectError
-        main_window=Navigator.open_weixin(is_maximize=is_maximize)
+        main_window=Navigator.open_dialog_window(friend=FileTransfer_Label,is_maximize=is_maximize)#打开到文件传输助手
         weixinButton=main_window.child_window(**Buttons.WeixinButton)
         weixinButton.click_input()
         muteNotifications_Lable=Special_Labels.MuteNotifications
