@@ -3346,6 +3346,67 @@ class Messages():
             main_window.close()
     
     @staticmethod
+    
+
+
+
+
+    @staticmethod
+    def reply_with_quote(friend:str,quote_text:str,reply_messages:list[str],
+        at_members:list[str]=[],at_all:bool=False,search_pages:int=None,
+        clear:bool=None,send_delay:float=None,is_maximize:bool=None,close_weixin:bool=None)->None:
+        if is_maximize is None:is_maximize=GlobalConfig.is_maximize
+        if send_delay is None:send_delay=GlobalConfig.send_delay
+        if close_weixin is None:close_weixin=GlobalConfig.close_weixin
+        if search_pages is None:search_pages=GlobalConfig.search_pages
+        if clear is None:clear=GlobalConfig.clear
+        if not reply_messages:raise ValueError('不能发送空白消息!')
+        main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
+        edit_area=main_window.child_window(**Edits.CurrentChatEdit)
+        if not edit_area.exists(timeout=0.1):raise NotFriendError('非正常好友,无法发送消息')
+        chat_list=main_window.child_window(**Lists.FriendChatList)
+        Tools.activate_chatList(chat_list)
+        time.sleep(0.3)
+        if clear:edit_area.set_text('')
+        if at_all:At_all(main_window)
+        if at_members:At(main_window,at_members)
+        seen_ids=[]
+        target=None
+        for _ in range(200):
+            items=chat_list.children(control_type='ListItem')
+            if not items:break
+            for item in reversed(items):
+                cn=item.class_name()
+                if cn not in ('mmui::ChatItemView',) and quote_text in item.window_text():
+                    target=item
+                    break
+            if target:break
+            rid=items[-1].element_info.runtime_id if items else None
+            if rid and rid in seen_ids:break
+            if rid:seen_ids.append(rid)
+            chat_list.type_keys('{PGUP}')
+            time.sleep(0.2)
+        if not target:raise ValueError('未找到包含 ' + quote_text + ' 的消息')
+        rect=target.rectangle()
+        mouse.right_click(coords=(rect.left+80,rect.top+20))
+        time.sleep(0.5)
+        quote_btn=None
+        for m in main_window.descendants(control_type='MenuItem'):
+            if m.is_visible() and m.window_text() in ('引用','Quote'):
+                quote_btn=m
+                break
+        if not quote_btn:raise ValueError('未找到引用菜单项')
+        quote_btn.click_input()
+        time.sleep(0.5)
+        send_button=main_window.child_window(**Buttons.SendButton)
+        for msg in reply_messages:
+            edit_area.click_input()
+            edit_area.set_text(msg)
+            time.sleep(send_delay)
+            send_button.click_input()
+        if close_weixin:main_window.close()
+
+    @staticmethod
     def send_audios_to_friend(friend,audios:list[str],audio_length:int=None,clear:bool=None,send_delay:int=None,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None):
         '''
         该方法用于给单个好友或群聊发送语音

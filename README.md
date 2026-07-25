@@ -124,6 +124,22 @@ from pyweixin import Messages
 Messages.send_audios_to_friend(friend='小号测试',audios=[r"E:\Desktop\录音.wav",r"E:\Desktop\音乐.mp3",r"E:\Desktop\音乐.ogg"])
 ```
 
+#### 引用回复指定消息
+
+按消息原文内容定位并回复，支持自动向上滚动遍历历史消息。
+
+```python
+from pyweixin import Messages
+Messages.reply_with_quote(
+    friend='好友备注',
+    quote_text='要引用的消息原文',
+    reply_messages=['回复内容'],
+    close_weixin=False
+)
+```
+
+当引用消息高度异常（如包含引用块）时自动调整右键位置。
+
 #### 关于微信的基本信息输出
 
 ```python
