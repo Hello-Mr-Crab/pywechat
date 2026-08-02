@@ -1,21 +1,17 @@
-# Change Log
-
-## Add
-
-> - src\pyweixin\WeChatAuto.py\class AutoReply\auto_reply_messages:在会话列表内自动回复所有新消息
-> - src\pyweixin\WeChatAuto.py\class Monitor\listen_on_sessionList:指定时间内监听会话列表内的新消息好友与数量
-> - src\pyweixin\WeChatAuto.py\class Monitor\listen_on_newMessages:在listen_on_sessionList的基础上最后把新消息好友的消息全部导出
-> - src\pyweixin\WeChatAuto.py\class Collections\save_files:把收藏内的文件导出到本地
+# feature_list
 
 ## Changed
 
-> - 修改了`README.md`
-> - 修改了src\pyweixin\WeChatAuto.py\class Collections\save_notes逻辑
-> - 修改了src\pyweixin\WeChatAuto.py\class Collections\cardLink_to_url逻辑
+> - 修改了`README.md关于UI可见性说明`
+> - 修改了`Weixin4.0.md关于UI可见性说明`
+> - src\pyweixin\WeChatTools.py\class Navigator\open_moments\UI变更,打开朋友圈逻辑
+> - src\pyweixin\WeChatTools.py\class Navigator\open_channels\UI变更,打开视频号逻辑
+> - src\pyweixin\WeChatTools.py\class Navigator\open_miniprogram_pane\UI变更,打开小程序面板逻辑
+> - src\pyweixin\WeChatTools.py\class Navigator\open_chatSearch_window\更名:open_chat_search_window->open_chatSearch_window
+> - src\pyweixin\WeChatTools.py\class Tools\where_chatfiles_folder\更名:where_chatfile_folder->where_chatfiles_folder
 
 ## ToDo
 
 - 维护内部方法保证稳定性...
 - 开发Mcp...
 - 维护Skill..
-- 增加日志模块(感觉不太适合,主要是一些静态方法，@staticmethod+@logging自定义装饰器,无法看到DocString🤔)

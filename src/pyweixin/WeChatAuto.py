@@ -141,7 +141,7 @@ class AutoReply():
         friend=dialog_window.window_text()
         chatName=dialog_window.child_window(**Texts.CurrentChatNameText)
         if chatName.exists(timeout=0.1):friend=chatName.window_text()
-        chatfile_folder=Tools.where_chatfile_folder()
+        chatfile_folder=Tools.where_chatfiles_folder()
         chatList=dialog_window.child_window(**Lists.FriendChatList)#聊天界面内存储所有信息的容器
         input_edit=dialog_window.child_window(**Edits.InputEdit)
         Tools.activate_chatList(chatList)
@@ -962,11 +962,14 @@ class Contacts():
         #鼠标移动到右侧
         area=(contact_custom.rectangle().mid_point().x,contact_custom.rectangle().mid_point().y)
         Tools.collapse_contacts(main_window,contact_list)
-        service_item=main_window.child_window(**ListItems.ServiceAccountsListItem)
-        if not service_item.exists(timeout=0.1):
+        if version.parse(GlobalConfig.Version)>=version.parse('4.1.12'):
+            serAcc_item=main_window.child_window(**ListItems.offAndSerAccListItem)
+        else:
+            serAcc_item=main_window.child_window(**ListItems.SerAccListItem)
+        if not serAcc_item.exists(timeout=0.2):
             print(f'你没有关注过任何服务号,无法获取服务号信息！')
         else:
-            service_item.click_input()
+            serAcc_item.click_input()
             mouse.move(coords=area)
             contact_list.type_keys('{END}'*2)
             last_friend=contact_list.children(control_type='ListItem',class_name='mmui::ContactsCellItemView')[-1].window_text()
@@ -1007,11 +1010,14 @@ class Contacts():
         #鼠标移动到右侧
         area=(contact_custom.rectangle().mid_point().x,contact_custom.rectangle().mid_point().y)
         Tools.collapse_contacts(main_window,contact_list)
-        official_item=main_window.child_window(**ListItems.OfficialAccountsListItem)
-        if not official_item.exists(timeout=0.2):
+        if version.parse(GlobalConfig.Version)>=version.parse('4.1.12'):
+            offAcc_item=main_window.child_window(**ListItems.offAndSerAccListItem)
+        else:
+            offAcc_item=main_window.child_window(**ListItems.OffAccListItem)
+        if not offAcc_item.exists(timeout=0.2):
             print(f'你没有关注过任何公众号,无法获取公众号信息！')
         else:
-            official_item.click_input()
+            offAcc_item.click_input()
             mouse.move(coords=area)
             contact_list.type_keys('{END}'*2)
             last_friend=contact_list.children(control_type='ListItem',class_name='mmui::ContactsCellItemView')[-1].window_text()
@@ -1270,7 +1276,7 @@ class Contacts():
             contact_list.type_keys('{HOME}')
             items=contact_list.children(control_type='ListItem')
             for i in range(len(items)):
-                if items[i]==service_item and i<len(items)-1:
+                if items[i]==serAcc_item and i<len(items)-1:
                     first_friend=i+1
                     if items[i+1].window_text()=='':
                         first_friend+=1
@@ -1306,12 +1312,15 @@ class Contacts():
         contact_profile=contact_custom.child_window(**Groups.ContactProfileGroup)
         #企业微信联系人分区
         Tools.collapse_contacts(main_window,contact_list)
-        service_item=main_window.child_window(**ListItems.ServiceAccountsListItem)
-        if not service_item.exists(timeout=0.2):
+        if version.parse(GlobalConfig.Version)>=version.parse('4.1.12'):
+            serAcc_item=main_window.child_window(**ListItems.offAndSerAccListItem)
+        else:
+            serAcc_item=main_window.child_window(**ListItems.SerAccListItem)
+        if not serAcc_item.exists(timeout=0.2):
             print(f'你没有关注过任何服务号,无法获取服务号信息！')
         else:
-            total_num=int(re.search(r'\d+',service_item.window_text()).group(0))
-            service_item.click_input()
+            total_num=int(re.search(r'\d+',serAcc_item.window_text()).group(0))
+            serAcc_item.click_input()
             switch_to_first_friend()
             info=get_specific_info()
             friends_detail.append(info)
@@ -1354,7 +1363,7 @@ class Contacts():
             contact_list.type_keys('{HOME}')
             items=contact_list.children(control_type='ListItem')
             for i in range(len(items)):
-                if items[i]==official_item and i<len(items)-1:
+                if items[i]==offAcc_item and i<len(items)-1:
                     first_friend=i+1
                     if items[i+1].window_text()=='':
                         first_friend+=1
@@ -1390,12 +1399,15 @@ class Contacts():
         contact_profile=contact_custom.child_window(**Groups.ContactProfileGroup)
         #企业微信联系人分区
         Tools.collapse_contacts(main_window,contact_list)
-        official_item=main_window.child_window(**ListItems.OfficialAccountsListItem)
-        if not official_item.exists(timeout=0.2):
+        if version.parse(GlobalConfig.Version)>=version.parse('4.1.12'):
+            offAcc_item=main_window.child_window(**ListItems.offAndSerAccListItem)
+        else:
+            offAcc_item=main_window.child_window(**ListItems.OffAccListItem)
+        if not offAcc_item.exists(timeout=0.2):
             print(f'你没有关注过任何公众号,无法获取公众号信息！')
         else:
-            total_num=int(re.search(r'\d+',official_item.window_text()).group(0))
-            official_item.click_input()
+            total_num=int(re.search(r'\d+',offAcc_item.window_text()).group(0))
+            offAcc_item.click_input()
             switch_to_first_friend()
             info=get_specific_info()
             friends_detail.append(info)
@@ -1425,7 +1437,7 @@ class Contacts():
         '''
         def switct_to_top():
             first_group=Tools.get_next_item(search_results,group_label)
-            pyautogui.press('up',presses=20,_pause=False)
+            pyautogui.press('up',presses=4,_pause=False)
             pyautogui.press('down')
             focused_item=[listitem for listitem in 
             search_results.children(control_type='ListItem') 
@@ -2464,7 +2476,7 @@ class Files():
         timestamp_pattern=Regex_Patterns.Chafile_Timestamp_pattern
         filename_pattern=Regex_Patterns.Filename_pattern
         timestamp_pattern=Regex_Patterns.Chafile_Timestamp_pattern
-        chatfile_dir=Tools.where_chatfile_folder()
+        chatfile_dir=Tools.where_chatfiles_folder()
         chatfile_window=Navigator.open_chatfiles(is_maximize=is_maximize,close_weixin=close_weixin)
         empty_button=chatfile_window.child_window(**Buttons.EmptyButton)
         if empty_button.exists(timeout=0.1):empty_button.click_input()
@@ -2553,7 +2565,7 @@ class Files():
         if target_folder and not os.path.isdir(target_folder):
             raise NotFolderError(f'所选路径不是文件夹!无法保存聊天记录,请重新选择!')
         if not target_folder:
-            folder_name='export_recent最近聊天文件保存'
+            folder_name='export_recent_files最近聊天文件保存'
             os.makedirs(name=folder_name,exist_ok=True)
             target_folder=os.path.join(os.getcwd(),folder_name)
             print(f'未传入文件夹路径,聊天文件将保存至 {target_folder}')
@@ -2573,7 +2585,7 @@ class Files():
         send_interrupt=Special_Labels.SendInterrupt
         filename_pattern=Regex_Patterns.Filename_pattern
         timestamp_pattern=Regex_Patterns.Chafile_Timestamp_pattern
-        chatfile_dir=Tools.where_chatfile_folder()
+        chatfile_dir=Tools.where_chatfiles_folder()
         chatfile_window=Navigator.open_chatfiles(is_maximize=is_maximize,close_weixin=close_weixin)
         recent_used=chatfile_window.child_window(**ListItems.RecentUsedListItem)
         recent_used.click_input()
@@ -2612,7 +2624,7 @@ class Files():
         return filenames
     
     @staticmethod
-    def export_videos(year:str=time.strftime('%Y'),month:str=None,target_folder:str=None)->list[str]:
+    def export_videos(year:str=time.strftime('%Y'),month:str=time.strftime('%m'),target_folder:str=None)->list[str]:
         '''
         该方法用来导出微信保存到本地的聊天视频,只有点击下载过的视频才可以被导出
         Args:
@@ -2646,7 +2658,7 @@ class Files():
         return exported_videos
 
     @staticmethod
-    def export_wxfiles(year:str=time.strftime('%Y'),month:str=None,target_folder:str=None)->list[str]:
+    def export_wxfiles(year:str=time.strftime('%Y'),month:str=time.strftime('%m'),target_folder:str=None)->list[str]:
         '''
         该方法用来快速导出微信聊天文件
         Args:
@@ -2663,7 +2675,7 @@ class Files():
             print(f'未传入文件夹路径,所有导出的微信聊天文件将保存至 {target_folder}')
         if not os.path.isdir(target_folder):
             raise NotFolderError(f'给定路径不是文件夹,无法导入保存聊天文件')
-        chatfiles_folder=Tools.where_chatfile_folder()
+        chatfiles_folder=Tools.where_chatfiles_folder()
         folders=os.listdir(chatfiles_folder)
         #先找到所有以年份开头的文件夹,并将得到的文件夹名字与其根目录chatfile_folder这个路径join
         filtered_folders=[os.path.join(chatfiles_folder,folder) for folder in folders if folder.startswith(year)]
@@ -3345,12 +3357,7 @@ class Messages():
         if close_weixin:
             main_window.close()
     
-    @staticmethod
     
-
-
-
-
     @staticmethod
     def reply_with_quote(friend:str,quote_text:str,reply_messages:list[str],
         at_members:list[str]=[],at_all:bool=False,search_pages:int=None,
@@ -4294,7 +4301,7 @@ class Monitor():
         is_group=Tools.is_group_chat(dialog_window)
         myName='本人(MySelf)'
         timestamp=time.strftime('%Y-%m')
-        chatfile_folder=Tools.where_chatfile_folder()
+        chatfile_folder=Tools.where_chatfiles_folder()
         chatList=dialog_window.child_window(**Lists.FriendChatList)#聊天界面内存储所有信息的容器
         timestamp_pattern=Regex_Patterns.Message_Timestamp_pattern#系统消息的时间戳
         if chatList.children(control_type='CheckBox'):

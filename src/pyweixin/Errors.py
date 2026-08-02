@@ -6,7 +6,7 @@ class NotLoginError(Exception):
     def __init__(self, Error='微信未登录,请先点击登录后再使用pyweixin!'):
         super().__init__(Error)  
 class NotFoundError(Exception):
-    def __init__(self,Error='无法识别定位到微信主界面,请在微信登录前运行无障碍服务(讲述人)后再尝试!'):
+    def __init__(self,Error='无法识别定位到微信主界面,UI树不可见,暂无解决办法...'):
         super().__init__(Error)
 class NetWorkError(Exception):
     def __init__(self, Error='当前网络不可用,无法进行UI自动化!'):

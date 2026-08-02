@@ -348,10 +348,10 @@ class Independent_window_Control():
             self.SettingsWindow={'title':'设置','class_name':"mmui::PreferenceWindow",'control_type':'Window','auto_id':"PreferenceWindow"}#微信设置窗口
             self.ContactManagerWindow={'title':'通讯录管理','class_name':"mmui::ContactsManagerWindow"}#通讯录管理窗口
             self.MomentsWindow={'title':'朋友圈','control_type':"Window",'class_name':"mmui::SNSWindow",'framework_id':'Qt'}#朋友圈窗口
-            self.ChatFilesWindow={'title':'聊天文件','control_type':'Window','class_name':"mmui::FileManagerWindow"}#聊天文件窗口
-            self.MiniProgramWindow={'title':'微信','control_type':'Pane','class_name':'Chrome_WidgetWin_0'}#小程序面板窗口
-            self.SearchWindow={'title':'微信','class_name':'Chrome_WidgetWin_0','control_type':'Pane'}#搜一搜窗口
-            self.ChannelsWindow={'title':'微信','class_name':'Chrome_WidgetWin_0','control_type':'Pane'}#视频号窗口
+            self.ChatFilesWindow={'title':'聊天文件','control_type':'Window','class_name':"mmui::FileManagerWindow",'found_index':0}#聊天文件窗口
+            self.MiniProgramWindow={'title':'微信','class_name':'Chrome_WidgetWin_0','found_index':0}#小程序面板窗口
+            self.SearchWindow={'title':'微信','class_name':'Chrome_WidgetWin_0','found_index':0}#搜一搜窗口
+            self.ChannelsWindow={'title':'微信','class_name':'Chrome_WidgetWin_0','found_index':0}#视频号窗口
             self.NoteWindow={'title':'笔记','class_name':'FavNoteWnd','framework_id':"Win32"}#笔记窗口
             self.IncomingCallWindow={'title':'微信','class_name':'mmui::VOIPTrayWindow'}#微信来电(视频或语音)桌面右下角的托盘窗口
             self.VoipCallWindow={'title':'微信音视频通话','class_name':'mmui::VOIPWindow'}#接通语音或视频电话后的通话窗口
@@ -360,10 +360,10 @@ class Independent_window_Control():
             self.SettingsWindow={'title':'Settings','class_name':"mmui::PreferenceWindow",'control_type':'Window','auto_id':'PreferenceWindow'}#微信设置窗口
             self.ContactManagerWindow={'title':'Manage Contacts','class_name':"mmui::ContactsManagerWindow"}#通讯录管理窗口
             self.MomentsWindow={'title':'Moments','control_type':"Window",'class_name':"mmui::SNSWindow",'framework_id':'Qt'}#朋友圈窗口
-            self.ChatFilesWindow={'title':'Chat Files','control_type':'Window','class_name':"mmui::FileManagerWindow"}#聊天文件窗口
-            self.MiniProgramWindow={'title':'WeChat','control_type':'Pane','class_name':'Chrome_WidgetWin_0'}#小程序面板窗口
-            self.SearchWindow={'title':'WeChat','class_name':'Chrome_WidgetWin_0','control_type':'Pane'}#搜一搜窗口
-            self.ChannelsWindow={'title':'WeChat','class_name':'Chrome_WidgetWin_0','control_type':'Pane'}#视频号窗口
+            self.ChatFilesWindow={'title':'Chat Files','control_type':'Window','class_name':"mmui::FileManagerWindow",'found_index':0}#聊天文件窗口
+            self.MiniProgramWindow={'title':'WeChat','class_name':'Chrome_WidgetWin_0','found_index':0}#小程序面板窗口
+            self.SearchWindow={'title':'WeChat','class_name':'Chrome_WidgetWin_0','found_index':0}#搜一搜窗口
+            self.ChannelsWindow={'title':'WeChat','class_name':'Chrome_WidgetWin_0','found_index':0}#视频号窗口
             self.NoteWindow={'title':'Note','class_name':'FavNoteWnd','framework_id':"Win32"}#笔记窗口
             self.IncomingCallWindow={'title':'Weixin','class_name':'mmui::VOIPTrayWindow'}#微信来电(视频或语音)桌面右下角的托盘窗口
             self.VoipCallWindow={'title':'Weixin Voice & Video Calls','class_name':'mmui::VOIPWindow'}#接通语音或视频电话后的通话窗口
@@ -372,10 +372,10 @@ class Independent_window_Control():
             self.SettingsWindow={'title':'設定','class_name':"mmui::PreferenceWindow",'control_type':'Window','auto_id':"PreferenceWindow"}#微信设置窗口
             self.ContactManagerWindow={'title':'通訊錄管理','class_name':"mmui::ContactsManagerWindow"}#通讯录管理窗口
             self.MomentsWindow={'title':'朋友圈','control_type':"Window",'class_name':"mmui::SNSWindow",'framework_id':'Qt'}#朋友圈窗口
-            self.ChatFilesWindow={'title':'微信檔案','control_type':'Window','class_name':"mmui::FileManagerWindow"}#聊天文件窗口
-            self.MiniProgramWindow={'title':'WeChat','control_type':'Pane','class_name':'Chrome_WidgetWin_0'}#小程序面板窗口
-            self.SearchWindow={'title':'WeChat','class_name':'Chrome_WidgetWin_0','control_type':'Pane'}#搜一搜窗口
-            self.ChannelsWindow={'title':'WeChat','class_name':'Chrome_WidgetWin_0','control_type':'Pane'}#视频号窗口
+            self.ChatFilesWindow={'title':'微信檔案','control_type':'Window','class_name':"mmui::FileManagerWindow",'found_index':0}#聊天文件窗口
+            self.MiniProgramWindow={'title':'WeChat','class_name':'Chrome_WidgetWin_0','found_index':0}#小程序面板窗口
+            self.SearchWindow={'title':'WeChat','class_name':'Chrome_WidgetWin_0','found_index':0}#搜一搜窗口
+            self.ChannelsWindow={'title':'WeChat','class_name':'Chrome_WidgetWin_0','found_index':0}#视频号窗口
             self.NoteWindow={'title':'筆記','class_name':'FavNoteWnd','framework_id':"Win32"}#笔记窗口
             self.IncomingCallWindow={'title':'微信','class_name':'mmui::VOIPTrayWindow'}#微信来电(视频或语音)桌面右下角的托盘窗口
             self.VoipCallWindow={'title':'微信語音/視訊通話 ','class_name':'mmui::VOIPWindow'}#接通语音或视频电话后的通话窗口
@@ -390,13 +390,14 @@ class ListItem_Control():
         if self.language=='简体中文':
             self.FilesListItem={'control_type':'ListItem','title':'文件'}#微信收藏界面中的文件
             self.NotesListItem={'control_type':'ListItem','title':'笔记'}#微信收藏界面中的笔记
+            self.offAndSerAccListItem={'control_type':'ListItem','title_re':r'公众号、服务号\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的公众号、服务号项目（4.1.12以上合并到了一起）
             self.CollectionsTagListItem={'control_type':'ListItem','class_name':'mmui::XTabelCell','title':'标签'}#微信收藏界面中的标签
             self.MediaListItem={'title':'照片和视频','control_type':'ListItem','class_name':'mmui::XTabelCell'}#微信收藏界面里的照片和视频项目
             self.GroupLabelListItem={'title':'群聊','control_type':'ListItem','class_name':'mmui::XTableCell'}#微信顶部搜索内容后搜索结果中的群聊标签(分隔符)
             self.NewFriendListItem={'control_type':'ListItem','title':r'新的朋友','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的新的朋友项目
             self.SavedGroupsListIte={'control_type':'ListItem','title_re':r'群聊\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的群聊项目
-            self.OfficialAccountsListItem={'control_type':'ListItem','title_re':r'公众号\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的公众号项目
-            self.ServiceAccountsListItem={'control_type':'ListItem','title_re':r'服务号\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的服务号项目
+            self.OffAccListItem={'control_type':'ListItem','title_re':r'公众号\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的公众号项目
+            self.SerAccListItem={'control_type':'ListItem','title_re':r'服务号\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的服务号项目
             self.WeComContactsListItems={'control_type':'ListItem','title_re':r'企业微信联系人\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的企业微信联系人项目
             self.MyEnterPriseListItems={'control_type':'ListItem','title_re':r'我的企业\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的我的企业项目
             self.ContactsListItem={'control_type':'ListItem','title_re':r'联系人\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的联系人项目
@@ -413,13 +414,14 @@ class ListItem_Control():
         if self.language=='English':
             self.FilesListItem={'control_type':'ListItem','title':'Files'}#微信收藏界面中的文件
             self.NotesListItem={'control_type':'ListItem','title':'Notes'}#微信收藏界面中的笔记
+            self.offAndSerAccListItem={'control_type':'ListItem','title_re':r'Official Accounts and Service Accounts\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的公众号、服务号项目（4.1.12以上合并到了一起）
             self.CollectionsTagListItem={'control_type':'ListItem','class_name':'mmui::XTabelCell','title':'Tags'}#微信收藏界面中的标签
             self.MediaListItem={'title':'Media','control_type':'ListItem','class_name':'mmui::XTabelCell'}#微信收藏界面里的照片和视频项目
             self.GroupLabelListItem={'title':'Group Chats','control_type':'ListItem','class_name':'mmui::XTableCell'}#微信顶部搜索内容后搜索结果中的群聊标签(分隔符)
             self.NewFriendListItem={'control_type':'ListItem','title':r'New Friends','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的新的朋友项目
             self.SavedGroupsListIte={'control_type':'ListItem','title_re':r'Saved Groups\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的群聊项目
-            self.OfficialAccountsListItem={'control_type':'ListItem','title_re':r'Official Accounts\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的公众号项目
-            self.ServiceAccountsListItem={'control_type':'ListItem','title_re':r'Service Accounts\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的服务号项目
+            self.OffAccListItem={'control_type':'ListItem','title_re':r'Official Accounts\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的公众号项目
+            self.SerAccListItem={'control_type':'ListItem','title_re':r'Service Accounts\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的服务号项目
             self.WeComContactsListItems={'control_type':'ListItem','title_re':r'WeCom Contacts\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的企业微信联系人项目
             self.MyEnterPriseListItems={'control_type':'ListItem','title_re':r'My Enterprise\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的我的企业项目
             self.ContactsListItem={'control_type':'ListItem','title_re':r'Contacts\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的联系人项目
@@ -436,13 +438,14 @@ class ListItem_Control():
         if self.language=='繁體中文':
             self.FilesListItem={'control_type':'ListItem','title':'檔案'}#微信收藏界面中的文件
             self.NotesListItem={'control_type':'ListItem','title':'筆記'}#微信收藏界面中的笔记
+            self.offAndSerAccListItem={'control_type':'ListItem','title_re':r'官方賬號、服務賬號\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的公众号、服务号项目（4.1.12以上合并到了一起）
             self.CollectionsTagListItem={'control_type':'ListItem','class_name':'mmui::XTabelCell','title':'標籤'}#微信收藏界面中的标签
             self.MediaListItem={'title':'圖片與影片','control_type':'ListItem'}#微信收藏界面里的照片和视频项目
             self.GroupLabelListItem={'title':'群組','control_type':'ListItem','class_name':'mmui::XTableCell'}#微信顶部搜索内容后搜索结果中的群聊标签(分隔符)
             self.NewFriendListItem={'control_type':'ListItem','title':r'新的朋友','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的新的朋友项目
             self.SavedGroupsListIte={'control_type':'ListItem','title_re':r'群聊\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的群聊项目
-            self.OfficialAccountsListItem={'control_type':'ListItem','title_re':r'官方賬號\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的公众号项目
-            self.ServiceAccountsListItem={'control_type':'ListItem','title_re':r'服務賬號\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的服务号项目
+            self.OffAccListItem={'control_type':'ListItem','title_re':r'官方賬號\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的公众号项目
+            self.SerAccListItem={'control_type':'ListItem','title_re':r'服務賬號\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的服务号项目
             self.WeComContactsListItems={'control_type':'ListItem','title_re':r'WeCom 聯絡人\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的企业微信联系人项目
             self.MyEnterPriseListItems={'control_type':'ListItem','title_re':r'我的企業\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的我的企业项目
             self.ContactsListItem={'control_type':'ListItem','title_re':r'聯絡人\d+','class_name':'mmui::ContactsCellGroupView'}#主界面切换至通讯录后，通讯录列表内的联系人项目
@@ -605,32 +608,38 @@ class SideBar_Control():
             self.Weixin={'title':'微信','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的微信按钮
             self.Contacts={'title':'通讯录','control_type':'Button'}#主界面左侧的通讯录按钮
             self.Collections={'title':'收藏','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的收藏按钮
-            self.Moments={'title':'朋友圈','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的朋友圈按钮
-            self.Search={'title':'搜一搜','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的搜一搜按钮
-            self.Channels={'title':'视频号','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的视频号按钮
-            self.MiniProgram={'title':'小程序面板','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的小程序面板按钮
+            self.Moments={'title':'朋友圈','control_type':'Button','found_index':0}#主界面左侧的朋友圈按钮
+            self.Search={'title':'搜一搜','control_type':'Button','found_index':0}#主界面左侧的搜一搜按钮
+            self.Channels={'title':'视频号','control_type':'Button','found_index':0}#主界面左侧的视频号按钮
             self.Discovery={'title':'发现','control_type':'Button'}#主界面左侧的发现按钮
             self.More={'title':'更多','control_type':'Button','found_index':0}#主界面左侧的更多按钮 
+            self.MiniProgram={'title':'小程序面板','control_type':'Button','found_index':0}#主界面左侧的小程序面板按钮
+            if version.parse(self.Version)>=version.parse('4.1.12'):
+                self.MiniProgram={'title':'小程序','control_type':'Button','found_index':0}#主界面左侧的小程序按钮
         if self.language=='English':
             self.Weixin={'title':'Weixin','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的微信按钮
             self.Contacts={'title':'Contacts','control_type':'Button'}#主界面左侧的通讯录按钮
             self.Collections={'title':'Favorites','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的收藏按钮
-            self.Moments={'title':'Moments','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的朋友圈按钮
-            self.Search={'title':'Search','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的搜一搜按钮
-            self.Channels={'title':'Channels','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的视频号按钮
-            self.MiniProgram={'title':'Mini Programs Panel','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的小程序面板按钮
+            self.Moments={'title':'Moments','control_type':'Button','found_index':0}#主界面左侧的朋友圈按钮
+            self.Search={'title':'Search','control_type':'Button','found_index':0}#主界面左侧的搜一搜按钮
+            self.Channels={'title':'Channels','control_type':'Button','found_index':0}#主界面左侧的视频号按钮
             self.Discovery={'title':'Discovery','control_type':'Button'}#主界面左侧的发现按钮
             self.More={'title':'More','control_type':'Button','found_index':0}#主界面左侧的更多按钮 
+            self.MiniProgram={'title':'Mini Programs Panel','control_type':'Button','found_index':0}#主界面左侧的小程序面板按钮
+            if version.parse(self.Version)>=version.parse('4.1.12'):
+                self.MiniProgram={'title':'Mini Programs','control_type':'Button','found_index':0}#主界面左侧的小程序面板按钮
         if self.language=='繁體中文':
             self.Weixin={'title':'微信','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的微信按钮
             self.Contacts={'title':'通訊錄','control_type':'Button'}#主界面左侧的通讯录按钮
             self.Collections={'title':'收藏','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的收藏按钮
-            self.Moments={'title':'朋友圈','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的朋友圈按钮
-            self.Search={'title':'搜一搜','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的搜一搜按钮
-            self.Channels={'title':'影音號','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的视频号按钮
-            self.MiniProgram={'title':'小程式面板','control_type':'Button','class_name':"mmui::XTabBarItem"}#主界面左侧的小程序面板按钮
-            self.Discovery={'title':'发现','control_type':'Button'}#主界面左侧的发现按钮
+            self.Moments={'title':'朋友圈','control_type':'Button','found_index':0}#主界面左侧的朋友圈按钮
+            self.Search={'title':'搜一搜','control_type':'Button','found_index':0}#主界面左侧的搜一搜按钮
+            self.Channels={'title':'影音號','control_type':'Button','found_index':0}#主界面左侧的视频号按钮
+            self.Discovery={'title':'發現','control_type':'Button'}#主界面左侧的发现按钮
             self.More={'title':'更多','control_type':'Button','found_index':0}#主界面左侧的更多按钮 
+            self.MiniProgram={'title':'小程式面板','control_type':'Button','found_index':0}#主界面左侧的小程序面板按钮
+            if version.parse(self.Version)>=version.parse('4.1.12'):
+                self.MiniProgram={'title':'小程式','control_type':'Button','found_index':0}#主界面左侧的小程序面板按钮
 
 class Text_Control():
     '''微信主界面以及设置界面内所有类型为Text的UI控件'''

@@ -1330,6 +1330,30 @@ print(f'收藏了 {collected} 篇文章')
 
 ---
 
+#### `Collections.save_notes()`
+
+将收藏中的 **笔记转为MarkDown**。
+
+```python
+Collections.collect_offAcc_articles(
+    name: str,
+    number: int,
+    delay: float = 0.3,
+    is_maximize: bool = None,
+    close_weixin: bool = None
+) -> int
+```
+
+**返回值**: `int` — 已收藏的文章数量
+
+```python
+# 示例
+collected = Collections.collect_offAcc_articles(name='新华社', number=10)
+print(f'收藏了 {collected} 篇文章')
+```
+
+---
+
 ### 8. Call — 语音/视频通话
 
 #### `Call.voice_call()`
