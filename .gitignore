@@ -1,5 +1,5 @@
-"__pycache__/" 
-"*.pyc" 
+"__pycache__/"
+"*.pyc"
 "*.venv"
 .idea/
 # test scripts
@@ -12,3 +12,13 @@ _patch_*.py
 _quote_*.txt
 __pycache__/
 *.pyc
+# contact exporter runtime artifacts (privacy: never commit exported data)
+output/
+logs/
+*.egg-info/
+.pytest_cache/
+# contact exporter tests are versioned despite the upstream test_*.py pattern
+!tests/
+!tests/*.py
+!tests/fixtures/
+!tests/fixtures/*.json
