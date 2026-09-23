@@ -17,6 +17,8 @@ output/
 logs/
 *.egg-info/
 .pytest_cache/
+# local virtualenv (upstream only had "*.venv", which does not match ".venv/")
+.venv/
 # contact exporter tests are versioned despite the upstream test_*.py pattern
 !tests/
 !tests/*.py

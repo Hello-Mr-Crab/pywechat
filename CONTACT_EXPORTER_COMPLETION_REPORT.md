@@ -13,12 +13,15 @@
 - ebe8d4b  修改pull_messages相关的方法的稳定性  (origin/main, merge-base)
 
 ## Final HEAD
-- e13b46c  docs: add contact exporter usage guide
+- a9e4eec  docs: add contact exporter completion report  （本报告所在提交）
+- 最后一个功能/文档交付提交: e13b46c  docs: add contact exporter usage guide
+- 说明: 本报告由 a9e4eec 引入；此后如再修订本报告（例如 docs-only 修正提交），
+  分支 tip 会前进，请以 `git rev-parse feat/contact-exporter` 为最终事实来源。
 
 ## Modified files
 | 文件 | 改动 |
 | --- | --- |
-| .gitignore | +output/ +logs/ +*.egg-info/ +.pytest_cache/ +!tests/ 例外规则（仅 1 个上游文件被修改） |
+| .gitignore | +output/ +logs/ +*.egg-info/ +.pytest_cache/ +.venv/ +!tests/ 例外规则（仅 1 个上游文件被修改） |
 
 上游 src/pywechat/、src/pyweixin/、Mcp/、Skill/、setup.py、pyproject.toml **零改动**。
 
@@ -131,6 +134,7 @@ python export_contacts.py --format csv --no-deduplicate --output-dir D:\exports 
 
 ## 提交历史（本地，未 push）
 ```
+a9e4eec docs: add contact exporter completion report
 e13b46c docs: add contact exporter usage guide
 faad01e feat: add mock-data option to contact exporter cli
 72848bd test: add contact exporter tests
