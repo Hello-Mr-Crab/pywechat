@@ -43,6 +43,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--backend", choices=["pyweixin", "mock"], default="pyweixin",
         help="联系人读取后端（mock 用于无微信环境的冒烟测试）",
     )
+    parser.add_argument(
+        "--mock-data", default=None,
+        help="mock 后端加载的 JSON 数据文件路径（list[dict]，模拟上游返回）",
+    )
     return parser
 
 
@@ -52,7 +56,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     exported_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     try:
-        reader = reader_factory(args.backend)
+        reader_kwargs: dict = {}
+        if args.backend == "mock" and args.mock_data:
+            import json
+            with open(args.mock_data, encoding="utf-8") as fp:
+                reader_kwargs["data"] = json.load(fp)
+        reader = reader_factory(args.backend, **reader_kwargs)
         raw = reader.read_contacts()
     except ContactReadError as e:
         logger.error(str(e))
