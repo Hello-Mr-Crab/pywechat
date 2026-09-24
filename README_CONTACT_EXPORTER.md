@@ -44,7 +44,7 @@ python export_contacts.py --format csv --no-deduplicate
 # 指定输出目录
 python export_contacts.py --format csv --output-dir D:\my-exports
 
-# 详细日志（注意：可能打印手机号/微信号）
+# 详细日志（微信号 OCR 候选始终脱敏）
 python export_contacts.py --format csv --verbose
 ```
 
@@ -69,18 +69,26 @@ python export_contacts.py --format csv --backend mock --mock-data tests/fixtures
 
 `nickname, remark, wechat_id, phone, region, tags, source, exported_at`
 
+CSV appends `wechat_id_status`, `wechat_id_source`, `wechat_id_confidence`,
+`wechat_id_reason`, and `wechat_id_candidate`; TXT includes the same review
+fields after the existing columns. Only `CONFIRMED` records fill `wechat_id`;
+legacy input without a confirmation status fails closed.
+
 无法获取的字段留空，不伪造，不因单字段缺失终止。
 
 ## 输出
 
 - `output/wechat_contacts_YYYYMMDD_HHMMSS.csv`（UTF-8 BOM，Excel/WPS 中文正常，首行表头）
-- `output/wechat_contacts_YYYYMMDD_HHMMSS.txt`（UTF-8 BOM，`备注 | 昵称 | 微信号 | 手机号 | 地区 | 标签`）
+- `output/wechat_contacts_YYYYMMDD_HHMMSS.txt`（UTF-8 BOM，包含微信号状态和来源）
+
+微信号 OCR runtime/model installation, offline behavior, statuses, and
+limitations are documented in [`docs/wechat-id-ocr.md`](docs/wechat-id-ocr.md).
 - 同名文件已存在时自动追加 `_1`/`_2` 后缀，**不覆盖旧文件**。
 
 ## 隐私
 
 - `output/` 与 `logs/` 已在 `.gitignore` 中忽略，不会进入版本控制。
-- 日志默认脱敏手机号；`--verbose` 才会打印详情。
+- 联系人完整记录不会写入日志；微信号诊断即使在 debug 模式也只记录脱敏值。
 
 ## 常见错误
 
@@ -102,7 +110,8 @@ python -m pytest tests/ -v
 ## 目录结构
 
 ```
-contact_exporter/      # 独立附加包（不侵入上游 src/）
+src/pyweixin/ocr/      # 微信号专用 OCR-primary 与 UIA-secondary 实现
+contact_exporter/      # CSV/TXT 导出层与 fail-closed normalizer
   __init__.py
   cli.py
   reader.py

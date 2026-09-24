@@ -1,4 +1,5 @@
 """Unit tests for contact_exporter.normalizer."""
+
 from __future__ import annotations
 
 import json
@@ -18,12 +19,19 @@ def _load_fixture() -> list[dict]:
 
 def test_basic_key_mapping():
     raw = {
-        "昵称": "张三", "微信号": "zs", "地区": "北京", "备注": "老张",
-        "电话": "13800138000", "标签": "同事", "来源": "群聊",
+        "昵称": "张三",
+        "微信号": "zhangsan",
+        "微信号状态": "CONFIRMED",
+        "微信号来源": "ocr",
+        "地区": "北京",
+        "备注": "老张",
+        "电话": "13800138000",
+        "标签": "同事",
+        "来源": "群聊",
     }
     c = normalize_one(raw, EXPORTED_AT)
     assert c.nickname == "张三"
-    assert c.wechat_id == "zs"
+    assert c.wechat_id == "zhangsan"
     assert c.region == "北京"
     assert c.remark == "老张"
     assert c.phone == "13800138000"
@@ -34,8 +42,13 @@ def test_basic_key_mapping():
 
 def test_none_and_sentinel_fields_become_empty():
     raw = {
-        "昵称": "李四", "微信号": "无", "备注": None,
-        "电话": "", "地区": "  无  ", "标签": "无", "来源": "无",
+        "昵称": "李四",
+        "微信号": "无",
+        "备注": None,
+        "电话": "",
+        "地区": "  无  ",
+        "标签": "无",
+        "来源": "无",
     }
     c = normalize_one(raw, EXPORTED_AT)
     assert c.nickname == "李四"
@@ -45,6 +58,36 @@ def test_none_and_sentinel_fields_become_empty():
     assert c.region == ""
     assert c.tags == ""
     assert c.source == ""
+
+
+def test_unconfirmed_wechat_candidate_never_enters_export_field():
+    c = normalize_one(
+        {
+            "昵称": "示例",
+            "微信号": "abc_def",
+            "微信号状态": "NEED_REVIEW",
+            "微信号候选": "abc_def",
+            "微信号来源": "ocr",
+        },
+        EXPORTED_AT,
+    )
+    assert c.wechat_id == ""
+    assert c.wechat_id_candidate == "abc_def"
+    assert c.wechat_id_status == "NEED_REVIEW"
+
+
+def test_legacy_raw_wechat_id_without_status_fails_closed():
+    c = normalize_one({"昵称": "示例", "微信号": "abc_def"}, EXPORTED_AT)
+    assert c.wechat_id == ""
+    assert c.wechat_id_candidate == "abc_def"
+
+
+def test_invalid_value_does_not_pass_even_with_confirmed_status():
+    c = normalize_one(
+        {"昵称": "示例", "微信号": "not,valid", "微信号状态": "CONFIRMED"}, EXPORTED_AT
+    )
+    assert c.wechat_id == ""
+    assert c.wechat_id_candidate == "not,valid"
 
 
 def test_missing_keys_default_empty():
@@ -82,7 +125,8 @@ def test_special_characters_do_not_break_structure():
     c = normalize_one(raw, EXPORTED_AT)
     assert c.nickname == '逗号,引号"换行\n制表\t中'
     assert c.remark == 'Alice "A", Inc.'
-    assert c.wechat_id == "weird,id"
+    assert c.wechat_id == ""
+    assert c.wechat_id_candidate == "weird,id"
 
 
 def test_deduplicate_default_drops_duplicates():

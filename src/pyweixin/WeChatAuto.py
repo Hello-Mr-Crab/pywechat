@@ -52,39 +52,78 @@ Also:
 '''
 
 #########################################依赖环境#####################################
-#第三方库
+# 第三方库
+import json
+import logging
 import os
 import re
 import time
-import json
+from typing import Callable, Literal
+from warnings import warn
+
 import pyautogui
 import win32clipboard
-import win32gui,win32con
-from typing import Literal
-from warnings import warn
+import win32con
+import win32gui
+from packaging import version  # 字符串版本比较,4.1.9>4.1.8>4.1.7
+from PIL import ImageGrab
 from pywinauto import WindowSpecification
-from pywinauto.controls.uia_controls import ListItemWrapper,ListViewWrapper#TypeHint要用到
-from typing import Callable
-from packaging import version#字符串版本比较,4.1.9>4.1.8>4.1.7
+from pywinauto.controls.uia_controls import (
+    ListItemWrapper,
+    ListViewWrapper,
+)  # TypeHint要用到
+
 #####################################################################################
-#内部依赖
+# 内部依赖
 from .Config import GlobalConfig
-from .utils import At,At_all,ColorMatch
-from .utils import traverse_chat_history,traverse_message
-from .utils import parse_chat_history,parse_group_chat_history
-from .utils import parse_messages,parse_group_messages
-from .utils import scan_for_new_messages,get_new_message_num,process_audios
-from .Warnings import LongTextWarning,NoChatHistoryWarning
-from .WeChatTools import Tools,Navigator,mouse,Desktop
+from .Errors import (
+    NoFilesToSendError,
+    NotFolderError,
+    NotFriendError,
+    TimeNotCorrectError,
+)
+from .ocr import WeChatIdExtractor, extract_wechat_id_from_uia
+from .ocr.masking import mask_wechat_id
+from .ocr.result import WeChatIdResult
+from .ocr.roi import fallback_profile_roi
+from .ocr.wechat_id import reconcile_ocr_result
+from .Uielements import (
+    Buttons,
+    CheckBoxes,
+    Customs,
+    Edits,  #导入的是自动判断语言与版本后的实例化对象,如果自行使用需要导入xxx_Control
+    Groups,
+    ListItems,
+    Lists,
+    Main_window,
+    MenuItems,
+    MousePos,
+    Panes,
+    Regex_Patterns,
+    SideBar,
+    Special_Labels,
+    TabItems,
+    Texts,
+    Windows,
+)
+from .utils import (
+    At,
+    At_all,
+    ColorMatch,
+    get_new_message_num,
+    parse_chat_history,
+    parse_group_chat_history,
+    parse_group_messages,
+    parse_messages,
+    process_audios,
+    scan_for_new_messages,
+    traverse_chat_history,
+    traverse_message,
+)
+from .Warnings import LongTextWarning, NoChatHistoryWarning
+from .WeChatTools import Desktop, Navigator, Tools, mouse
 from .WinSettings import SystemSettings
-from .Errors import TimeNotCorrectError
-from .Errors import NoFilesToSendError
-from .Errors import NotFolderError
-from .Errors import NotFriendError
-from .Uielements import (Main_window,SideBar,Buttons,TabItems,
-Edits,Texts,Lists,Panes,Windows,CheckBoxes,MenuItems,Groups,Customs,ListItems)#导入的是自动判断语言与版本后的实例化对象,如果自行使用需要导入xxx_Control
-from .Uielements import Regex_Patterns,Special_Labels
-from .Uielements import MousePos
+
 #######################################################################################
 desktop=Desktop(backend='uia')#pywinauto的windows桌面对象(WindowSpecification)实例化
 pyautogui.FAILSAFE=False#防止鼠标在屏幕边缘处造成的误触
@@ -642,7 +681,7 @@ class Collections():
             return []
         saved_num=0
         saved_details=[]
-        from .Notes2MD import remove_thumbs,export_weixin_note
+        from .Notes2MD import export_weixin_note, remove_thumbs
         favoriteTemp_folder=Tools.where_favoriteTemp_folder(False)
         Fav_Timestamp_pattern=Regex_Patterns.Fav_Timestamp_pattern
         SystemSettings.clear_folder_with_powershell(favoriteTemp_folder)
@@ -1028,15 +1067,20 @@ class Contacts():
                 if names[-1]==last_friend:
                     break
                 contact_list.type_keys('{PGDN}')
-            Tools.collapse_contacts(main_window,contact_list)
-        friends_name=list(dict.fromkeys(friends_name))
+            Tools.collapse_contacts(main_window, contact_list)
+        friends_name = list(dict.fromkeys(friends_name))
         if close_weixin:
             main_window.close()
         return friends_name
 
     @staticmethod
-    def get_friends_detail(interval:float=0.1,is_maximize:bool=None,close_weixin:bool=None,is_json:bool=False)->(list[dict]|str):
-        '''
+    def get_friends_detail(
+        interval: float = 0.1,
+        is_maximize: bool = None,
+        close_weixin: bool = None,
+        is_json: bool = False,
+    ) -> list[dict] | str:
+        """
         该方法用来获取通讯录内好友信息
         Args:
             interval:遍历过程中的停留间隔,默认为0.1秒
@@ -1045,103 +1089,222 @@ class Contacts():
             is_json:是否以json格式返回
         Returns:
             friends_detail:所有好友的信息
-        '''
-        #切换到联系人分区内的第一个好友
+        """
+
+        # 切换到联系人分区内的第一个好友
         def switch_to_first_friend():
-            contact_list.type_keys('{HOME}')
-            items=contact_list.children(control_type='ListItem')
+            contact_list.type_keys("{HOME}")
+            items = contact_list.children(control_type="ListItem")
             for i in range(len(items)):
-                if items[i]==contact_item and i<len(items)-1:
-                    first_friend=i+1
-                    if items[i+1].window_text()=='':
-                        first_friend+=1
+                if items[i] == contact_item and i < len(items) - 1:
+                    first_friend = i + 1
+                    if items[i + 1].window_text() == "":
+                        first_friend += 1
                     break
-            items[first_friend].click_input()     
-  
-        #获取右侧好友信息面板
+            items[first_friend].click_input()
+
+        _last_profile_image = None
+
+        def _extract_profile_wechat_id():
+            nonlocal _last_profile_image
+            try:
+                rect = contact_profile.rectangle()
+                left, top, right, bottom = rect.left, rect.top, rect.right, rect.bottom
+                if right <= left or bottom <= top:
+                    raise ValueError("empty profile rectangle")
+            except Exception:
+                # UIA panel unavailable: estimate a right-side profile ROI
+                # from the client window, never from absolute screen pixels.
+                try:
+                    rect = main_window.rectangle()
+                    fallback = fallback_profile_roi(rect)
+                    if fallback is None:
+                        raise ValueError("empty window rectangle")
+                    left, top, right, bottom = fallback
+                except Exception:
+                    return WeChatIdResult(
+                        status="OCR_FAILED", reason="profile_roi_unavailable"
+                    )
+            try:
+                _last_profile_image = ImageGrab.grab(
+                    bbox=(left, top, right, bottom), all_screens=True
+                )
+                return WeChatIdExtractor().extract(_last_profile_image)
+            except Exception as exc:
+                return WeChatIdResult(
+                    status="OCR_FAILED",
+                    reason=f"profile_capture_failed:{type(exc).__name__}",
+                )
+
+        # 获取右侧好友信息面板
         def get_specific_info():
-            wx_number='无'
-            region='无'#好友的地区
-            tag='无'#好友标签
-            common_group_num='无'
-            remark='无'#备注
-            signature='无'#个性签名
-            source='无'#好友来源
-            descrption='无'#描述
-            mobile='无'#电话号
-            privacy='无'#朋友权限
-            texts=contact_profile.descendants(control_type='Text')
-            texts=[item.window_text() for item in texts]
-            nickname=texts[0]
-            if wxnum_label in texts:wx_number=texts[texts.index(wxnum_label)+1]#微信号
-            if nickname_label in texts:nickname=texts[texts.index(nickname_label)+1]
-            if region_label in texts:region=texts[texts.index(region_label)+1]
+            wx_number = "无"
+            region = "无"  # 好友的地区
+            tag = "无"  # 好友标签
+            common_group_num = "无"
+            remark = "无"  # 备注
+            signature = "无"  # 个性签名
+            source = "无"  # 好友来源
+            descrption = "无"  # 描述
+            mobile = "无"  # 电话号
+            privacy = "无"  # 朋友权限
+            # OCR is run before querying UIA for the ID; UIA is strictly a
+            # secondary cross-check and cannot bypass OCR.
+            ocr_result = _extract_profile_wechat_id()
+            try:
+                texts = [
+                    item.window_text()
+                    for item in contact_profile.descendants(control_type="Text")
+                ]
+            except Exception:
+                texts = []
+            nickname = texts[0] if texts else "无"
+            ui_candidate = extract_wechat_id_from_uia(texts)
+            ocr_result = reconcile_ocr_result(ocr_result, ui_candidate)
+            logging.getLogger(__name__).debug(
+                "WECHAT_ID status=%s source=%s candidate=%s reason=%s",
+                ocr_result.status,
+                ocr_result.source,
+                mask_wechat_id(ocr_result.value or ui_candidate),
+                ocr_result.reason or "",
+            )
+            wx_number = ocr_result.value if ocr_result.is_confirmed else "无"
+            if nickname_label in texts:
+                nickname = texts[texts.index(nickname_label) + 1]
+            if region_label in texts:
+                region = texts[texts.index(region_label) + 1]
             if remark_label in texts:
-                remark=texts[texts.index(remark_label)+1]
-                if remark in labels:remark='无'
-            if sharedgroups_label in texts:common_group_num=texts[texts.index(sharedgroups_label)+1]
-            if signature_label in texts:signature=texts[texts.index(signature_label)+1]
-            if source_label in texts:source=texts[texts.index(source_label)+1]
-            if mobile_label in texts:mobile=texts[texts.index(mobile_label)+1]
-            if description_label in texts:descrption=texts[texts.index(description_label)+1]
-            if tags_label in texts:tag=texts[texts.index(tags_label)+1]
-            if privacy_label in texts:privacy=texts[texts.index(privacy_label)+1]
-            info={'昵称':nickname,'微信号':wx_number,'地区':region,'备注':remark,'电话':mobile,
-            '标签':tag,'描述':descrption,'朋友权限':privacy,'共同群聊':f'{common_group_num}','个性签名':signature,'来源':source}
+                remark = texts[texts.index(remark_label) + 1]
+                if remark in labels:
+                    remark = "无"
+            if sharedgroups_label in texts:
+                common_group_num = texts[texts.index(sharedgroups_label) + 1]
+            if signature_label in texts:
+                signature = texts[texts.index(signature_label) + 1]
+            if source_label in texts:
+                source = texts[texts.index(source_label) + 1]
+            if mobile_label in texts:
+                mobile = texts[texts.index(mobile_label) + 1]
+            if description_label in texts:
+                descrption = texts[texts.index(description_label) + 1]
+            if tags_label in texts:
+                tag = texts[texts.index(tags_label) + 1]
+            if privacy_label in texts:
+                privacy = texts[texts.index(privacy_label) + 1]
+            info = {
+                "昵称": nickname,
+                "微信号": wx_number,
+                "微信号状态": ocr_result.status,
+                "微信号来源": ocr_result.source,
+                "微信号置信度": ocr_result.confidence,
+                "微信号原因": ocr_result.reason or "",
+                "微信号候选": (
+                    ocr_result.value
+                    or " | ".join(v for v in ocr_result.ocr_candidates if v)
+                    or ocr_result.ui_candidate
+                    or ""
+                )
+                if not ocr_result.is_confirmed
+                else "",
+                "地区": region,
+                "备注": remark,
+                "电话": mobile,
+                "标签": tag,
+                "描述": descrption,
+                "朋友权限": privacy,
+                "共同群聊": f"{common_group_num}",
+                "个性签名": signature,
+                "来源": source,
+            }
             return info
-        
+
         if is_maximize is None:
-            is_maximize=GlobalConfig.is_maximize
+            is_maximize = GlobalConfig.is_maximize
         if close_weixin is None:
-            close_weixin=GlobalConfig.close_weixin
-        #所有的标签,这些标签的下一个便是其对应的值,即texts[texts.index(label)+1]
-        wxnum_label=Special_Labels.WxNum
-        nickname_label=Special_Labels.Nickname
-        region_label=Special_Labels.Region
-        remark_label=Special_Labels.Remark
-        sharedgroups_label=Special_Labels.SharedGroups
-        signature_label=Special_Labels.Signature
-        source_label=Special_Labels.Source
-        mobile_label=Special_Labels.Mobile
-        description_label=Special_Labels.Description
-        tags_label=Special_Labels.Tags
-        privacy_label=Special_Labels.Privacy
-        moments_label=Special_Labels.Moments
-        friends_detail=[]
-        labels={wxnum_label,nickname_label,region_label,remark_label,sharedgroups_label,signature_label,
-        source_label,mobile_label,description_label,tags_label, privacy_label,moments_label}#联系人分区的标签
-        #通讯录列表
-        contact_list,main_window=Navigator.open_contacts(is_maximize=is_maximize)
-        #右侧的自定义面板
-        contact_custom=main_window.child_window(**Customs.ContactDetailCustom)
-        #右侧自定义面板下的好友信息所在面板
-        contact_profile=contact_custom.child_window(**Groups.ContactProfileGroup)
-        area=(contact_custom.rectangle().mid_point().x,contact_custom.rectangle().mid_point().y)
-        #联系人分区
-        Tools.collapse_contacts(main_window,contact_list)
-        contact_item=main_window.child_window(**ListItems.ContactsListItem)
+            close_weixin = GlobalConfig.close_weixin
+        # 所有的标签,这些标签的下一个便是其对应的值,即texts[texts.index(label)+1]
+        wxnum_label = Special_Labels.WxNum
+        nickname_label = Special_Labels.Nickname
+        region_label = Special_Labels.Region
+        remark_label = Special_Labels.Remark
+        sharedgroups_label = Special_Labels.SharedGroups
+        signature_label = Special_Labels.Signature
+        source_label = Special_Labels.Source
+        mobile_label = Special_Labels.Mobile
+        description_label = Special_Labels.Description
+        tags_label = Special_Labels.Tags
+        privacy_label = Special_Labels.Privacy
+        moments_label = Special_Labels.Moments
+        friends_detail = []
+        labels = {
+            wxnum_label,
+            nickname_label,
+            region_label,
+            remark_label,
+            sharedgroups_label,
+            signature_label,
+            source_label,
+            mobile_label,
+            description_label,
+            tags_label,
+            privacy_label,
+            moments_label,
+        }  # 联系人分区的标签
+        # 通讯录列表
+        contact_list, main_window = Navigator.open_contacts(is_maximize=is_maximize)
+        # 右侧的自定义面板
+        try:
+            contact_custom = main_window.child_window(**Customs.ContactDetailCustom)
+            contact_profile = contact_custom.child_window(**Groups.ContactProfileGroup)
+            area = (
+                contact_custom.rectangle().mid_point().x,
+                contact_custom.rectangle().mid_point().y,
+            )
+        except Exception:
+            # A newer WeChat UIA subtree may be unavailable; OCR ROI has a
+            # window-relative fallback and still runs for every selected row.
+            contact_custom = None
+            contact_profile = None
+            rect = main_window.rectangle()
+            area = (
+                rect.left + int((rect.right - rect.left) * 0.75),
+                rect.top + int((rect.bottom - rect.top) * 0.3),
+            )
+        # 联系人分区
+        Tools.collapse_contacts(main_window, contact_list)
+        contact_item = main_window.child_window(**ListItems.ContactsListItem)
         if contact_item.exists(timeout=0.1):
-            total_num=int(re.search(r'\d+',contact_item.window_text()).group(0))
+            total_num = int(re.search(r"\d+", contact_item.window_text()).group(0))
             contact_item.click_input()
-            switch_to_first_friend()#找到别切换到第一个好友
-            info=get_specific_info()#获取该好友信息
+            switch_to_first_friend()  # 找到别切换到第一个好友
+            info = get_specific_info()  # 获取该好友信息
             friends_detail.append(info)
-            mouse.move(coords=area)#把鼠标移动右侧profile面板,如果在左侧
-            for _ in range(total_num-1):
-                if interval:time.sleep(interval)
-                pyautogui.keyDown('down',_pause=False)#不能press,press比keydown更频繁容易被检测,keydown是一直长按
-                info=get_specific_info()
+            mouse.move(coords=area)  # 把鼠标移动右侧profile面板,如果在左侧
+            for _ in range(total_num - 1):
+                if interval:
+                    time.sleep(interval)
+                pyautogui.keyDown(
+                    "down", _pause=False
+                )  # 不能press,press比keydown更频繁容易被检测,keydown是一直长按
+                info = get_specific_info()
                 friends_detail.append(info)
-            Tools.collapse_contacts(main_window,contact_list)
+            Tools.collapse_contacts(main_window, contact_list)
         if is_json:
-            friends_detail=json.dumps(obj=friends_detail,ensure_ascii=False,indent=2)
+            friends_detail = json.dumps(
+                obj=friends_detail, ensure_ascii=False, indent=2
+            )
         if close_weixin:
             main_window.close()
         return friends_detail
 
     @staticmethod
-    def get_wecom_friends_detail(interval:float=0.1,is_maximize:bool=None,close_weixin:bool=None,is_json:bool=False)->(list[dict]|str):
-        '''
+    def get_wecom_friends_detail(
+        interval: float = 0.1,
+        is_maximize: bool = None,
+        close_weixin: bool = None,
+        is_json: bool = False,
+    ) -> list[dict] | str:
+        """
         该方法用来获取通讯录内企业微信好友详细信息
         Args:
             interval:遍历过程中的停留间隔,默认为0.1秒
@@ -1150,7 +1313,7 @@ class Contacts():
             is_json:是否以json格式返回
         Returns:
             friends_detail:所有企业微信好友的信息
-        '''
+        """
         #切换到企业微信联系人分区内的第一个好友
         def switch_to_first_friend():
             contact_list.type_keys('{HOME}')

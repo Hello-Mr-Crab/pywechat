@@ -50,7 +50,7 @@ python export_contacts.py --format all
 | `--format` | `csv` / `txt` / `all` | `csv` | 输出格式 |
 | `--output-dir` | 路径 | `./output` | 输出目录 |
 | `--deduplicate` / `--no-deduplicate` | - | `true` | 是否按微信号去重 |
-| `--verbose` | - | `false` | 详细日志 |
+| `--verbose` | - | `false` | 详细日志；微信号始终脱敏 |
 
 ## 4. 导出字段
 
@@ -64,12 +64,19 @@ python export_contacts.py --format all
 | `tags` | 标签 | `标签` |
 | `source` | 来源 | `来源` |
 | `exported_at` | 导出时间（本地生成） | - |
+| `wechat_id_status` | `CONFIRMED` / `NEED_REVIEW` / `NOT_FOUND` / `OCR_FAILED` | `微信号状态` |
+| `wechat_id_source` | `ocr` / `ocr+uia` / `uia` / `none` | `微信号来源` |
+| `wechat_id_confidence` | 两视图最低置信度 | `微信号置信度` |
+| `wechat_id_reason` | 确认/复核原因 | `微信号原因` |
+| `wechat_id_candidate` | 未确认的候选值，仅供人工复核 | `微信号候选` |
 
 规则：
 
 - 无法获取则留空
 - 不伪造数据
 - 不因单个字段缺失终止整个任务
+- `wechat_id` 仅在状态为 `CONFIRMED` 且语法校验通过时写入；其它候选只写在独立的 `wechat_id_candidate` 字段
+- 缺少显式确认状态的旧格式记录 fail-closed，不能把原始微信号写入正式字段
 - 保留对未来字段扩展的兼容性
 
 ## 5. 输出格式
@@ -83,12 +90,12 @@ CSV（`output/wechat_contacts_YYYYMMDD_HHMMSS.csv`）：
 TXT（`output/wechat_contacts_YYYYMMDD_HHMMSS.txt`）：
 
 - UTF-8 BOM（保证 Windows 记事本/Excel 中文正常）
-- 每行格式建议：`备注 | 昵称 | 微信号 | 手机号 | 地区 | 标签`
+- 每行包含基础联系人字段和微信号状态、来源、置信度、原因、候选值
 
 ## 6. 隐私保护
 
 - `output/`、`logs/` 不进入 Git（在 `.gitignore` 增加精确规则）
-- 日志默认不打印完整手机号、微信号或整个联系人对象
+- 日志不打印完整微信号或整个联系人对象；微信号诊断始终脱敏
 
 ## 7. 测试要求
 

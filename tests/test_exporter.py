@@ -1,11 +1,10 @@
 """Unit tests for contact_exporter.exporter (CSV + TXT)."""
+
 from __future__ import annotations
 
 import csv
 import json
 from pathlib import Path
-
-import pytest
 
 from contact_exporter.exporter import export_all, export_csv, export_txt
 from contact_exporter.models import Contact, EXPORT_FIELDS
@@ -22,6 +21,7 @@ def _contacts(dedup: bool = True) -> list[Contact]:
 
 
 # ---------- CSV ----------
+
 
 def test_csv_has_utf8_bom(tmp_path):
     path = export_csv(_contacts(), tmp_path, filename="out.csv")
@@ -43,6 +43,7 @@ def test_csv_row_content(tmp_path):
         rows = list(csv.DictReader(fp))
     assert rows[0]["nickname"] == "张三"
     assert rows[0]["wechat_id"] == "zhangsan1989"
+    assert rows[0]["wechat_id_status"] == "CONFIRMED"
     assert rows[0]["phone"] == "13800138000"
     assert rows[0]["exported_at"] == EXPORTED_AT
 
@@ -64,7 +65,7 @@ def test_csv_special_characters_safe(tmp_path):
     assert "换行\n测试" in nl_row["nickname"]
     # nickname has a comma; remark has quotes -> csv quoting round-trips both
     alice = next(r for r in rows if r["wechat_id"] == "alice_wx")
-    assert alice["nickname"] == 'Alice, Inc.'
+    assert alice["nickname"] == "Alice, Inc."
     assert alice["remark"] == 'Alice "A"'
 
 
@@ -77,6 +78,7 @@ def test_csv_empty_contacts_still_has_header(tmp_path):
 
 # ---------- TXT ----------
 
+
 def test_txt_has_utf8_bom(tmp_path):
     path = export_txt(_contacts(), tmp_path, filename="out.txt")
     assert path.read_bytes()[:3] == b"\xef\xbb\xbf"
@@ -85,18 +87,39 @@ def test_txt_has_utf8_bom(tmp_path):
 def test_txt_header_and_format(tmp_path):
     path = export_txt(_contacts(), tmp_path, filename="out.txt")
     lines = path.read_text(encoding="utf-8-sig").splitlines()
-    assert lines[0] == "备注 | 昵称 | 微信号 | 手机号 | 地区 | 标签"
+    assert lines[0].startswith(
+        "备注 | 昵称 | 微信号 | 手机号 | 地区 | 标签 | 微信号状态"
+    )
     first_data = lines[1]
-    assert first_data == "张三(公司) | 张三 | zhangsan1989 | 13800138000 | 北京海淀 | 同事"
+    assert first_data.startswith(
+        "张三(公司) | 张三 | zhangsan1989 | 13800138000 | 北京海淀 | 同事 | CONFIRMED"
+    )
 
 
 def test_txt_empty_contacts_has_header_only(tmp_path):
     path = export_txt([], tmp_path, filename="empty.txt")
     lines = path.read_text(encoding="utf-8-sig").splitlines()
-    assert lines == ["备注 | 昵称 | 微信号 | 手机号 | 地区 | 标签"]
+    assert lines == [
+        "备注 | 昵称 | 微信号 | 手机号 | 地区 | 标签 | 微信号状态 | 来源 | 置信度 | 原因 | 微信号候选"
+    ]
+
+
+def test_txt_keeps_review_candidate_outside_canonical_id_column(tmp_path):
+    contact = Contact(
+        nickname="示例",
+        wechat_id="",
+        wechat_id_status="NEED_REVIEW",
+        wechat_id_candidate="abcO123",
+        wechat_id_source="ocr",
+    )
+    path = export_txt([contact], tmp_path, filename="review.txt")
+    row = path.read_text(encoding="utf-8-sig").splitlines()[1].split(" | ")
+    assert row[2] == ""
+    assert row[-1] == "abcO123"
 
 
 # ---------- non-overwrite ----------
+
 
 def test_csv_does_not_overwrite_existing(tmp_path):
     a = export_csv(_contacts(), tmp_path, filename="dup.csv")

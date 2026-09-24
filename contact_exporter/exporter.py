@@ -6,6 +6,7 @@ Output rules (PRD §5):
   - Filename: wechat_contacts_YYYYMMDD_HHMMSS.{csv,txt}
   - Never overwrite an existing file: append _1/_2/... suffix instead.
 """
+
 from __future__ import annotations
 
 import csv
@@ -51,9 +52,7 @@ def export_csv(
 
     # utf-8-sig prepends BOM (EF BB BF) -> Excel/WPS display Chinese correctly.
     with path.open("w", encoding="utf-8-sig", newline="") as fp:
-        writer = csv.DictWriter(
-            fp, fieldnames=EXPORT_FIELDS, extrasaction="ignore"
-        )
+        writer = csv.DictWriter(fp, fieldnames=EXPORT_FIELDS, extrasaction="ignore")
         writer.writeheader()
         for contact in contacts:
             writer.writerow(contact.as_dict())
@@ -74,8 +73,20 @@ def export_txt(
     name = filename or f"wechat_contacts_{ts}.txt"
     path = _next_available_path(out_dir / name)
 
-    cols = ["remark", "nickname", "wechat_id", "phone", "region", "tags"]
-    header = "备注 | 昵称 | 微信号 | 手机号 | 地区 | 标签"
+    cols = [
+        "remark",
+        "nickname",
+        "wechat_id",
+        "phone",
+        "region",
+        "tags",
+        "wechat_id_status",
+        "wechat_id_source",
+        "wechat_id_confidence",
+        "wechat_id_reason",
+        "wechat_id_candidate",
+    ]
+    header = "备注 | 昵称 | 微信号 | 手机号 | 地区 | 标签 | 微信号状态 | 来源 | 置信度 | 原因 | 微信号候选"
     with path.open("w", encoding="utf-8-sig") as fp:
         fp.write(header + "\n")
         for contact in contacts:
@@ -84,9 +95,7 @@ def export_txt(
     return path
 
 
-def export_all(
-    contacts: list[Contact], output_dir: str | Path
-) -> dict[str, Path]:
+def export_all(contacts: list[Contact], output_dir: str | Path) -> dict[str, Path]:
     """Export both CSV and TXT sharing one timestamp. Returns paths."""
     ts = _timestamp()
     return {

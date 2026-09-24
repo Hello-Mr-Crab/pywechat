@@ -6,8 +6,10 @@ Responsibilities:
   - optionally deduplicate (by wechat_id, falling back to nickname+region)
   - never fail on a single missing field (PRD: leave empty, do not terminate)
 """
+
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from .models import Contact, EMPTY_SENTINELS, EXPORT_FIELDS, KEY_MAP
@@ -30,6 +32,15 @@ def normalize_one(raw: dict[str, Any], exported_at: str) -> Contact:
     for cn_key, en_key in KEY_MAP.items():
         if cn_key in raw:
             fields[en_key] = _clean(raw[cn_key])
+    # Fail closed at the export boundary too: a raw legacy value with no
+    # explicit CONFIRMED receipt can never populate the canonical column.
+    if fields.get("wechat_id_status") != "CONFIRMED" or not re.fullmatch(
+        r"[A-Za-z][A-Za-z0-9_-]{5,19}", fields.get("wechat_id", "")
+    ):
+        fields["wechat_id_candidate"] = fields.get("wechat_id_candidate") or fields.get(
+            "wechat_id", ""
+        )
+        fields["wechat_id"] = ""
     return Contact(**fields)
 
 

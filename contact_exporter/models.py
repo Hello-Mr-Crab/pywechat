@@ -4,6 +4,7 @@ Field set is the PRD baseline (PRD_WECHAT_CONTACT_EXPORTER.md §4):
 nickname, remark, wechat_id, phone, region, tags, source, exported_at.
 New fields must be append-only to keep CSV header stability.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -19,6 +20,11 @@ EXPORT_FIELDS: list[str] = [
     "tags",
     "source",
     "exported_at",
+    "wechat_id_status",
+    "wechat_id_source",
+    "wechat_id_confidence",
+    "wechat_id_reason",
+    "wechat_id_candidate",
 ]
 
 # Mapping from pyweixin get_friends_detail Chinese keys -> export fields.
@@ -31,6 +37,11 @@ KEY_MAP: dict[str, str] = {
     "地区": "region",
     "标签": "tags",
     "来源": "source",
+    "微信号状态": "wechat_id_status",
+    "微信号来源": "wechat_id_source",
+    "微信号置信度": "wechat_id_confidence",
+    "微信号原因": "wechat_id_reason",
+    "微信号候选": "wechat_id_candidate",
 }
 
 # Sentinels the upstream uses for "missing" values; normalized to empty string.
@@ -49,6 +60,11 @@ class Contact:
     tags: str = ""
     source: str = ""
     exported_at: str = ""
+    wechat_id_status: str = "NEED_REVIEW"
+    wechat_id_source: str = "none"
+    wechat_id_confidence: str = ""
+    wechat_id_reason: str = "status_missing"
+    wechat_id_candidate: str = ""
 
     def as_dict(self) -> dict[str, Any]:
         """Return an ordered dict aligned with EXPORT_FIELDS."""
