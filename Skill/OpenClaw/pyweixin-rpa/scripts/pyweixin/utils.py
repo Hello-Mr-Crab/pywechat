@@ -840,6 +840,7 @@ def traverse_message(main_window:WindowSpecification,select:bool,number:int)->li
     runtime_ids=[]
     details=[]
     recorded_num=0
+    SystemInfo={'mmui::ChatItemView','mmui::ChatSystemInfoItemView'}
     chatList=main_window.child_window(**Lists.FriendChatList)
     if select:
         last_item=Tools.select_chatList(main_window)
@@ -848,13 +849,13 @@ def traverse_message(main_window:WindowSpecification,select:bool,number:int)->li
         if last_item is not None:
             details.append((last_item.window_text(),last_item.class_name()))
             recorded_num+=1
+    if not select:Tools.activate_chatList(chatList)
     while recorded_num<number:
         selected=[item for item in chatList.children() if item.has_keyboard_focus()]
-        if selected:
+        if selected and selected[0].class_name() not in SystemInfo:
             runtime_ids.append(selected[0].element_info.runtime_id)
             if len(runtime_ids)>2 and runtime_ids[-1]==runtime_ids[-2]:
-                break
-        if selected and selected[0].class_name()!='mmui::ChatItemView':
+                break       
             details.append((selected[0].window_text(),selected[0].class_name()))
             recorded_num+=1
         pyautogui.press('up',presses=1,_pause=False)

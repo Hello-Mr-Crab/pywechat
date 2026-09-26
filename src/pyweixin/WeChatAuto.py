@@ -802,7 +802,7 @@ class Contacts():
         if close_weixin:
             main_window.close()
         return myinfo
-    
+
     @staticmethod
     def get_groupMembers_info(group:str,is_maximize:bool=None,search_pages:int=None,close_weixin:bool=None)->list[str]:
         '''
@@ -3135,7 +3135,9 @@ class Moments():
                 PostDetailVideoPos=MousePos(content_listitem).PostDetailVideoPos
                 PostDetailVideoClickPos=MousePos(content_listitem).PostDetailVideoClickPos
                 mouse.right_click(coords=PostDetailVideoPos)
-                is_download=moments_window.child_window(**MenuItems.AddToFavoritesMenuItem).exists(timeout=0.1)
+                xmenu=desktop.window(**Windows.XMenu)
+                if not xmenu.exists(timeout=1,retry_interval=0.1):xmenu=moments_window.child_window(*Windows.XMenu)
+                is_download=xmenu.child_window(**MenuItems.AddToFavoritesMenuItem).exists(timeout=0.1)
                 mouse.click(coords=PostDetailVideoClickPos)
                 mouse.double_click(coords=PostDetailVideoClickPos)
                 image_preview_window.right_click_input()
@@ -3159,7 +3161,8 @@ class Moments():
                 pyautogui.press('left',presses=photo_num,interval=0.15)
                 for i in range(photo_num):
                     mouse.right_click(coords=PostDetailImageClickPos)
-                    moments_window.child_window(**MenuItems.CopyMenuItem).click_input()
+                    pyautogui.press('down')
+                    pyautogui.press('enter')
                     path=os.path.join(detail_folder,f'{i}.png')
                     time.sleep(0.5)#0.5s缓存到剪贴板时间
                     SystemSettings.save_pasted_image(path)
@@ -3172,22 +3175,19 @@ class Moments():
             photo_num=0
             text=listitem.window_text()
             text=text.replace(friend,'')#好友
-            post_time=sns_detail_pattern.findall(text)[-1]
+            post_time=sns_detail_pattern.findall(text)[-1].strip()
             if GlobalConfig.language=='简体中文':
-                contain_video_pattern=re.compile(rf'\s视频\s{post_time}')
-                content_pattern=re.compile(rf'((\s包含\d+张图片\s)|(\s视频\s)).*{post_time}')
+                contain_video_pattern=re.compile(rf'\s视频\s{post_time}\s')
             if GlobalConfig.language=='English':
-                contain_video_pattern=re.compile(rf'\sVideo\s{post_time}')
-                content_pattern=re.compile(rf'((\sContain\s(\d+)\simage\(s\)\s)|(\sVideo\s)).*{post_time}')
+                contain_video_pattern=re.compile(rf'\sVideo\s')
             if GlobalConfig.language=='繁體中文':
-                contain_video_pattern=re.compile(rf'\s影片\s{post_time}')
-                content_pattern=re.compile(rf'((\s包含\s\d+\s張圖片\s)|(\s影片\s)).*{post_time}')
+                contain_video_pattern=re.compile(rf'\s影片\s{post_time}\s')
             if contain_image_pattern.search(text):
                 photo_num=int(contain_image_pattern.search(text).group(1))
             if contain_video_pattern.search(text):
                 video_num=1
-            content=content_pattern.sub('',text)
-            content=re.sub(r'^\s+','',content)
+            content=contain_video_pattern.sub('',text)
+            content=contain_image_pattern.sub('',content.replace(post_time,'')).strip()
             return content,photo_num,video_num,post_time
 
         if is_maximize is None:
@@ -3211,23 +3211,21 @@ class Moments():
         contain_image_pattern=Regex_Patterns.Contain_Images_pattern#朋友圈包含1~9张图片
         not_contents=['mmui::AlbumBaseCell','mmui::AlbumTopCell']#置顶内容不需要
         image_preview_window=desktop.window(**Windows.ImagePreviewWindow)
-        moments_window=Navigator.open_friend_moments(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin,search_pages=search_pages)
-        backbutton=moments_window.child_window(**Buttons.BackButton)
+        moments_window,main_window=Navigator.open_friend_moments(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
+        Tools.cancel_pin(main_window)
         Tools.cancel_pin(moments_window)
+        backbutton=moments_window.child_window(**Buttons.BackButton)
         moments_list=moments_window.child_window(**Lists.MomentsList)
         sns_detail_list=moments_window.child_window(**Lists.SnsDetailList)
-        moments_list.type_keys('{END}')
-        moments_list.type_keys('{HOME}')
+        Tools.activate_momentsList(moments_list)
         contents=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.class_name() not in not_contents]
         if contents:
-            while True:
+            while recorded_num<number:
                 moments_list.type_keys('{DOWN}',pause=0.2)
                 selected=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
                 if selected and selected[0].class_name() not in not_contents:
                     selected[0].click_input()
-                    if not sns_detail_list.exists(timeout=0.1):#如果导出的是自己朋友圈内容，第一个项目其实是发表朋友圈,点击后弹出的是windows filechoose，直接关闭
-                        pyautogui.press('esc')
-                    else:
+                    if sns_detail_list.exists(timeout=0.3):
                         listitem=sns_detail_list.children(control_type='ListItem')[0]
                         content,photo_num,video_num,post_time=parse_friend_post(listitem)
                         posts.append({'内容':content,'图片数量':photo_num,'视频数量':video_num,'发布时间':post_time})
@@ -3236,17 +3234,22 @@ class Moments():
                             os.makedirs(detail_folder,exist_ok=True)
                             save_media(sns_detail_list,photo_num,video_num,detail_folder,content)
                         recorded_num+=1
-                        if recorded_num>=number:
-                            break
                         if sns_detail_list.exists(timeout=0.1):
                             backbutton.click_input()
+                        moments_list.wait(wait_for='ready',timeout=1)
                         if Tools.is_sns_at_bottom(moments_list,selected[0]):
-                            break     
-        moments_window.close()
+                            break  
+        if version.Version(GlobalConfig.Version)<=version.parse('4.1.8'):
+            moments_window.close()
+        else:
+            close_button=main_window.child_window(**Buttons.CloseButton)
+            close_button.click()
+        if close_weixin:
+            main_window.close()
         return posts
 
     @staticmethod
-    def like_friend_posts(friend:str,number:int,callback:Callable[[str],str]=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
+    def like_friend_posts(friend:str,number:int,callback:Callable[[str],str]=None,is_maximize:bool=None,search_pages:int=None,close_weixin:bool=None)->list[dict]:
         '''
         该方法用来给某个好友朋友圈内发布的内容点赞和评论
         Args:
@@ -3254,6 +3257,7 @@ class Moments():
             number:点赞或评论的数量
             callback:评论回复函数,入参为字符串是好友朋友圈的内容,返回值为要评论的内容
             is_maximize:微信界面是否全屏，默认不全屏
+            search_pages:在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
            posts:朋友圈内容,list[dict]的格式,具体为[{'内容':xx,'图片数量':xx,'视频数量':xx,'发布时间':xx}]
@@ -3263,23 +3267,20 @@ class Moments():
             video_num=0
             photo_num=0
             text=listitem.window_text()
-            text=text.replace(friend,'')#先去掉头尾的空格去掉换行符
-            post_time=sns_detail_pattern.findall(text)[-1]
+            text=text.replace(friend,'')#好友
+            post_time=sns_detail_pattern.findall(text)[-1].strip()
             if GlobalConfig.language=='简体中文':
-                contain_video_pattern=re.compile(rf'\s视频\s{post_time}')
-                content_pattern=re.compile(rf'((\s包含\d+张图片\s)|(\s视频\s)).*{post_time}')
+                contain_video_pattern=re.compile(rf'\s视频\s{post_time}\s')
             if GlobalConfig.language=='English':
-                contain_video_pattern=re.compile(rf'\sVideo\s{post_time}')
-                content_pattern=re.compile(rf'((\sContain\s(\d+)\simage\(s\)\s)|(\sVideo\s)).*{post_time}')
+                contain_video_pattern=re.compile(rf'\sVideo\s')
             if GlobalConfig.language=='繁體中文':
-                contain_video_pattern=re.compile(rf'\s影片\s{post_time}')
-                content_pattern=re.compile(rf'((\s包含\s\d+\s張圖片\s)|(\s影片\s)).*{post_time}')
+                contain_video_pattern=re.compile(rf'\s影片\s{post_time}\s')
             if contain_image_pattern.search(text):
                 photo_num=int(contain_image_pattern.search(text).group(1))
             if contain_video_pattern.search(text):
                 video_num=1
-            content=content_pattern.sub('',text)
-            content=re.sub(r'^\s+','',content)
+            content=contain_video_pattern.sub('',text)
+            content=contain_image_pattern.sub('',content.replace(post_time,'')).strip()
             return content,photo_num,video_num,post_time
 
         def click_like_button(listview:ListViewWrapper,content_listitem:ListItemWrapper):
@@ -3288,6 +3289,10 @@ class Moments():
             mouse.move(coords=center_point)
             rectangle=content_listitem.rectangle()
             ColorMatch.click_gray_ellipsis_button(rectangle)
+            timeline_menu=desktop.window(**Windows.TimeLineFloatMenu)
+            if not timeline_menu.exists(timeout=0.3):
+                timeline_menu=moments_window.window(**Windows.TimeLineFloatMenu)
+            like_button=timeline_menu.child_window(**Buttons.LikeButton)
             if like_button.exists(timeout=0.1):
                 like_button.click_input()
 
@@ -3297,7 +3302,11 @@ class Moments():
             center_point=(listview.rectangle().mid_point().x,listview.rectangle().mid_point().y)
             mouse.move(coords=center_point)
             ColorMatch.click_gray_ellipsis_button(content_listitem.rectangle())
+            timeline_menu=desktop.window(**Windows.TimeLineFloatMenu)
+            if not timeline_menu.exists(timeout=0.3):
+                timeline_menu=moments_window.window(**Windows.TimeLineFloatMenu)
             reply=callback(content) 
+            comment_button=timeline_menu.child_window(**Buttons.CommentButton)
             if comment_button.exists(timeout=0.1) and reply is not None:
                 comment_button.click_input()
                 pyautogui.hotkey('ctrl','a')
@@ -3308,6 +3317,8 @@ class Moments():
               
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
+        if search_pages is None:
+            search_pages=GlobalConfig.search_pages
         if close_weixin is None:
             close_weixin=GlobalConfig.close_weixin
         posts=[]
@@ -3315,35 +3326,36 @@ class Moments():
         sns_detail_pattern=Regex_Patterns.Snsdetail_Timestamp_pattern#朋友圈好友发布内容左下角的时间戳pattern
         contain_image_pattern=Regex_Patterns.Contain_Images_pattern#朋友圈包含1~9张图片
         not_contents=['mmui::AlbumBaseCell','mmui::AlbumTopCell']#置顶内容不需要
-        moments_window=Navigator.open_friend_moments(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin)
+        moments_window,main_window=Navigator.open_friend_moments(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         backbutton=moments_window.child_window(**Buttons.BackButton)
         moments_list=moments_window.child_window(**Lists.MomentsList)
         sns_detail_list=moments_window.child_window(**Lists.SnsDetailList)
-        like_button=moments_window.child_window(**Buttons.LikeButton)
-        comment_button=moments_window.child_window(**Buttons.CommentButton)
-        moments_list.type_keys('{END}',pause=0.2)
-        moments_list.type_keys('{HOME}',pause=0.2)
+        Tools.activate_momentsList(moments_list)
         contents=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.class_name() not in not_contents]
         if contents:
-            while True:
+            while liked_num<number:
                 moments_list.type_keys('{DOWN}',pause=0.2)
                 selected=[listitem for listitem in moments_list.children(control_type='ListItem') if listitem.has_keyboard_focus()]
                 if selected and selected[0].class_name() not in not_contents:
                     selected[0].click_input()
-                    content_listitem=sns_detail_list.children(control_type='ListItem')[0]
-                    content,photo_num,video_num,post_time=parse_friend_post(content_listitem)
-                    posts.append({'内容':content,'图片数量':photo_num,'视频数量':video_num,'发布时间':post_time})
-                    click_like_button(sns_detail_list,content_listitem)
-                    if callback is not None:
-                        comment(sns_detail_list,content_listitem,content)
-                    liked_num+=1
-                    backbutton.click_input()
-                    moments_list.wait(wait_for='ready',timeout=1)
-                    if Tools.is_sns_at_bottom(moments_list,selected[0]):
-                        break
-                if liked_num>=number:
-                    break
-        moments_window.close()
+                    if sns_detail_list.exists(timeout=0.3):
+                        content_listitem=sns_detail_list.children(control_type='ListItem')[0]
+                        content,photo_num,video_num,post_time=parse_friend_post(content_listitem)
+                        posts.append({'内容':content,'图片数量':photo_num,'视频数量':video_num,'发布时间':post_time})
+                        click_like_button(sns_detail_list,content_listitem)
+                        if callback is not None:
+                            comment(sns_detail_list,content_listitem,content)
+                        liked_num+=1
+                        backbutton.click_input()
+                        moments_list.wait(wait_for='ready',timeout=1)
+                        if Tools.is_sns_at_bottom(moments_list,selected[0]):
+                            break
+        if version.Version(GlobalConfig.Version)<=version.parse('4.1.8'):
+            moments_window.close()
+        else:
+            close_button=main_window.child_window(**Buttons.CloseButton)
+            close_button.click()
+        if close_weixin:main_window.close()
         return posts
 
 

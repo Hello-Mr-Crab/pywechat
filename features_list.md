@@ -1,15 +1,10 @@
 # feature_list
 
-## ADD
-
-> - src\pyweixin\WeChatAuto.py\class Contacts\get_tags\获取通讯录内所有标签
-
 ## Changed
 
-> - src\pyweixin\WeChatTools.py\class Tools\is_my_bubble\修改发送人判断逻辑改为左侧头像像素判断，并增加对于超长消息的判断逻辑，准确率更高
-> - src\pyweixin\WeChatTools.py\class Tools\select_chatList\适配不同主界面内不同长度、类型消息选中后开启多选遍历
-> - src\pyweixin\utils.py\traverse_messages\对系统消息(时间,拉人进群等统一为SystemInfo内)筛选
-> - src\pyweixin\WeChatAuto.py\Messages\pull_messages\上述三个改动均为保证方法的稳定
+> - src\pyweixin\WeChatTools.py\class Navigator\open_friend_moments\适应新版本微信好友朋友圈的打开方式(在主界面右侧)
+> - src\pyweixin\WeChatAuto.py\class Moments\dump_friend_posts\适配新版本微信朋友圈打开方式,修改parse_friend_post准确获取文本内容
+> - src\pyweixin\WeChatAuto.py\class Moments\like_friend_posts\适配新版本微信朋友圈打开方式,修改parse_friend_post准确获取文本内容
 
 ## ToDo
 

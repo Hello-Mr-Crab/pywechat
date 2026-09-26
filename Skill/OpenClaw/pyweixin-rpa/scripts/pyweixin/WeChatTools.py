@@ -109,7 +109,7 @@ from .Errors import NoSuchFriendError
 from .Errors import NotFriendError,NotStartError,NotLoginError
 from .Errors import NoResultsError,NotInstalledError,NotFoundError
 from .Uielements import MousePos#点击位置
-from pyweixin.Uielements import (Main_window,SideBar,Independent_window,ListItems,Special_Labels,
+from pyweixin.Uielements import (Main_window,SideBar,Independent_window,ListItems,Special_Labels,Regex_Patterns,
 Buttons,Texts,TabItems,Lists,Edits,Windows,Panes,MenuItems,Login_window)#导入的是自动判断语言后的实例化对象,如果自行使用需要导入xxx_Control
 from pyweixin.WinSettings import SystemSettings 
 ##########################################################################################
@@ -319,6 +319,23 @@ class Tools():
             return weixin_version
         except Exception:
             raise NotInstalledError
+
+    @staticmethod
+    def get_weixin_hwnd()->int:
+        '''获取微信微信窗口句柄,如有多个默认返回首个
+        Returns:
+            hwnd:微信窗口句柄,UI树不可见为0
+        '''
+        pattern=re.compile(r'mmui::.*Window')#匹配mmui::MainWindow或mmui::LoginWindow
+        def callback(hwnd, _):
+            class_name=win32gui.GetClassName(hwnd)
+            if class_name=="Qt51514QWindowIcon":#win32gui拿到的是Qt通用窗口
+                hwnds.append(hwnd) 
+        hwnds=[]
+        win32gui.EnumWindows(callback,None)
+        hwnds=[hwnd for hwnd in hwnds if pattern.match(desktop.window(handle=hwnd).class_name())]
+        if not hwnds:return 0
+        if hwnds:return hwnds[0]
     
     @staticmethod
     def language_detector()->(str|None):
@@ -400,37 +417,59 @@ class Tools():
         return scrollable
 
     @staticmethod
-    def is_my_bubble(img:Image.Image,right_width=55,threshold=100)->bool:
+    def is_my_bubble(bubble:ListItemWrapper, left_width=65, threshold=120) -> bool:
         '''
-        判断是否是自己发送的消息（右侧是否存在头像区域）
+        判断是否是自己发送的消息（通过检测左侧是否存在头像区域）
         Args:
-            img: pywinauto截图对象(capture_as_image)
-            right_width:右侧检测区域宽度,微信头像一般在最右60~80px
-            threshold:非背景像素的最小数量,默认100
+            bubble: 聊天界面消息列表内的最后一条消息(ListItem)
+            left_width:左侧检测区域宽度，微信头像一般在最左50~80px
+            threshold:非背景像素的最小数量
         Returns:
-            is_my_bubble:该条消息是否为自己发送
+            is_my_bubble: 该条消息是否为自己发送
         '''
         BG_DARK=(0x1E,0x1E,0x1F)#微信深色背景
         BG_LIGHT=(0xFA,0xFA,0xFA)#微信浅色背景
-        def color_dist(c1, c2):#欧式距离
-            return sum((a-b)**2 for a, b in zip(c1, c2))**0.5
+
+        def color_dist(c1,c2):
+            return sum((a-b) ** 2 for a, b in zip(c1, c2)) ** 0.5
+        
+        rec=bubble.rectangle()
+        img=bubble.capture_as_image()
         w,h=img.size
-        #取最右侧区域
-        x_start=max(w-right_width,0)
-        region=img.crop((x_start,0,w,h))
-        pixels=list(region.getdata())
-        non_bg_count=0
-        for r, g, b in pixels:
-            d1=color_dist((r, g, b), BG_DARK)
-            d2=color_dist((r, g, b), BG_LIGHT)
-            # 既不像深色背景，也不像浅色背景 → 认为是内容
-            if d1>threshold and d2>threshold:
-                non_bg_count+=1
-                # 提前结束，提高性能
-                if non_bg_count>=threshold*2:
-                    return True
-        my_bubble=non_bg_count>=threshold
-        return my_bubble
+        if rec.top<0:
+            #特别长的文本消息的top才小于0，只有一部分在聊天区域，此时使用背景像素有没有绿色来判断而不是直接去看左侧有没有头像(有没有)
+            bottom_height=min(120,h)
+            third_w=w//3
+            #右侧区域（自己气泡应该在的位置）
+            right_part=img.crop((2 * third_w, h - bottom_height, w, h))
+            green_count = 0
+            for r, g, b in right_part.getdata():
+                # 微信绿色气泡特征
+                if g > 140 and g > r + 30 and g > b + 30:
+                    green_count += 1
+                    if green_count >= threshold:
+                        return True
+            return False
+
+        else:#正常消息都在可见区域内
+            #取最左侧区域（头像区域）
+            x_end=min(left_width, w)
+            region=img.crop((0, 0, x_end, h))
+            pixels=list(region.getdata())
+            non_bg_count=0
+            for r, g, b in pixels:
+                d1=color_dist((r, g, b), BG_DARK)
+                d2=color_dist((r, g, b), BG_LIGHT)
+                #既不像深色背景，也不像浅色背景 → 认为是内容（头像）
+                if d1>threshold and d2>threshold:
+                    non_bg_count+=1
+                    #提前结束，提高性能
+                    if non_bg_count>=threshold*2:
+                        break
+            #左侧有头像→对方发的（返回False）
+            #左侧无头像→自己发的（返回True）
+            has_avatar_on_left=non_bg_count>=threshold
+            return not has_avatar_on_left
         
     @staticmethod
     def is_group_chat(main_window:WindowSpecification)->bool:
@@ -463,7 +502,7 @@ class Tools():
         chatList.type_keys('{END}')          
     
     @staticmethod
-    def activate_chatHistoryList(chat_history_list):
+    def activate_chatHistoryList(chat_history_list:ListViewWrapper):
         '''点击激活聊天记录列表,这样后续可以按键选中
         Args:
             chat_history_list:聊天记录列表,即Uielements内的Lists.ChatHistoryList
@@ -471,7 +510,18 @@ class Tools():
         ActivatePos=MousePos(chat_history_list).ActiveChatHistoryListPos
         mouse.move(coords=ActivatePos)
         chat_history_list.type_keys('{HOME}'*2)
-        
+
+    @staticmethod
+    def activate_momentsList(moments_list:ListViewWrapper):
+        '''点击一下激活好友朋友圈列表
+        Args:
+            moments_list:好友朋友圈列表,即Uielements内的Lists.MomentsList
+        '''
+        # 好友朋友圈列表第0个item是封面,第1个item是微信留着给个签的
+        # 无论有无个签这个listiem都是空着无内容,所以点击这个来让焦点focus到主界面右侧的朋友圈
+        signature_item=moments_list.children()[1]
+        signature_item.click_input()
+    
     # @staticmethod
     # def activate_favdetailList(favdetailList:ListViewWrapper):
     #     '''收藏主界面右侧的收藏列表激活并至于底部
@@ -620,25 +670,25 @@ class Tools():
         if not chatList.exists(timeout=0.2):
             print(f'非正常好友,无法选中消息!')
             return 
+        SystemInfo={'mmui::ChatItemView','mmui::ChatSystemInfoItemView'}
+        multiselect_item=main_window.child_window(**MenuItems.SelectMenuItem)
         activate_position=(chatList.rectangle().right-12,chatList.rectangle().mid_point().y)
         mouse.click(coords=activate_position)
         chatList.type_keys('{END}')
-        multiselect_item=main_window.child_window(**MenuItems.SelectMenuItem)
         while True:
             selected=[listitem for listitem in chatList.children(control_type='ListItem') if listitem.has_keyboard_focus()]
             if selected:
-                if selected[0].class_name()!='mmui::ChatItemView':
+                if selected[0].class_name() not in SystemInfo:
                     ChatListSelectPos=MousePos(selected[0]).ChatListSelectPos
                     x,y=ChatListSelectPos#不是自己发的x默认在左边
-                    is_mybubble=Tools.is_my_bubble(selected[0].capture_as_image())#截图看看是不是自己发的消息
+                    is_mybubble=Tools.is_my_bubble(selected[0])#截图看看是不是自己发的消息
                     if is_mybubble:#是自己发的去点右边
                         x=MousePos(selected[0]).right-120
-                    if len(chatList.children())>1:
+                    if MousePos(selected[0]).top>0:
                         y=MousePos(selected[0]).center_y
+                    else:
+                        y=MousePos(chatList).top+100
                     mouse.right_click(coords=(x,y))
-                    while not multiselect_item.exists(timeout=0.1):
-                        y=y-15
-                        mouse.right_click(coords=(x,y))
                     multiselect_item.click_input()
                     mouse.click(coords=ChatListSelectPos)
                     break
@@ -735,19 +785,25 @@ class Navigator():
             is_maximize:微信界面是否全屏,默认不全屏
             window_size:微信主界面大小,默认(1000,100),可GlobalConfig.window_size=(width,height)全局控制
         '''
+        
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if window_size is None:
             window_size=GlobalConfig.window_size
         if not Tools.is_weixin_running():
             raise NotStartError
-        hwnd=win32gui.FindWindow('Qt51514QWindowIcon','微信')
-        if hwnd==0:hwnd=win32gui.FindWindow('Qt51514QWindowIcon','Weixin')
+        hwnd=Tools.get_weixin_hwnd()
+        if not hwnd:raise NotFoundError
         main_window=desktop.window(handle=hwnd)
         if main_window.class_name()=='mmui::LoginWindow':
             raise NotLoginError
         if main_window.class_name()=='mmui::MainWindow':
             main_window.restore()
+            # 4.15以上版本微信好友的朋友圈被合并到主界面右侧,如果打开时有那么点击关闭掉,不然会影响后续操作
+            close_button=main_window.child_window(**Buttons.CloseButton)
+            if close_button.exists(timeout=0.1):
+                close_button.click()
+                main_window.restore()
             win32gui.SetWindowPos(hwnd,win32con.HWND_TOPMOST, 
             0, 0,window_size[0],window_size[1],win32con.SWP_NOMOVE)
             window_width,window_height=window_size[0],window_size[1]
@@ -764,13 +820,38 @@ class Navigator():
             if not is_maximize:
                 win32gui.SendMessage(hwnd, win32con.WM_SYSCOMMAND, win32con.SC_RESTORE,0)
             offline_button=main_window.child_window(**Buttons.OffLineButton)
-            Tools.cancel_pin(main_window)
             if offline_button.exists(timeout=0.1):
                 main_window.close()
                 raise NetWorkError('当前网络不可用,无法进行UI自动化!')
-        else:
-            raise NotFoundError
-        return main_window
+            Tools.cancel_pin(main_window)
+            return main_window
+
+    @staticmethod
+    def connect_weixin()->(WindowSpecification|None):
+        '''
+        不打开微信的方式下连接到微信,
+        注意,使用快捷键或点击关闭后使用该方法连接到的是不包含完整UI树的微信(微信前台可见或最小化才可以获取完整UI树)
+        Examples:
+            ```
+            from pyweixin import Navigator,Tools,GlobalConfig
+            main_window=Navigator.connet_weixin()
+            #xxx 进行其他操作 比如根据窗口名获取昵称,4.1.15.11支持
+            nickname=main_window.window_text()
+            print(f'昵称是 {nickname} ')
+            GlobalConfig.window_size=(800,800)
+            main_window=Tools.move_window_to_center(Window_handle=main_window.handle)
+            # 进行后续其他操作
+            ```
+        Returns:
+            main_window:微信窗口(最小化或前台可见才包含完整UI树)
+        '''
+        if not Tools.is_weixin_running():raise NotStartError
+        hwnd=Tools.get_weixin_hwnd()
+        if not hwnd:raise NotFoundError
+        main_window=desktop.window(handle=hwnd)
+        if main_window.class_name()=='mmui::MainWindow':return main_window
+        if main_window.class_name()=='mmui::LoginWindow':raise NotLoginError
+        return None
    
     @staticmethod
     def capture_Login_QRCode(img_path:str)->bool:
@@ -980,31 +1061,35 @@ class Navigator():
             return profile_pane,main_window
         
     @staticmethod
-    def open_friend_moments(friend:str,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->WindowSpecification:
+    def open_friend_moments(friend:str,search_pages:int=None,is_maximize:bool=None)->tuple[WindowSpecification,WindowSpecification]:
         '''
-        该方法用来打开好友朋友圈
+        该方法用来打开好友朋友圈,注意
         Args:
-            friend:好友名称。
-            is_maximize:微信界面是否全屏,默认不全屏。
+            friend:好友备注
+            is_maximize:微信界面是否全屏,默认不全屏
+        Returns:
+            moments_window,main_window:朋友圈窗口与主界面窗口
         '''
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
-        if close_weixin is None:
-            close_weixin=GlobalConfig.close_weixin
         if search_pages is None:
             search_pages=GlobalConfig.search_pages
         profile_pane,main_window=Navigator.open_friend_profile(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
         moments_text=profile_pane.child_window(**Texts.MomentsText)
-        moments_button=moments_text.parent().parent().descendants(control_type='Button')[0]
-        moments_button.click_input()
+        moments_text.parent().parent().descendants(control_type='Button')[0].click_input()
         moments_window=desktop.window(**Windows.MomentsWindow)
-        if moments_window.exists(timeout=3):
+         # 4.1.8及以下的好友朋友圈和公开朋友圈共用一个独立窗口
+        if version.parse(GlobalConfig.Version)<=version.parse('4.1.8'):
             moments_window=Tools.move_window_to_center(Window=Windows.MomentsWindow)
-            if close_weixin:
-                main_window.close()
+            return moments_window,main_window
+        # 4.1.9以上的好友朋友圈和主界面在一个窗口内
         else:
-            moments_window=main_window
-        return moments_window
+            # 把侧边包含朋友圈的主界面重新移到中间去
+            main_window=Tools.move_window_to_center(Window_handle=main_window.handle)
+            # pane下边一个window是原来的朋友圈窗口
+            moments_window=main_window.child_window(title="WeChat",
+            control_type="Pane",found_index=0).child_window(control_type='Window',found_index=0)
+            return moments_window,main_window
 
     @staticmethod
     def open_moments(is_maximize:bool=None,close_weixin:bool=None)->WindowSpecification:

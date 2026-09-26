@@ -53,6 +53,7 @@ class Button_Control():
         self.WeixinButton={'control_type':'Button','found_index':0}#主界面下的第一个按钮,侧边栏的微信按钮
         self.SubScribeButton={'title':'关注','control_type':'Button'}#公众号窗口内的关注按钮
         if self.language=='简体中文':
+            self.CloseButton={'title':'关闭','class_name':'ImageButton','control_type':'Button','found_index':0}#4.15以上版本微信打开好友朋友圈时窗口合并到右侧需要点击关闭一下
             self.HomePageButton={'title':'公众号主页','control_type':'Button'}#公众号主页内右上角的公众号主页按钮
             self.OpenButton={'title':'拆开','control_type':'Button'}#微信红包拆开按钮
             self.SaveButton={'title':'保存','control_type':'Button'}#聊天记录界面内选中后的保存按钮
@@ -112,9 +113,10 @@ class Button_Control():
             self.VerifyNowButton={'title':'前往验证','control_type':'Button'}#通讯录新朋友界面中前往验证按钮
             self.MomentsButton={'title':'朋友圈','control_type':'Button','auto_id':'button'}#好友个人简介界面内的朋友圈按钮(不是主页左侧的)
             self.FinishButton={'title':'完成','control_type':'Button'}#完成按钮
-            if '4.1.7' in self.Version or '4.1.6' in self.Version:
+            if version.parse(self.Version)<=version.parse('4.1.7'):
                 self.VoiceCallButton={'control_type':'Button','title':'语音聊天'}#语音聊天
         if self.language=='English':
+            self.CloseButton={'title':'Close','class_name':'ImageButton','control_type':'Button','found_index':0}#4.15以上版本微信打开好友朋友圈时窗口合并到右侧需要点击关闭一下
             self.OpenButton={'title':'Open','control_type':'Button'}#微信红包拆开按钮
             self.SaveButton={'title':'Save','control_type':'Button'}#聊天记录界面内选中后的保存按钮
             self.AccountSettingsButton={'title':'My Account','control_type':'Button'}#微信设置界面里左侧的账号设置
@@ -173,6 +175,7 @@ class Button_Control():
             self.SolitaireButton={'title':'Create Group Note','control_type':'Button'}#接龙窗口内的发起接龙按钮
             self.MomentsButton={'title':'Moments','control_type':'Button','auto_id':'button'}#好友个人简介界面内的朋友圈按钮(不是主页左侧的)
         if self.language=='繁體中文':
+            self.CloseButton={'title':'關閉','class_name':'ImageButton','control_type':'Button','found_index':0}#4.15以上版本微信打开好友朋友圈时窗口合并到右侧需要点击关闭一下
             self.HomePageButton={'title':'官方賬號首頁','control_type':'Button'}#公众号主页内右上角的公众号主页按钮
             self.OpenButton={'title':'拆开','control_type':'Button'}#微信红包拆开按钮
             self.SaveButton={'title':'保存','control_type':'Button'}#聊天记录界面内选中后的保存按钮
@@ -746,6 +749,8 @@ class Window_Control():
         self.SearchChatHistoryWindow={'control_type':'Window','auto_id':'GlobalSearchMsgWindow'}#聊天记录搜索窗口
         self.SnsPublishWindow={'auto_id':'SnsPublishPanel','control_type':'Window'}#微信朋友圈后发布按钮点击后的面板
         self.VoipCallWindow={'class_name':'mmui::VOIPWindow','top_level_only':False}#接通语音或视频电话后的通话窗口
+        self.TimeLineFloatMenu={'class_name':'mmui::TimelineFloatMenu','control_type':'Window'}#微信好友朋友圈点赞时弹出的黑色窗口
+        self.XMenu={'class_name':'mmui::XMenu','control_type':'Window'}#朋友圈窗口内右键后弹出的菜单
         if self.language=='简体中文':
             self.MomentsWindow={'title':'朋友圈','control_type':'Window','class_name':'mmui::SNSWindow'}#好友朋友圈窗口
             self.SessionPickerWindow={'control_type':'Window','title':'微信发送给','class_name':'mmui::SessionPickerWindow'}#转发消息的session_picker_window
@@ -806,6 +811,7 @@ class Regex_Pattern():
         self.GroupMember_Num_pattern=re.compile(r'\((\d+)\)$')#通讯录设置界面中每个最近群聊ListItem后边的数字
         self.Article_Timestamp_pattern=re.compile(r'(\d{4}年\d{1,2}月\d{1,2}日|\d{1,2}月\d{1,2}日|昨天|星期\w|今天)')#公众号文章的时间戳
         self.UserLib_Pattern=re.compile(r'--user-lib-dir=(.*?)')#匹配微信命令行参数内的userlib文件夹路径
+        self.MMUIWindow_pattern=re.compile(r'mmui::.*Window')#匹配mmui::MainWindow或mmui::LoginWindow
         if self.language=='简体中文':
             #|表示或的逻辑关系,关于Python正则表达式的任何问题和入门级教程可以看这篇博客:https://blog.csdn.net/weixin_73953650/article/details/151123336?spm=1001.2014.3001.5501
             self.Audio_pattern=re.compile(r'(?<=语音)\d+"秒(.*)$')#语音转文字后的文本内容
@@ -1133,12 +1139,13 @@ class MousePos():
         self.FriendProfilePos=(self.center_x-5,self.center_y)#打开好友profile时要点击好友头像的位置
         self.ActiveChatListPos=(self.right-12,self.center_y)#激活聊天界面内消息列表时鼠标移动或点击的位置
         self.ActiveChatHistoryListPos=(self.center_x,self.center_y)#激活聊天记录列表时鼠标移动或点击的位置
+        self.ActiveSnsListPos=(self.center_x,self.center_y)#激活朋友圈列表时鼠标移动或点击的位置
         self.ProfileWindowScrollPos=(self.center_x,self.center_y)#滚动好友profile窗口鼠标位置,要查看共同群聊个数
         self.ActiveNoteListPos=(self.right-20,self.center_y)#激活笔记列表时需要点击的位置
 
 Main_window=Main_window_Control(language=language,Version=Version)#主界面UI
 Login_window=Login_window_Control(language=language,Version=ValueError)#登录界面UI
-Independent_window=Independent_window_Control(language=language,Version=Version)#独立主界面UI
+Independent_window=Independent_window_Control(language=language,Version=Version)#独立主界面窗口UI
 SideBar=SideBar_Control(language=language,Version=Version)#侧边栏UI
 Buttons=Button_Control(language=language,Version=Version)#所有Button类型UI
 Edits=Edit_Control(language=language,Version=Version)#所有Edit类型UI
