@@ -58,6 +58,12 @@ pywechat只支持旧版本微信(大部分方法仍然稳定可用)，现在主�
 
 [点击查看QuickStart.md](/QuickStart.md)
 
+### 微信联系人导出
+
+[联系人 CSV/TXT 导出说明](/README_CONTACT_EXPORTER.md)。微信号识别采用
+RapidOCR + PP-OCRv6 OCR-primary 路径；模型、离线准备和 fail-closed 状态见
+[微信号 OCR 文档](/docs/wechat-id-ocr.md)。
+
 ### pyweixin模块介绍(适用于4.1+微信)
 
 pyweixin内所有方法需要先导入模块下的类然后调用内部方法☸︎
