@@ -636,6 +636,8 @@ def parse_messages(friend:str,myName:str,details_with_name:list[tuple[str,str]])
             message_type='文本'
         if class_name=='mmui::ChatPersonalCardItemView':
             message_type='好友名片'
+        if class_name=='mmui::ChatImageItemView':#4.1.20以上图片类名变成了这个
+            message_type='图片'
         if class_name=='mmui::ChatBubbleReferItemView':
             if content.startswith(image_label):message_type='图片'
             if content.startswith(video_label):message_type='视频'
@@ -840,6 +842,7 @@ def traverse_message(main_window:WindowSpecification,select:bool,number:int)->li
     runtime_ids=[]
     details=[]
     recorded_num=0
+    pressed_num=0
     SystemInfo={'mmui::ChatItemView','mmui::ChatSystemInfoItemView'}
     chatList=main_window.child_window(**Lists.FriendChatList)
     if select:
@@ -848,6 +851,7 @@ def traverse_message(main_window:WindowSpecification,select:bool,number:int)->li
             raise ValueError(f'该聊天只有系统消息,无法在聊天界面中选中任何消息!')
         if last_item is not None:
             details.append((last_item.window_text(),last_item.class_name()))
+            runtime_ids.append(last_item.element_info.runtime_id)
             recorded_num+=1
     if not select:Tools.activate_chatList(chatList)
     while recorded_num<number:
@@ -855,10 +859,12 @@ def traverse_message(main_window:WindowSpecification,select:bool,number:int)->li
         if selected and selected[0].class_name() not in SystemInfo:
             runtime_ids.append(selected[0].element_info.runtime_id)
             if len(runtime_ids)>2 and runtime_ids[-1]==runtime_ids[-2]:
-                break       
+                break     
             details.append((selected[0].window_text(),selected[0].class_name()))
             recorded_num+=1
         pyautogui.press('up',presses=1,_pause=False)
+        pressed_num+=1
+        if pressed_num>=1.5*number:break
     if select:pyautogui.press('esc')
     chatList.type_keys('{END}')
     return details

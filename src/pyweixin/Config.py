@@ -53,7 +53,6 @@ class globalConfig:
             cls._instance._window_maximize=False
             cls._instance._send_delay=0.2
             cls._instance._audio_length=60
-            cls._instance._clear=True
             cls._instance._window_size=(1000,1000)
             cls._instance._language=None
             cls._instance._Version=None
@@ -145,17 +144,6 @@ class globalConfig:
         if not isinstance(value,int):
             raise TypeError(f"audio_length必须是int类型,但传入了{type(value)}:{value}")
         self._audio_length=value
-    
-    @property
-    def clear(self):
-        '''发送消息,文件时是否先清除可能已有的内容'''
-        return self._clear
-    
-    @clear.setter
-    def clear(self,value):
-        if not isinstance(value,bool):
-            raise TypeError(f"clear必须是bool类型,但传入了{type(value)}:{value}")
-        self._clear=value
     
     @property
     def Version(self):

@@ -1142,6 +1142,7 @@ class MousePos():
         self.ActiveSnsListPos=(self.center_x,self.center_y)#激活朋友圈列表时鼠标移动或点击的位置
         self.ProfileWindowScrollPos=(self.center_x,self.center_y)#滚动好友profile窗口鼠标位置,要查看共同群聊个数
         self.ActiveNoteListPos=(self.right-20,self.center_y)#激活笔记列表时需要点击的位置
+        self.AudioSendPos=(self.right-40,self.bottom+20)#语音发送绿色箭头按钮位置
 
 Main_window=Main_window_Control(language=language,Version=Version)#主界面UI
 Login_window=Login_window_Control(language=language,Version=ValueError)#登录界面UI

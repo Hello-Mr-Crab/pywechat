@@ -368,7 +368,7 @@ class Tools():
         0, 0, 0, 0,win32con.SWP_NOMOVE|win32con.SWP_NOSIZE)
 
     @staticmethod
-    def move_window_to_center(Window:dict=Main_window.MainWindow,Window_handle:int=0)->WindowSpecification:
+    def move_window_to_center(Window:dict=Main_window.MainWindow,Window_handle:int=0)->(WindowSpecification|None):
         '''该方法用来将已打开的界面移动到屏幕中央并返回该窗口的windowspecification实例
         Args:
             Window:pywinauto定位元素kwargs参数字典
@@ -377,22 +377,25 @@ class Tools():
             window:pywinauto窗口实例对象(WindowSpecification)
         '''
         if Window_handle==0:
-            handle=desktop.window(**Window).handle
+            window=desktop.window(**Window)
         else:
-            handle=Window_handle
-        screen_width,screen_height=win32api.GetSystemMetrics(win32con.SM_CXSCREEN),win32api.GetSystemMetrics(win32con.SM_CYSCREEN)
-        window=desktop.window(handle=handle)
-        try:
-            window.wait(wait_for='ready',timeout=2)
-            window_width,window_height=window.rectangle().width(),window.rectangle().height()
-            new_left=(screen_width-window_width)//2
-            new_top=(screen_height-window_height)//2
-            if screen_width!=window_width:
-                win32gui.MoveWindow(handle, new_left, new_top, window_width, window_height, True)
-                win32gui.SetWindowPos(handle,win32con.HWND_TOPMOST, 
-                0, 0, 0, 0,win32con.SWP_NOMOVE|win32con.SWP_NOSIZE)
-        except ExceptionGroup:
-            print(f'无法移动窗口至中央!')
+            window=desktop.window(handle=Window_handle)
+        if window.exists(timeout=0.2):
+            handle=window.handle
+            screen_width,screen_height=win32api.GetSystemMetrics(win32con.SM_CXSCREEN),win32api.GetSystemMetrics(win32con.SM_CYSCREEN)
+            try:
+                window.wait(wait_for='ready',timeout=2)
+                window_width,window_height=window.rectangle().width(),window.rectangle().height()
+                new_left=(screen_width-window_width)//2
+                new_top=(screen_height-window_height)//2
+                if screen_width!=window_width:
+                    win32gui.MoveWindow(handle, new_left, new_top, window_width, window_height, True)
+                    win32gui.SetWindowPos(handle,win32con.HWND_TOPMOST, 
+                    0, 0, 0, 0,win32con.SWP_NOMOVE|win32con.SWP_NOSIZE)
+            except ExceptionGroup:
+                print(f'无法移动窗口至中央!')
+        else:
+            window=None
         return window
 
     @staticmethod
@@ -1371,7 +1374,7 @@ class Navigator():
             return main_window
     
     @staticmethod
-    def open_seperate_dialog_window(friend:str,select:bool=False,is_maximize:bool=None,window_minimize:bool=False,close_weixin:bool=None)->WindowSpecification:
+    def open_seperate_dialog_window(friend:str,select:bool=False,is_maximize:bool=None,window_minimize:bool=False,close_weixin:bool=None)->tuple[WindowSpecification|None]:
         '''
         该方法用于单独打开某个好友(非公众号)的聊天窗口(主要用于监听消息)
         Args:
@@ -1451,8 +1454,8 @@ class Navigator():
                 # else: 主界面已经显示该好友(session_list 没有 selected 项),
                 # 跳过 double_click 直接 fall through 到 move_window_to_center
             dialog_window=Tools.move_window_to_center(Window={'class_name':'mmui::ChatSingleWindow','title':f'{friend}'})
-            if select:Tools.select_chatList(dialog_window)
-            if window_minimize:
+            if select and dialog_window is not None:Tools.select_chatList(dialog_window)
+            if window_minimize and dialog_window is not None:
                 win32gui.SendMessage(dialog_window.handle, win32con.WM_SYSCOMMAND, win32con.SC_MINIMIZE, 0)
             if close_weixin:main_window.close()
             return dialog_window
