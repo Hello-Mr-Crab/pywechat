@@ -13,11 +13,12 @@ long_description=open('README.md','r',encoding='utf-8').read(),
 long_description_content_type='text/markdown',  
 url='https://github.com/Hello-Mr-Crab/pywechat',
 #64位操作系统都安装,32位操作系统只安装pywechat
-packages=['pywechat','pyweixin'] if sys.maxsize==2**63-1 else ['pywechat'],
+packages=['pywechat','pyweixin','pyweixin.ocr'] if sys.maxsize==2**63-1 else ['pywechat'],
 license='LGPL',
 keywords=['rpa','windows','wechat','automation'],
 install_requires=[
-'emoji>=2.14.1','PyAutoGUI>=0.9.54','pycaw>=20240210','pywin32>=308','pywin32-ctypes>=0.2.2','pywinauto>=0.6.8','psutil>=5.9.5','pillow>=10.4.0','sounddevice>=0.5.1','soundfile>=0.13.1','packaging>=23.2']
+'emoji>=2.14.1','PyAutoGUI>=0.9.54','pycaw>=20240210','pywin32>=308','pywin32-ctypes>=0.2.2','pywinauto>=0.6.8','psutil>=5.9.5','pillow>=10.4.0','sounddevice>=0.5.1','soundfile>=0.13.1','packaging>=23.2'],
+extras_require={'wechat-ocr':['rapidocr==3.9.2','onnxruntime==1.30.0']}
 )
 '''
 Author:Hello-Mr-Crab

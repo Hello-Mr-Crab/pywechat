@@ -36,6 +36,9 @@ dependencies=[
     "packaging>=23.2"
 ]
 
+[project.optional-dependencies]
+wechat-ocr = ["rapidocr==3.9.2", "onnxruntime==1.30.0"]
+
 
 [build-system]
 requires=["setuptools>=61.0"]
