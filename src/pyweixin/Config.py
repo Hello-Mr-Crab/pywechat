@@ -10,7 +10,8 @@ Examples
     ```
     from pyweixin import Navigator
     from pyweixin.Config import GlobalConfig
-    GlobalConfig.language='English'
+    GlobalConfig.language='English'#自动检测,无需手动传入
+    GlobalConfig.window_size=(900,900)#自动调整,无需手动传入
     GlobalConfig.load_delay=3.5
     GlobalConfig.is_maximize=True
     GlobalConfig.close_weixin=False
@@ -20,21 +21,8 @@ Examples
     ```
 '''
 
-# @property修饰getter函数可以实现直接访问类内属性,也就是class().xx,而不通过类内方法class().getter()的格式访问
-# @xx.setter修饰setter函数可以实现直接等号赋值来修改类内属性值而不是通过类内的setter方法修改,
-# 也就是class().xx=yy,而不是class().setter(yy)
-# @xx.setter与@property修饰的方法名需要一致,必须先定义@property，再定义@xxx.setter
-
-#example:
-#方法调用,不够优雅
-# t=Traditional(10)
-# t.set_value(20)  
-# print(t.get_value())
-
-#像属性一样赋值,更加Pythonic
-# m=Modern(10)
-# m.value=20  
-# print(m.value)
+#pyweixin全局参数配置
+import ctypes
 import psutil
 import winreg
 from warnings import warn
@@ -72,6 +60,8 @@ class globalConfig:
     @property
     def window_size(self):
         '''微信主界面大小设定(宽,高)'''
+        if self._window_size is None:    
+            self._window_size=self._adjust_window_size()
         return self._window_size
     
     @window_size.setter
@@ -215,6 +205,19 @@ class globalConfig:
             return weixin_version
         except Exception:
             return None
+    
+    def _adjust_window_size(self) -> tuple[int, int]:
+        '''固定比例调整微信窗口大小,先定高度,再定宽度,高度取全局分辨率80%,宽略比高大一些,窗口整体是一个正方形'''
+        user32=ctypes.windll.user32
+        try:
+            dpi=user32.GetDpiForWindow(self.hwnd)
+            sc_height=user32.GetSystemMetricsForDpi(1, dpi)
+        except:
+            sc_height=user32.GetSystemMetrics(1)
+            dpi=96
+        height=int(0.8*sc_height)
+        width=int(1.1*height)
+        return width,height
    
 #全局实例
 GlobalConfig=globalConfig()

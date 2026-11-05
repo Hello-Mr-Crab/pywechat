@@ -8,6 +8,9 @@ import soundfile as sf
 import sounddevice as sd
 from packaging import version
 from pywinauto import WindowSpecification,Desktop,mouse
+from pywinauto.uia_element_info import UIAElementInfo
+from pywinauto.controls.uiawrapper import UIAWrapper
+from pywinauto.uia_defines import IUIA
 from .Config import GlobalConfig
 from .WeChatTools import Navigator,Tools
 from .WinSettings import SystemSettings
@@ -16,6 +19,8 @@ from .Uielements import Main_window,SideBar,Buttons,Edits,Lists,Windows,Texts,Me
 #######################################################################################
 pyautogui.FAILSAFE=False#防止鼠标在屏幕边缘处造成的误触
 desktop=Desktop(backend='uia')#windows桌面WindowSpecification示例
+iuia=IUIA().iuia
+
 
 class ColorMatch():
     '''朋友圈点赞评论时需要用颜色识别点击按钮'''
@@ -143,143 +148,10 @@ class ColorMatch():
             mouse.click(coords=(fallback_x, fallback_y))
             return False
 
-
-def send_messages_to_friend(main_window:WindowSpecification,messages:list[str],send_delay:float=None):
-    '''
-    该函数用于给当前微信界面内所在的好友发送信息
-    Args:
-        main_window:已切换到某个好友聊天框后的微信主界面或者是单独的聊天窗口
-        messages:所有待发送消息列表。格式:message=["消息1","消息2"]
-        send_delay:发送单条消息延迟,单位:秒/s,默认0.2s(0.1-0.2之间是极限)。
-    '''
-    if send_delay is None:send_delay=GlobalConfig.send_delay
-    edit_area=main_window.child_window(**Edits.CurrentChatEdit)
-    if not edit_area.exists(timeout=0.1):
-        print('非正常好友,无法发送消息!')
-        return 
-    for message in messages:
-        if 0<len(message)<2000:
-            edit_area.click_input()
-            edit_area.set_text(message)
-            time.sleep(send_delay)
-            pyautogui.hotkey('alt','s',_pause=False)
-        elif len(message)>=2000:#字数超过2000字发送txt文件
-            SystemSettings.convert_long_text_to_txt(message)
-            pyautogui.hotkey('ctrl','v',_pause=False)
-            time.sleep(send_delay)
-            pyautogui.hotkey('alt','s',_pause=False)
-
-def send_files_to_friend(main_window:WindowSpecification,files:list[str],send_delay:float=None)->None:
-    '''
-    该函数用于给当前聊天界面内的好友或群聊发送多个文件
-    Args:
-        main_window:已切换到某个聊天后的微信主界面或者是单独的聊天窗口
-        files:所有待发送文件所路径列表。
-        send_delay:发送单条信息或文件的延迟,单位:秒/s,默认0.2s。
-    '''
-    #发送文件逻辑
-    def send_files(files):
-        if len(files)<=9:
-            SystemSettings.copy_files_to_clipboard(filepaths_list=files)
-            pyautogui.hotkey("ctrl","v")
-            time.sleep(send_delay)
-            pyautogui.hotkey('alt','s',_pause=False)
-        else:
-            files_num=len(files)
-            rem=len(files)%9
-            for i in range(0,files_num,9):
-                if i+9<files_num:
-                    SystemSettings.copy_files_to_clipboard(filepaths_list=files[i:i+9])
-                    pyautogui.hotkey('ctrl','v')
-                    time.sleep(send_delay)
-                    pyautogui.hotkey('alt','s',_pause=False)
-            if rem:
-                SystemSettings.copy_files_to_clipboard(filepaths_list=files[files_num-rem:files_num])
-                pyautogui.hotkey('ctrl','v')
-                time.sleep(send_delay)
-                pyautogui.hotkey('alt','s',_pause=False)
-    
-    if send_delay is None:send_delay=GlobalConfig.send_delay
-    #对发送文件校验
-    if files:            
-        files=[file for file in files if os.path.isfile(file)]
-        files=[file for file in files if 0<os.path.getsize(file)<1073741824]#0到1g之间的文件才可以发送
-    if not files:return
-    edit_area=main_window.child_window(**Edits.CurrentChatEdit)
-    if not edit_area.exists(timeout=0.1):
-        print(f'非正常好友,无法发送文件!')
-        return 
-    send_files(files)
-
-def send_audios_to_friend(main_window:WindowSpecification,audios:list[str],audio_length:int=60,send_delay:int=None):
-    '''
-    该方法用于给当前聊天界面内的好友或群聊发送语音
-    Args:
-        friend:好友或群聊备注。格式:friend="好友或群聊备注"
-        audios:所有待发送消息列表。格式:audios=["xxx.wav","yyy.mp3"...]
-        audio_length:语音长度,按照微信语音
-        send_delay:发送单条信息的延迟,单位:秒/s,默认0.2s。
-    '''
-    if send_delay is None:send_delay=GlobalConfig.send_delay
-    current_version=GlobalConfig.Version
-    if version.parse(current_version)>=version.parse('4.1.9'):
-        audios=process_audios(audios=audios,audio_length=audio_length)
-        if audios:
-            sd.default.device=SystemSettings.get_default_output()
-            edit_area=main_window.child_window(**Edits.CurrentChatEdit)
-            if not edit_area.exists(timeout=0.1):
-                return 
-            send_audio_button=main_window.child_window(**Buttons.SendAudioButon)
-            window_center=main_window.rectangle().mid_point()
-            button_center=send_audio_button.rectangle().mid_point()
-            for samplerate,audio in audios:
-                send_audio_button.click_input() 
-                mouse.move(coords=(window_center.x,window_center.y))
-                sd.play(audio,samplerate)
-                sd.wait()
-                mouse.click(coords=(button_center.x,button_center.y))
-                time.sleep(send_delay)
-    else:
-        print(f'当前微信版本不支持发送语音!')
-
-def message_chain(main_window:WindowSpecification,content:str=None,theme:str=None,example:str=None,description:str=None):
-    '''
-    该函数用来在当前微信界面所在的群聊发起接龙
-    Args:
-        main_window:已切换到某个群聊后的微信主界面或者是单独的聊天窗口
-        content:发起接龙时自己所填的内容
-        theme:接龙的主题
-        example:接龙的例子
-        description:接龙详细描述
-    '''
-    edit_area=main_window.child_window(**Edits.CurrentChatEdit)
-    if not edit_area.exists(timeout=0.1):
-        print(f'非正常好友,无法发送消息')
-        return
-    if Tools.is_group_chat(main_window):
-        edit_area.set_text('#接龙')
-        pyautogui.press('down')
-        pyautogui.press('enter')
-        solitaire_window=main_window.child_window(**Windows.SolitaireWindow)
-        solitaire_button=solitaire_window.child_window(**Buttons.SolitaireButton)
-        solitaire_list=solitaire_window.child_window(**Lists.SolitaireList)
-        if content is not None:
-            SystemSettings.copy_text_to_clipboard(content)
-            solitaire_list.click_input()#自己填写的内容正好在接龙列表的中间,所以直接click_input()
-            pyautogui.hotkey('ctrl','a')#全选删除然后复制content
-            pyautogui.press('backspace')
-            pyautogui.hotkey('ctrl','v')
-        if isinstance(theme,str):
-            solitaire_window.child_window(control_type='Edit',found_index=0).set_text(theme)
-        if isinstance(example,str):
-            solitaire_window.child_window(control_type='Edit',found_index=1).set_text(example)
-        if isinstance(description,str):
-            text=solitaire_window.child_window(**Texts.AddContentText)
-            rec=text.rectangle()
-            position=rec.left+2,rec.mid_point().y
-            mouse.click(coords=position)
-            solitaire_window.child_window(control_type='Edit',found_index=2).set_text(description)
-        solitaire_button.click_input()
+def get_focused_element():
+    focus_elem=iuia.GetFocusedElement()
+    wrapper=UIAWrapper(UIAElementInfo(focus_elem))
+    return wrapper
 
 def At(main_window:WindowSpecification,at_members:list[str]):
     '''
@@ -448,12 +320,10 @@ def scan_for_new_messages(main_window:WindowSpecification=None,delay:float=0.3,i
     if close_weixin:main_window.close()
     return newMessages_dict
 
-def parse_chat_history(friend:str,myName:str,details_with_name:list[str])->tuple[list,list,list,list]:
+def parse_chat_history(details:list[tuple[str,str,str]])->tuple[list,list,list,list]:
     '''私聊聊天记录消息解析,不是对方发送就是个人发送
     Args:
-        friend:好友名称
-        myName:本人昵称(Contacts.check_my_info)
-        details_with_name:开启多选遍历得到的文本(traverse_chat_histor_list)
+        details_with_name:traverse_chat_history拿到的返回值
     Returns:
         (contents,senders,timestamps,message_types):消息内容,消息发送人,时间戳,消息类型
     '''
@@ -474,19 +344,14 @@ def parse_chat_history(friend:str,myName:str,details_with_name:list[str])->tuple
     voiceCall_label=Special_Labels.VoiceCall
     chat_history_label=Special_Labels.ChatHistory
     emoji_label=Special_Labels.Emoji
-    for text,class_name,chat_history in details_with_name:
+    for text,sender,class_name in details:
         timestamp=timestamp_pattern.search(text).group(0) if timestamp_pattern.search(text) else '红包或转账(无法获取时间戳)'
-        text=timestamp_pattern.sub('',text)
-        if timestamp=='红包或转账(无法获取时间戳)':
-            sender='红包或转账(无法获取发送人)'
-            content=text.strip()
-        else:
-            sender=friend if re.search(rf'^{friend}\s',text) is not None else myName
-            content=re.sub(rf'^{sender}\s','',text).strip()
+        content=timestamp_pattern.sub('',text).strip()
         if class_name=='mmui::ChatTextItemView':
             message_type='文本'
         if class_name=='mmui::ChatPersonalCardItemView':
             message_type='好友名片'
+        if class_name=='mmui::ChatImageItemView':message_type='图片'
         if class_name=='mmui::ChatBubbleReferItemView':
             if content.startswith(image_label):message_type='图片'
             if content.startswith(video_label):message_type='视频'
@@ -502,115 +367,15 @@ def parse_chat_history(friend:str,myName:str,details_with_name:list[str])->tuple
             if content.startswith(voiceCall_label):message_type='语音通话'
             if content.startswith(videoCall_label):message_type='视频通话'
         senders.append(sender)
-        if chat_history!=[]:content=chat_history
         contents.append(content)
         timestamps.append(timestamp)
         message_types.append(message_type)
     return contents,senders,timestamps,message_types
 
-
-def parse_group_chat_history(details_with_name:list[tuple[str,str]],details_without_name:list[tuple[str,str]]=[],groupMembers:list[str]=[])->tuple[list,list,list,list]:
-    '''群聊内的聊天记录解析
-    Args:
-        details_with_name:开启多选遍历得到的(文本,类名)元祖列表(traverse_chat_history_list)
-        details_without_name:不开启多选遍历得到的(文本,类名)文本(traverse_chat_history_list)
-        groupMembers:群成员昵称列表(Contacts.get_groupMembers_info)
-    Returns:
-        (contents,senders,timestamps,message_types):消息内容,消息发送人,时间戳,消息类型
-    '''
-    senders=[]
-    contents=[]
-    message_types=[]
-    timestamps=[]
-    image_label=Special_Labels.Image
-    video_label=Special_Labels.Video
-    file_label=Special_Labels.File
-    link_label=Special_Labels.Link
-    miniprogram_label=Special_Labels.MiniProgram
-    channels_label=Special_Labels.Channels
-    redpacket_label=Special_Labels.RedPacket
-    transfer_label=Special_Labels.Transfer
-    videoCall_label=Special_Labels.VideoCall
-    voiceCall_label=Special_Labels.VoiceCall
-    chat_history_label=Special_Labels.ChatHistory
-    emoji_label=Special_Labels.Emoji
-    timestamp_pattern=Regex_Patterns.Chathistory_Timestamp_pattern
-    if groupMembers and not details_without_name:
-        for text,class_name,chat_history in details_with_name:
-            timestamp=timestamp_pattern.search(text).group(0) if timestamp_pattern.search(text) else '红包或转账(无法获取时间戳)'
-            if timestamp=='红包或转账(无法获取时间戳)':
-                sender='红包或转账(无法获取发送人)'
-                content=text.strip()
-            else:
-                for groupMember in groupMembers:
-                    search_result=re.search(rf'^({re.escape(groupMember)})\s',text)
-                    if search_result is not None:
-                        sender=search_result.group(1)
-                        content=timestamp_pattern.sub('',text).replace(sender,'').strip()
-            if class_name=='mmui::ChatTextItemView':
-                message_type='文本'
-            if class_name=='mmui::ChatPersonalCardItemView':
-                message_type='好友名片'
-            if class_name=='mmui::ChatBubbleReferItemView':
-                if content.startswith(image_label):message_type='图片'
-                if content.startswith(video_label):message_type='视频'
-                if content.startswith(emoji_label):message_type='动画表情'
-            if class_name=='mmui::ChatBubbleItemView':
-                if content.startswith(file_label):message_type='文件'
-                if content.startswith(link_label):message_type='链接'
-                if content.startswith(miniprogram_label):message_type='小程序'
-                if content.startswith(channels_label):message_type='视频号'
-                if content.endswith(redpacket_label):message_type='微信红包'
-                if content.endswith(transfer_label):message_type='微信转账'
-                if content.startswith(chat_history_label):message_type='聊天记录'
-                if content.startswith(voiceCall_label):message_type='语音通话'
-                if content.startswith(videoCall_label):message_type='视频通话'
-            message_types.append(message_type)
-            senders.append(sender)
-            if chat_history!=[]:content=chat_history
-            contents.append(content)
-            timestamps.append(timestamp)
-    if not groupMembers and details_without_name:
-        for detail_with_name,detail_without_name in zip(details_with_name,details_without_name):
-            text_with_name=detail_with_name[0]
-            text_without_name=detail_without_name[0]
-            class_name=detail_with_name[1]
-            chat_history=detail_with_name[2]
-            timestamp=timestamp_pattern.search(text_without_name).group(0) if timestamp_pattern.search(text_without_name) else '红包或转账(无法获取时间戳)'
-            content=timestamp_pattern.sub('',text_without_name)
-            if timestamp=='红包或转账(无法获取时间戳)':
-                sender='红包或转账(无法获取发送人)'
-            else:
-                sender=text_with_name.replace(text_without_name,'').strip()
-                sender=timestamp_pattern.sub('',sender).replace(content,'')
-            if class_name=='mmui::ChatTextItemView':
-                message_type='文本'
-            if class_name=='mmui::ChatBubbleReferItemView':
-                if video_label in content:message_type='链接'
-                if image_label in content:message_type='链接'
-            if class_name=='mmui::ChatBubbleItemView':
-                if content.startswith(file_label):message_type='文件'
-                if content.startswith(link_label):message_type='链接'
-                if content.startswith(miniprogram_label):message_type='小程序'
-                if content.startswith(channels_label):message_type='视频号'
-                if content.endswith(redpacket_label):message_type='微信红包'
-                if content.endswith(transfer_label):message_type='微信转账'
-                if content.startswith(chat_history_label):message_type='聊天记录'
-                if content.startswith(voiceCall_label):message_type='语音通话'
-                if content.startswith(videoCall_label):message_type='视频通话'
-            message_types.append(message_type)
-            senders.append(sender)
-            if chat_history!=[]:content=chat_history
-            contents.append(content)
-            timestamps.append(timestamp)
-    return contents,senders,timestamps,message_types
-
-def parse_messages(friend:str,myName:str,details_with_name:list[tuple[str,str]])->tuple[list,list,list]:
+def parse_messages(details:list[tuple[str,str,str]])->tuple[list,list,list]:
     '''私聊解析聊天界面内的信息,不是自己发的就是对方发的
     Args:
-        friend:好友名称
-        myName:本人昵称(Contacts.check_my_info)
-        details_with_name:开启多选遍历得到的文本(traverse_chatList)
+        details:traverse_chatList
     Returns:
         (contents,senders,message_types):消息内容,消息发送人,消息类型
     '''
@@ -629,15 +394,11 @@ def parse_messages(friend:str,myName:str,details_with_name:list[tuple[str,str]])
     voiceCall_label=Special_Labels.VoiceCall
     chat_history_label=Special_Labels.ChatHistory
     emoji_label=Special_Labels.Emoji
-    for text,class_name in details_with_name:
-        sender=friend if re.search(rf'^{re.escape(friend)}\s',text) is not None else myName
-        content=re.sub(rf'^{sender}\s','',text)
-        if class_name=='mmui::ChatTextItemView':
-            message_type='文本'
-        if class_name=='mmui::ChatPersonalCardItemView':
-            message_type='好友名片'
-        if class_name=='mmui::ChatImageItemView':#4.1.20以上图片类名变成了这个
-            message_type='图片'
+    for content,sender,class_name in details:
+        if class_name=='mmui::ChatVoiceItemView':message_type='语音'
+        if class_name=='mmui::ChatTextItemView':message_type='文本'
+        if class_name=='mmui::ChatPersonalCardItemView':message_type='好友名片'
+        if class_name=='mmui::ChatImageItemView':message_type='图片'
         if class_name=='mmui::ChatBubbleReferItemView':
             if content.startswith(image_label):message_type='图片'
             if content.startswith(video_label):message_type='视频'
@@ -657,218 +418,79 @@ def parse_messages(friend:str,myName:str,details_with_name:list[tuple[str,str]])
         message_types.append(message_type)
     return contents,senders,message_types
 
-def parse_group_messages(details_with_name:list[tuple[str]],details_without_name:list[tuple[str]]=[],groupMembers:list=[])->tuple[list,list,list]:
-    '''群聊提取信息
-    Args:
-        details_with_name:开启多选遍历得到的文本(traverse_chatList)
-        details_without_name:不开启多选遍历得到的文本(traverse_chatList)
-        groupMembers:群成员列表
-    Returns:
-        (contents,senders,message_types):消息内容,消息发送人,消息类型
-    '''
-    senders=[]
-    contents=[]
-    message_types=[]
-    image_label=Special_Labels.Image
-    video_label=Special_Labels.Video
-    file_label=Special_Labels.File
-    link_label=Special_Labels.Link
-    miniprogram_label=Special_Labels.MiniProgram
-    channels_label=Special_Labels.Channels
-    redpacket_label=Special_Labels.RedPacket
-    transfer_label=Special_Labels.Transfer
-    videoCall_label=Special_Labels.VideoCall
-    voiceCall_label=Special_Labels.VoiceCall
-    chat_history_label=Special_Labels.ChatHistory
-    emoji_label=Special_Labels.Emoji
-    if groupMembers and not details_without_name:
-        for text,class_name in details_with_name:
-            sender='红包或转账(无法获取发送人)'
-            for groupMember in groupMembers:
-                search_result=re.search(rf'^({re.escape(groupMember)})',text)
-                if search_result is not None:
-                    sender=groupMember
-            content=re.sub(rf'^{sender}\s','',text)
-            if class_name=='mmui::ChatPersonalCardItemView':
-                message_type='好友名片'
-            if class_name=='mmui::ChatTextItemView':
-                message_type='文本'
-            if class_name=='mmui::ChatBubbleReferItemView':
-                if content.startswith(image_label):message_type='图片'
-                if content.startswith(video_label):message_type='视频'
-                if content.startswith(emoji_label):message_type='动画表情'
-            if class_name=='mmui::ChatBubbleItemView':
-                if content.startswith(file_label):message_type='文件'
-                if content.startswith(link_label):message_type='链接'
-                if content.startswith(miniprogram_label):message_type='小程序'
-                if content.startswith(channels_label):message_type='视频号'
-                if content.endswith(redpacket_label):message_type='微信红包'
-                if content.endswith(transfer_label):message_type='微信转账'
-                if content.startswith(chat_history_label):message_type='聊天记录'
-                if content.startswith(voiceCall_label):message_type='语音通话'
-                if content.startswith(videoCall_label):message_type='视频通话'
-            message_types.append(message_type)
-            senders.append(sender)
-            contents.append(content)
-    if not groupMembers and details_without_name:
-        for detail_with_name,detail_without_name in zip(details_with_name,details_without_name):
-            text_with_name=detail_with_name[0]
-            content=detail_without_name[0]
-            class_name=detail_with_name[1]
-            sender=text_with_name.replace(content,'').strip()
-            if sender=='':sender='红包或转账(无法获取发送人)'
-            if class_name=='mmui::ChatPersonalCardItemView':
-                message_type='好友名片'
-            if class_name=='mmui::ChatTextItemView':
-                message_type='文本'
-            if class_name=='mmui::ChatBubbleReferItemView':
-                if content.startswith(image_label):message_type='图片'
-                if content.startswith(video_label):message_type='视频'
-                if content.startswith(emoji_label):message_type='动画表情'
-            if class_name=='mmui::ChatBubbleItemView':
-                if content.startswith(file_label):message_type='文件'
-                if content.startswith(link_label):message_type='链接'
-                if content.startswith(miniprogram_label):message_type='小程序'
-                if content.startswith(channels_label):message_type='视频号'
-                if content.endswith(redpacket_label):message_type='微信红包'
-                if content.endswith(transfer_label):message_type='微信转账'
-                if content.startswith(chat_history_label):message_type='聊天记录'
-                if content.startswith(voiceCall_label):message_type='语音通话'
-                if content.startswith(videoCall_label):message_type='视频通话'
-            message_types.append(message_type)
-            senders.append(sender)
-            contents.append(content)
-    return contents,senders,message_types
-
-def traverse_chat_history(chat_history_window:WindowSpecification,select:bool,number:int,
-save_detail:bool=False,target_folder:str=None)->list[tuple[str,str,list[str]]]:
+def traverse_chatHistoryList(chat_history_window:WindowSpecification,number:int,
+)->list[tuple[str,str,str]]:
     '''该函数用于遍历聊天记录列表获取指定数量聊天记录,并在选中状态下保存图片视频与文件
     Args:
         chat_history_window:聊天记录窗口
-        select:是否在选中的状态下遍历
-        save_detail:是否保存图片、视频、文件
-        target_folder:保存图片、视频、文件的文件夹
         number:指定数量条聊天记录
     Returns:
-        details:[(ui文本,ui类名,[转发的聊天记录])]*number
+        details:[(发送人名称,ui文本,ui类名)]*number
     '''
-    # def traverse_record_detail(listitem):
-    #     '''用来遍历获取转发的聊天记录块内内容'''
-    #     chat_history=[]
-    #     runtime_ids=[]
-    #     pyautogui.press('esc')#取消当前聊天记录列表的选中状态
-    #     rect=listitem.rectangle()
-    #     click_pos=rect.left+120,rect.top+60
-    #     mouse.click(coords=click_pos)#点击聊天记录块
-    #     #弹出的聊天记录明细移动到屏幕中央
-    #     record_detail_window=Tools.move_window_to_center({'class_name':'mmui::RecordDetailWindow','found_index':0})
-    #     record_detail_list=record_detail_window.child_window(class_name='mmui::RecyclerListView')
-    #     #激活聊天记录明细窗口内的列表,让其可以选中
-    #     record_detail_list.type_keys('{PGDN}')
-    #     record_detail_list.type_keys('{HOME}')
-    #     #疯狂遍历,直达见底
-    #     while True:
-    #         selected=[item for item in record_detail_list.children() if item.has_keyboard_focus()]
-    #         if selected:
-    #             chat_history.append(selected[0].window_text())
-    #             #同一个runtime_id挨着重复出现就说明到底部了无法继续下滑
-    #             runtime_ids.append(selected[0].element_info.runtime_id)
-    #             if len(runtime_ids)>2 and runtime_ids[-1]==runtime_ids[-2]:
-    #                 break
-    #         pyautogui.press('down',presses=1,_pause=False)
-    #     record_detail_window.close()
-    #     #重新再开启聊天记录列表的选中状态
-    #     mouse.right_click(coords=click_pos)
-    #     multiselect_item.click_input()
-    #     listitem.click_input()#点一下聊天记录是为了不选中这个checkbox,只有图片视频文件才选中
-    #     return chat_history#把转发的聊天记录文本列表返回
-    file_count=0
-    media_count=0
-    recorded_num=0
-    details=[]
+    senders=[]
+    classnames=[]
+    texts=[]
     runtime_ids=[]
-    image_label=Special_Labels.Image
-    video_label=Special_Labels.Video
-    file_label=Special_Labels.File
-    # link_label=Special_Labels.Link
-    # chat_history_label=Special_Labels.ChatHistory
-    # multiselect_item=chat_history_window.child_window(**MenuItems.SelectMenuItem)
     chat_history_list=chat_history_window.child_window(**Lists.ChatHistoryList)
-    if select:
-        latest_message=Tools.select_chatHistoryList(chat_history_window)
-        if latest_message is None:raise ValueError(f'该聊天只有系统消息,无法在聊天记录界面中选中任何消息!')
-    while recorded_num<number:
-        selected=[item for item in chat_history_list.children() if item.has_keyboard_focus()]
-        if selected:
-            #同一个runtime_id挨着重复出现就说明到底部了无法继续下滑
-            runtime_ids.append(selected[0].element_info.runtime_id)
+    Tools.activate_chatHistoryList(chat_history_list)
+    pyautogui.press('up',presses=2)#到顶部让focused_item是头像按钮
+    while len(texts)<number:
+        focused_item=get_focused_element()
+        if focused_item is not None and focused_item.class_name()!='mmui::ChatItemView':#不包含撤回消息,新人进群这种系统消息
+            ############判断是否到底的逻辑
+            runtime_ids.append(focused_item.element_info.runtime_id)
             if len(runtime_ids)>2 and runtime_ids[-1]==runtime_ids[-2]:
                 break
-        if selected and selected[0].class_name()!='mmui::ChatItemView':
-            chat_history=[]
-            recorded_num+=1
-            if selected[0].class_name()=='mmui::ChatBubbleReferItemView':
-                if video_label in selected[0].window_text() and select and save_detail:
-                    pyautogui.press('enter')
-                    media_count+=1
-                if image_label in selected[0].window_text() and select and save_detail:
-                    pyautogui.press('enter')
-                    media_count+=1
-            if selected[0].class_name()=='mmui::ChatBubbleItemView':
-                if file_label in selected[0].window_text() and select and save_detail:
-                    pyautogui.press('enter')
-                # if chat_history_label in selected[0].window_text() and file_label not in selected[0].window_text() and link_label not in selected[0].window_text():
-                    # chat_history=traverse_record_detail(selected[0])
-            details.append((selected[0].window_text(),selected[0].class_name(),chat_history)) 
+            #同一个runtime_id挨着重复出现就说明到底部了无法继续下滑
+            ################
+            if focused_item.element_info.control_type=='Button':#按钮+listitem成对出现构成一条聊天记录,按钮的下一个是这个人发送的消息
+                senders.append(focused_item.window_text())
+                pyautogui.press('down',presses=1,_pause=False)
+                focused_item=get_focused_element()
+                texts.append(focused_item.window_text())
+                classnames.append(focused_item.class_name())
         pyautogui.press('down',presses=1,_pause=False)
-    savable_item_count=file_count+media_count
-    if select and save_detail and savable_item_count!=0 and target_folder is not None:
-        save_button=chat_history_window.child_window(**Buttons.SaveButton)
-        save_button.click_input()
-        NativeChooseFolder(target_folder)
-    if select and savable_item_count==0:pyautogui.press('esc')#没有可保存的东西直接取消选中
     chat_history_list.type_keys('{HOME}')
+    details=list(zip(texts,senders,classnames))
     return details
 
-def traverse_message(main_window:WindowSpecification,select:bool,number:int)->list[tuple[str,str]]:
+
+def traverse_chatList(main_window:WindowSpecification,number:int)->list[tuple[str,str]]:
     '''该函数用于遍历聊天窗口内的消息列表获取指定数量文本
     Args:
         main_window:微信主界面窗口
-        select:是否在选中的状态下遍历
         number:指定数量条聊天记录
     Returns:
-        details:[(ui文本,ui类名)]*number
+        details:[(消息发送人,ui文本,ui类名)]*number
     '''
     runtime_ids=[]
     details=[]
-    recorded_num=0
-    pressed_num=0
+    senders=[]
+    classnames=[]
+    contents=[]
     SystemInfo={'mmui::ChatItemView','mmui::ChatSystemInfoItemView'}
     chatList=main_window.child_window(**Lists.FriendChatList)
-    if select:
-        last_item=Tools.select_chatList(main_window)
-        if last_item is None:
-            raise ValueError(f'该聊天只有系统消息,无法在聊天界面中选中任何消息!')
-        if last_item is not None:
-            details.append((last_item.window_text(),last_item.class_name()))
-            runtime_ids.append(last_item.element_info.runtime_id)
-            recorded_num+=1
-    if not select:Tools.activate_chatList(chatList)
-    while recorded_num<number:
-        selected=[item for item in chatList.children() if item.has_keyboard_focus()]
-        if selected and selected[0].class_name() not in SystemInfo:
-            runtime_ids.append(selected[0].element_info.runtime_id)
+    Tools.activate_chatList(chatList)
+    pyautogui.press('down',presses=2)#到顶部让focused_item是消息listitem本身
+    while len(contents)<number:
+        focused_item=get_focused_element()
+        ############判断是否到顶部的逻辑
+        if focused_item is not None:#不包含撤回消息,新人进群这种系统消息
+            runtime_ids.append(focused_item.element_info.runtime_id)
             if len(runtime_ids)>2 and runtime_ids[-1]==runtime_ids[-2]:
-                break     
-            details.append((selected[0].window_text(),selected[0].class_name()))
-            recorded_num+=1
-        pyautogui.press('up',presses=1,_pause=False)
-        pressed_num+=1
-        if pressed_num>=1.5*number:break
-    if select:pyautogui.press('esc')
+                break
+            #同一个runtime_id挨着重复出现就说明到底部了无法继续下滑
+            ################
+            if focused_item.element_info.control_type=='ListItem' and focused_item.class_name() not in SystemInfo:#按钮+listitem成对出现构成一条聊天记录,按钮的下一个是这个人发送的消息
+                contents.append(focused_item.window_text())
+                classnames.append(focused_item.class_name())
+                pyautogui.press('up',presses=1,_pause=False)
+                focused_item=get_focused_element()
+                senders.append(focused_item.window_text())
+            pyautogui.press('up',presses=1,_pause=False)
     chatList.type_keys('{END}')
+    details=list(zip(contents,senders,classnames))
     return details
-
 def process_audios(audios:list[str],audio_length:int=60):
     '''
     Args:

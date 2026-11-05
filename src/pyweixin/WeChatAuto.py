@@ -70,9 +70,8 @@ from packaging import version#字符串版本比较,4.1.9>4.1.8>4.1.7
 #内部依赖
 from .Config import GlobalConfig
 from .utils import At,At_all,ColorMatch
-from .utils import traverse_chat_history,traverse_message
-from .utils import parse_chat_history,parse_group_chat_history
-from .utils import parse_messages,parse_group_messages
+from .utils import traverse_chatHistoryList,traverse_chatList
+from .utils import parse_chat_history,parse_messages
 from .utils import scan_for_new_messages,get_new_message_num,process_audios
 from .Warnings import LongTextWarning,NoChatHistoryWarning
 from .WeChatTools import Tools,Navigator,mouse,Desktop
@@ -3936,22 +3935,19 @@ class Messages():
         return sessions
 
     @staticmethod
-    def pull_messages(friend:str,number:int,is_json:bool=False,myName:str=None,groupMembers:list=[],search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
+    def pull_messages(friend:str,number:int,is_json:bool=False,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
         '''
         该方法用来从聊天界面向上滚动获取聊天消息
         Args:
             friend:好友或群聊备注
             number:获取的消息数量
             is_json:返回结果是否为json字符串,便于导出
-            myName:个人昵称
-            groupMembers:friend对应的群成员列表(可提前通过Contacts.get_groupMembers_info导出保存至本地),如果friend是群聊且传入了该参数则无需遍历二次
             search_pages:打开好友聊天窗口时在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息打开聊天界面
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
         Returns:
             chat_history:[{'消息发送人':xxx,'消息内容':yyy,'消息类型'}....]
         '''
-    
         if is_maximize is None:
             is_maximize=GlobalConfig.is_maximize
         if close_weixin is None:
@@ -3966,38 +3962,29 @@ class Messages():
             print(f'非正常好友或群聊,无法获取聊天信息！')
             return messages
         else:
+            edit_area.click_input()
             if not chat_list.children(control_type='ListItem'):
                 main_window.close()
                 warn(message=f'你与{friend}的聊天记录为空,无法获取聊天信息',category=NoChatHistoryWarning)
                 return messages
             else:
-                is_group_chat=Tools.is_group_chat(main_window)
-                if not is_group_chat and myName is None:myName=Contacts.check_my_info(close_weixin=False).get('昵称')
-                details_with_name=traverse_message(main_window,select=True,number=number)
-                if not is_group_chat:
-                    contents,senders,message_tpyes=parse_messages(friend,myName,details_with_name)
-                if is_group_chat:
-                    if groupMembers:details_without_name=[]
-                    if not groupMembers:details_without_name=traverse_message(main_window,select=False,number=number)
-                    contents,senders,message_tpyes=parse_group_messages(details_with_name,details_without_name,groupMembers)
-            chat_history=[{'消息发送人':chat[0],'消息内容':chat[1],'消息类型':chat[2]} for chat in zip(senders,contents,message_tpyes)]
+                details=traverse_chatList(main_window,number=number)
+                senders,contents,message_types=parse_messages(details)
+            chat_history=[{'消息发送人':chat[0],'消息内容':chat[1],'消息类型':chat[2]} for chat in zip(senders,contents,message_types)]
             if is_json:chat_history=json.dumps(chat_history,ensure_ascii=False,indent=2)
             if close_weixin:main_window.close()
         return chat_history
     
     @staticmethod
-    def dump_chat_history(friend:str,number:int,groupMembers:list=[],search_content:str=None,is_json:bool=False,save_detail:bool=False,
-    target_folder:str=None,search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
+    def dump_chat_history(friend:str,number:int,search_content:str=None,is_json:bool=False,
+    search_pages:int=None,is_maximize:bool=None,close_weixin:bool=None)->list[dict]:
         '''
         该方法用来获取一定数量的聊天记录
         Args:  
             friend:好友名称
             number:获取的消息数量
-            groupMembers:friend对应的群成员列表(可提前通过Contacts.get_groupMembers_info导出保存至本地),如果friend是群聊且传入了该参数则直接解析发送人(无需遍历二次)
             search_content:搜索关键字,传入后会先在顶部搜索关键字然后向下遍历
             is_json:返回结果是否为json字符串,便于导出
-            save_detail:是否将保存聊天记录明细包括,图片,视频,文件,聊天记录.json
-            target_folder:保存图片、视频、文件、聊天记录.json的文件夹
             search_pages:打开好友聊天窗口时在会话列表中查找好友时滚动列表的次数,默认为5,一次可查询5-12人,为0时,直接从顶部搜索栏搜索好友信息
             is_maximize:微信界面是否全屏，默认不全屏
             close_weixin:任务结束后是否关闭微信，默认关闭
@@ -4010,15 +3997,6 @@ class Messages():
             close_weixin=GlobalConfig.close_weixin
         if search_pages is None:
             search_pages=GlobalConfig.search_pages
-        if save_detail and target_folder is None:
-            target_folder=os.path.join(os.getcwd(),f'dump_chat_history聊天记录明细',f'{friend}')
-            print(f'未传入文件夹路径,聊天记录明细将分别保存到{target_folder}内')
-            os.makedirs(target_folder,exist_ok=True)
-
-        main_window=Navigator.open_dialog_window(friend=friend,is_maximize=is_maximize,search_pages=search_pages)
-        is_group_chat=Tools.is_group_chat(main_window)
-        if not is_group_chat:
-            myName=Contacts.check_my_info(close_weixin=close_weixin).get('昵称')      
         chat_history_window=Navigator.open_chat_history(friend=friend,is_maximize=is_maximize,close_weixin=close_weixin,search_pages=search_pages)
         Tools.cancel_pin(chat_history_window)
         if isinstance(search_content,str):
@@ -4028,23 +4006,11 @@ class Messages():
         if not chat_history_list.exists(timeout=1):
             warn(message=f"你与{friend}的聊天记录为空,无法获取聊天记录!",category=NoChatHistoryWarning)
             chat_history_window.close()
-            return [],[],[]
-        win32gui.SendMessage(chat_history_window.handle,win32con.WM_SYSCOMMAND,win32con.SC_MAXIMIZE,0)
-        details_with_name=traverse_chat_history(chat_history_window,select=True,number=number,save_detail=save_detail,target_folder=target_folder)
-        if not is_group_chat:
-            contents,senders,timestamps,message_types=parse_chat_history(friend,myName,details_with_name)
-        if is_group_chat:
-            if groupMembers:details_without_name=[]
-            if not groupMembers:
-                details_without_name=traverse_chat_history(chat_history_window,select=False,number=number)
-            contents,senders,timestamps,message_types=parse_group_chat_history(details_with_name,details_without_name,groupMembers)
+            return [{}]
+        details=traverse_chatHistoryList(chat_history_window,number=number)
+        contents,senders,timestamps,message_types=parse_chat_history(details)
         chat_history_window.close()
         chat_history=[{'消息发送人':chat[0],'消息内容':chat[1],'消息类型':chat[2],'消息发送时间':chat[3]} for chat in zip(senders,contents,message_types,timestamps)]
-        if save_detail:
-            chat_history_json=json.dumps(chat_history,ensure_ascii=False,indent=2)
-            json_path=os.path.join(target_folder,f'{friend}聊天记录信息.json')
-            with open(json_path,'w',encoding='utf-8') as f:
-                f.write(chat_history_json)
         if is_json:
             chat_history=json.dumps(chat_history,ensure_ascii=False,indent=2)
         return chat_history
