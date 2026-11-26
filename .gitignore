@@ -22,3 +22,7 @@ evidence/0*_*.png
 __pycache__/
 *.pyc
 evidence/dbg_*.png
+
+# --- Linux port: 单元测试要入库(上游的 test_*.py 是给本地临时探针用的) ---
+!tests/
+!tests/test_*.py
