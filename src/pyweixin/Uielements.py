@@ -39,8 +39,14 @@ Examples
 import re
 import time
 from.Config import GlobalConfig
-from packaging import version
-from pywinauto.controls.uia_controls import ListItemWrapper
+try:#packaging 是声明依赖,但干净的无头 Linux 上未必装了,这里给一个零依赖回退
+    from packaging import version
+except Exception:
+    from ._version import version
+try:#仅在 Windows 上做类型标注用,Linux 上没有 pywinauto 也必须能导入
+    from pywinauto.controls.uia_controls import ListItemWrapper
+except Exception:
+    ListItemWrapper=None
 language=GlobalConfig.language
 Version=GlobalConfig.Version
 class Button_Control():

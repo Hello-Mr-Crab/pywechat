@@ -22,11 +22,25 @@ Examples
 '''
 
 #pyweixin全局参数配置
+import os
+import re
+import sys
+import glob
 import ctypes
-import psutil
-import winreg
 from warnings import warn
 from .Warnings import LanguageDetectionFailedWarning
+
+#psutil 在 Linux/macOS 上同样是跨平台的,但没有安装时不应该让整个包导入失败
+try:
+    import psutil
+except Exception:  # pragma: no cover - 环境相关
+    psutil=None
+
+IS_WINDOWS=sys.platform.startswith('win')
+if IS_WINDOWS:
+    import winreg
+else:
+    winreg=None#Linux/macOS 上没有注册表
 class globalConfig:
     '''位置参数全局配置'''
     _instance=None
@@ -191,10 +205,13 @@ class globalConfig:
         return lang
 
     def _get_weixin_version(self):
-        '''通过查询注册表来获取微信版本
+        '''获取微信版本号。
+        Windows 上查注册表,Linux 上从可执行文件里提取字符串。
         Returns:
             weixin_version:微信版本号,4.1.x.xx
         '''
+        if not IS_WINDOWS:
+            return self._get_weixin_version_linux()
         try:
             reg_path=r"Software\Tencent\Weixin"
             with winreg.OpenKey(winreg.HKEY_CURRENT_USER,reg_path) as key:
@@ -206,8 +223,63 @@ class globalConfig:
         except Exception:
             return None
     
+    def _get_weixin_version_linux(self):
+        '''Linux 上没有注册表,版本号只能从二进制/包信息里取。
+
+        查找顺序:
+            1. 环境变量 `PYWEIXIN_WECHAT_VERSION`(最高优先级,便于测试)
+            2. 可执行文件里的 `4.x.y.z` 字符串
+            3. `/opt/wechat/version` 之类的版本文件
+        Returns:
+            weixin_version:形如 '4.1.13.29',取不到时返回 None(由调用方回退默认值)
+        '''
+        override=os.environ.get('PYWEIXIN_WECHAT_VERSION')
+        if override:
+            return override.strip()
+        candidates=['/opt/wechat/wechat','/opt/weixin/weixin','/usr/bin/wechat','/usr/lib/wechat/wechat']
+        for exe in candidates:
+            if not os.path.isfile(exe):
+                continue
+            found=self._scan_version_strings(exe)
+            if found:
+                return found
+        for path in glob.glob('/opt/wechat/*version*')+glob.glob('/opt/weixin/*version*'):
+            try:
+                text=open(path,'r',encoding='utf-8',errors='ignore').read(4096)
+            except OSError:
+                continue
+            match=re.search(r'\b(4\.\d+\.\d+\.\d+)\b',text)
+            if match:
+                return match.group(1)
+        return None
+
+    @staticmethod
+    def _scan_version_strings(path:str,chunk_size:int=8*1024*1024):
+        '''分块扫描二进制里形如 4.1.13.29 的版本号,取最大的一个(避免误匹配依赖库版本)'''
+        pattern=re.compile(rb'(?<![0-9.])(4\.\d{1,2}\.\d{1,2}\.\d{1,2})(?![0-9.])')
+        versions=set()
+        try:
+            with open(path,'rb') as fh:
+                tail=b''
+                while True:
+                    chunk=fh.read(chunk_size)
+                    if not chunk:
+                        break
+                    for match in pattern.finditer(tail+chunk):
+                        versions.add(match.group(1).decode())
+                    tail=chunk[-32:]
+        except OSError:
+            return None
+        if not versions:
+            return None
+        def key(v):
+            return tuple(int(x) for x in v.split('.'))
+        return max(versions,key=key)
+
     def _adjust_window_size(self) -> tuple[int, int]:
         '''固定比例调整微信窗口大小,先定高度,再定宽度,高度取全局分辨率80%,宽略比高大一些,窗口整体是一个正方形'''
+        if not IS_WINDOWS:
+            return (1200,1100)
         user32=ctypes.windll.user32
         try:
             dpi=user32.GetDpiForWindow(self.hwnd)
