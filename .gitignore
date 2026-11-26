@@ -12,3 +12,17 @@ _patch_*.py
 _quote_*.txt
 __pycache__/
 *.pyc
+
+# --- Linux port: 本地实验产物 ---
+# 二维码/登录截图含登录凭据,绝不入库
+evidence/qr*.png
+evidence/*_qr_*.png
+evidence/0*_*.png
+/tmp/
+__pycache__/
+*.pyc
+evidence/dbg_*.png
+
+# --- Linux port: 单元测试要入库(上游的 test_*.py 是给本地临时探针用的) ---
+!tests/
+!tests/test_*.py

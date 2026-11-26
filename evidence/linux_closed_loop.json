@@ -1,0 +1,45 @@
+{
+  "started_at": "2026-11-26T20:27:57+0800",
+  "steps": [
+    {
+      "step": "登录态检测",
+      "ts": "20:27:59",
+      "ok": true,
+      "is_logged_in": true
+    },
+    {
+      "step": "白名单拦截",
+      "ts": "20:27:59",
+      "ok": true,
+      "rejected": "25王超越",
+      "error": "RecipientNotAllowed"
+    },
+    {
+      "step": "打开会话",
+      "ts": "20:27:59",
+      "ok": true,
+      "friend": "文件传输助手"
+    },
+    {
+      "step": "发送并回读",
+      "ts": "20:28:09",
+      "ok": true,
+      "sent": "[pyweixin][linux] 闭环测试 2026-11-26 20:27:59",
+      "read_back": "[pyweixin][linux] 闭环测试 2026-11-26 20:27:59",
+      "type": "文本"
+    },
+    {
+      "step": "读取最近消息",
+      "ts": "20:28:09",
+      "ok": true,
+      "count": 3,
+      "messages": [
+        "[pyweixin][linux] 闭环测试 2026-11-26 20:26:06",
+        "[pyweixin][linux] 闭环测试 2026-11-26 20:26:06",
+        "[pyweixin][linux] 闭环测试 2026-11-26 20:27:59"
+      ]
+    }
+  ],
+  "finished_at": "2026-11-26T20:28:09+0800",
+  "result": "PASS"
+}
