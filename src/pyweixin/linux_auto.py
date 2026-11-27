@@ -5,23 +5,31 @@ Linux 下的最小可用 API:打开会话 / 发送消息 / 读取消息。
 
 设计约束
 --------
-1. **收件人白名单(硬规则)**:只允许向 `ALLOWED_RECIPIENTS` 里的会话发送任何内容,
-   其它收件人一律在**触碰 UI 之前**抛 `RecipientNotAllowed`。白名单是硬编码的,
-   不接受运行时覆盖(改白名单只能改代码 + 改测试)。
+1. **收件人白名单(可选,默认不限制)**:与 Windows 端行为对齐 —— 默认可以发给任意
+   会话。需要限制时显式传 ``allowed_recipients``::
+
+       LinuxWeChat()                               # 不限制(默认)
+       LinuxWeChat(allowed_recipients={'某个群'})   # 只允许这个会话
+
+   校验发生在**真正按回车之前**,并且以"当前实际打开的会话名"为准,所以即使绕过
+   `send_message` 直接调私有方法也拦得住。违反时抛 `RecipientNotAllowed`。
 2. 读走 AT-SPI,写走 XTest;绝不注入微信进程、不改注册表、不逆向二进制。
 3. 找不到控件时抛 `ElementNotFound` / `NotLoginError`,不做"猜一个坐标点下去"。
-4. 坐标方案(截图 + 固定坐标)只在 `COORDINATE_FALLBACK` 显式开启时使用,
-   且必须配合 `docs/LINUX.md` 里的窗口尺寸约定 —— 默认关闭。
+4. `open_chat` 只做导航/读取,不受白名单限制(Windows 端同样不拦)。
 
 用法::
 
     from pyweixin import linux_auto as wx
 
     wx.is_logged_in()                       # True/False
-    wx.open_chat('文件传输助手')
-    wx.send_message('文件传输助手', 'hello from Xvfb')
+    wx.open_chat('任意会话')                  # 打开会话(不受白名单限制)
+    wx.send_message('任意会话', 'hello')      # 发送(默认不限制收件人)
     wx.read_messages(5)                     # [{'sender':..,'content':..,'type':..}, ...]
-    wx.send_message('某个真实好友', 'hi')     # -> RecipientNotAllowed,且不会碰 UI
+
+    # 需要限制收件人时:
+    bot = wx.LinuxWeChat(allowed_recipients={'文件传输助手'})
+    bot.send_message('文件传输助手', 'ok')   # 放行
+    bot.send_message('别人', 'hi')           # -> RecipientNotAllowed
 '''
 from __future__ import annotations
 
@@ -31,47 +39,77 @@ import time
 from typing import Iterable, Optional
 
 from .Errors import NotLoginError, NotStartError, NotFoundError
+from .platform.base import ElementNotFound, PlatformNotSupported
 
 #: 主窗口标题(多语言) —— 用于把主窗口自身从"会话窗口"里排除
 MAIN_WINDOW_TITLES = ('微信', 'Weixin', 'WeChat')
-from .platform.base import ElementNotFound, PlatformNotSupported
 
 # --------------------------------------------------------------------------- #
 # 收件人白名单 —— 唯一的"安全闸"
 # --------------------------------------------------------------------------- #
-#: 允许发送的目标。硬编码,不做任何形式的放宽。
-#: 增加条目必须同时改 `tests/test_recipient_whitelist.py` 里的断言。
-ALLOWED_RECIPIENTS: frozenset[str] = frozenset({
-    '文件传输助手',
-    '依依',
-})
+#: 默认不限制收件人。``None`` 表示不启用白名单。
+#:
+#: 历史说明:PR #306 曾把这里硬编码成 ``frozenset({'文件传输助手', '<某位联系人>'})``。
+#: 那是移植期为避免自动化误发而临时加的自保护栏,不属于上游的产品行为,而且和
+#: Windows 端(任意备注都能发)不一致 —— 现已改为"默认不限制 + 可选白名单"。
+DEFAULT_ALLOWED_RECIPIENTS: Optional[frozenset[str]] = None
 
 
 class RecipientNotAllowed(PermissionError):
-    '''收件人不在白名单内。**任何**发送类操作都必须先过这一关。'''
+    '''收件人不在**调用方显式指定**的白名单内,或无法确认收件人。'''
 
-    def __init__(self, friend: str):
+    def __init__(self, friend: str, allowed=None):
         self.friend = friend
-        super().__init__(
-            f'拒绝向 {friend!r} 发送:收件人不在白名单 {sorted(ALLOWED_RECIPIENTS)} 内。\n'
-            f'这是 pyweixin Linux 后端的安全硬规则(见 linux_auto.ALLOWED_RECIPIENTS),'
-            f'不允许在运行时绕过。'
-        )
+        self.allowed = None if allowed is None else frozenset(allowed)
+        if self.allowed:
+            detail = (f'拒绝向 {friend!r} 发送:它不在调用方指定的白名单 '
+                      f'{sorted(self.allowed)} 内。\n'
+                      f'白名单由 LinuxWeChat(allowed_recipients=...) 显式传入;'
+                      f'不传则默认不限制(与 Windows 行为一致)。')
+        else:
+            detail = f'无法确认收件人 {friend!r},出于安全拒绝发送。'
+        super().__init__(detail)
 
 
-def assert_allowed_recipient(friend: str) -> str:
-    '''校验收件人并返回规范化后的名字;不合规立即抛 `RecipientNotAllowed`。'''
+def normalize_allowed_recipients(allowed) -> Optional[frozenset]:
+    '''把调用方传入的白名单规范成 ``frozenset`` 或 ``None``。
+
+    * ``None`` / 空集合 / 全是空白的名字  -> ``None``(不限制)
+    * 其它可迭代对象                      -> 名字 strip 后的 frozenset
+    '''
+    if allowed is None:
+        return None
+    if isinstance(allowed, str):
+        # 常见误用:传了字符串。按"单个名字"处理,不做逗号拆分,避免歧义
+        allowed = [allowed]
+    pool = frozenset(str(x).strip() for x in allowed if str(x).strip())
+    return pool or None
+
+
+def assert_allowed_recipient(friend: str, allowed=None) -> str:
+    '''校验收件人并返回规范化后的名字。
+
+    :param allowed: ``None`` 表示不限制(直接放行);否则必须精确命中(忽略首尾空白)。
+    :raises RecipientNotAllowed: 收件人不是字符串,或不在白名单内。
+    '''
     if not isinstance(friend, str):
-        raise RecipientNotAllowed(str(friend))
+        raise RecipientNotAllowed(str(friend), allowed)
     name = friend.strip()
-    if name not in ALLOWED_RECIPIENTS:
-        raise RecipientNotAllowed(name)
+    pool = normalize_allowed_recipients(allowed)
+    if pool is None:
+        return name
+    if name not in pool:
+        raise RecipientNotAllowed(name, pool)
     return name
 
 
-def is_allowed_recipient(friend: str) -> bool:
-    '''只判断不抛异常,便于调用方自己决定提示文案。'''
-    return isinstance(friend, str) and friend.strip() in ALLOWED_RECIPIENTS
+def is_allowed_recipient(friend: str, allowed=None) -> bool:
+    '''只判断不抛异常。``allowed=None`` 时有名字即视为允许。'''
+    try:
+        assert_allowed_recipient(friend, allowed)
+        return True
+    except RecipientNotAllowed:
+        return False
 
 
 # --------------------------------------------------------------------------- #
@@ -94,9 +132,25 @@ class LinuxWeChat:
         r'|\d{4}年\d{1,2}月\d{1,2}日(\s*\d{1,2}:\d{2})?'
         r'|\d{1,2}月\d{1,2}日(\s*\d{1,2}:\d{2})?)$')
 
-    def __init__(self, backend=None, dry_run: bool = False):
+    def __init__(self, backend=None, dry_run: bool = False,
+                 allowed_recipients: Optional[Iterable[str]] = None):
+        '''
+        Args:
+            backend: 平台驱动,默认用 `pyweixin.platform.backend()`
+            dry_run: 只做定位不改 UI(测试用)
+            allowed_recipients: 可选的收件人白名单。``None`` 或空集合 = **不限制**
+                (默认,与 Windows 行为一致);传入集合则只允许这些名字
+                (忽略首尾空白,精确匹配)。
+        '''
         self._backend = backend
         self.dry_run = dry_run
+        #: None = 不限制收件人;frozenset = 只允许这些名字
+        self.allowed_recipients: Optional[frozenset] = normalize_allowed_recipients(
+            allowed_recipients)
+
+    def _assert_allowed(self, friend: str) -> str:
+        '''按实例级白名单校验(未启用白名单时是空操作)。'''
+        return assert_allowed_recipient(friend, self.allowed_recipients)
 
     # -- 惰性拿 backend,避免 import 时就要求有 DISPLAY -------------------- #
     @property
@@ -151,7 +205,11 @@ class LinuxWeChat:
 
         幂等:目标会话已经打开时直接返回,不会重复点击(重复点击会把会话切走)。
         """
-        name = assert_allowed_recipient(friend)
+        if not isinstance(friend, str) or not friend.strip():
+            raise ValueError('friend 必须是非空字符串')
+        # 注意:open_chat 不做收件人白名单校验 —— 打开会话只是导航/读取,
+        # Windows 端同样不拦;白名单只约束"真正发出去"的动作(见 _compose_and_send)。
+        name = friend.strip()
         if self.current_chat() == name:
             return None
         lst = self._session_list()
@@ -177,13 +235,51 @@ class LinuxWeChat:
                 if n.role in ('frame', 'window') and n.visible
                 and (n.name or '') not in MAIN_WINDOW_TITLES]
 
+    def _message_list_node(self, snap=None):
+        '''在当前快照里找可见的「消息」列表节点(多语言标题取自 Uielements)。'''
+        from .Uielements import Lists
+        title = Lists.FriendChatList.get('title', '消息')
+        if snap is None:
+            snap = self.main_window().resolve()._snap
+        for n in snap.iter_nodes():
+            if n.role == 'list' and n.visible and (n.name or '') == title:
+                return n
+        return None
+
     def current_chat(self) -> Optional[str]:
-        """当前打开的会话标题;没有打开任何会话时返回 None。"""
+        """当前打开的会话标题;没有打开任何会话时返回 None。
+
+        微信 4.x 有两种渲染方式,必须都认:
+        1. **独立 frame**:聊天区是一个以会话标题命名的顶层 frame(与主窗口平级);
+        2. **内嵌**:聊天区直接画在主窗口里,此时靠「消息」列表正上方的标题 label 判断。
+        只认第一种会在内嵌模式下误判成"没有打开会话"。
+        """
         frames = self._chat_frames()
-        if not frames:
+        if frames:
+            frames.sort(key=lambda n: n.w * n.h, reverse=True)
+            return frames[0].name or None
+        # -- 内嵌模式 --
+        snap = self.main_window().resolve()._snap
+        msg = self._message_list_node(snap)
+        if msg is None:
             return None
-        frames.sort(key=lambda n: n.w * n.h, reverse=True)
-        return frames[0].name or None
+        header = []
+        for n in snap.iter_nodes():
+            if not n.visible or n.role not in ('label', 'heading'):
+                continue
+            if (n.name or '').strip() == '':
+                continue
+            if n.x + n.w <= msg.x:          # 还在左侧会话列表那一列
+                continue
+            if n.y + n.h > msg.y:           # 不在消息列表上方
+                continue
+            if msg.y - (n.y + n.h) > 60:    # 离标题栏太远,不是标题
+                continue
+            header.append(n)
+        if not header:
+            return None
+        header.sort(key=lambda n: (n.y, -n.w))
+        return (header[0].name or '').strip() or None
 
     def _chat_spec(self):
         """当前会话所在的窗口(用于定位消息列表和输入框)。
@@ -260,19 +356,23 @@ class LinuxWeChat:
         raise NotFoundError('找不到聊天输入框(下半屏没有可见的 text 控件)')
 
     def send_message(self, friend: str, message: str) -> dict:
-        """向白名单内的会话发送一条文本消息,返回读回的那条记录。
+        """向指定会话发送一条文本消息,返回读回的那条记录。
+
+        收件人默认**不限制**(与 Windows 行为一致);若构造时传了
+        `allowed_recipients`,则只允许白名单内的会话,且会在触碰 UI 之前就报错。
 
         发送后一定**回读校验**:微信的"发送失败"是弹窗而不是异常,不发校验就
         会把失败当成功。校验失败时先关掉"发送失败"弹窗、清空输入框再重试一次。
         """
-        name = assert_allowed_recipient(friend)
+        # 尽早报错:白名单未启用时这是个空操作
+        name = self._assert_allowed(friend)
         if not isinstance(message, str) or message.strip() == '':
             raise ValueError('message 不能为空')
         self.require_login()
         self.open_chat(name)
 
         for attempt in (1, 2):
-            self._compose_and_send(message)
+            self._compose_and_send(message, recipient=name)
             # 注意顺序:微信弹出"发送失败/我知道了"这类模态框时,整棵无障碍树的
             # 其它节点都会丢掉 SHOWING 状态(visible=False),此时读列表必然失败。
             # 所以必须先把弹窗关掉,再回读。
@@ -287,7 +387,28 @@ class LinuxWeChat:
         raise RuntimeError(
             f'消息连续两次没有出现在会话里,判定发送失败。最近消息: {recent}')
 
-    def _compose_and_send(self, message: str) -> None:
+    def _compose_and_send(self, message: str, recipient: Optional[str] = None) -> None:
+        """真正把消息写进输入框并按回车。
+
+        **白名单的最后一道闸就在这里**,而且用的是"当前实际打开的会话名",不是
+        调用方传进来的名字 —— 这样即使有人绕过 `send_message` 直接调本方法,或者
+        搜索把会话开错了人,也会在**触碰输入框之前**被挡住。
+        """
+        target = recipient.strip() if isinstance(recipient, str) else recipient
+        if self.allowed_recipients is not None:
+            # 1) 调用方声称的目标先过一遍白名单（报错信息更直观）
+            if target is not None:
+                self._assert_allowed(target)
+            # 2) 再以"当前实际打开的会话"为准复核，拿不到就 fail closed
+            current = self.current_chat()
+            actual = current.strip() if current else None
+            if actual is None:
+                raise RecipientNotAllowed(target or '<unknown>', self.allowed_recipients)
+            self._assert_allowed(actual)
+            # 3) 两者不一致说明会话开错了人，同样拒绝
+            if target is not None and actual != target:
+                raise RuntimeError(
+                    f'目标会话 {target!r} 与当前打开的会话 {actual!r} 不一致,拒绝发送。')
         box = self._input_box()
         box.set_focus()
         time.sleep(0.2)
@@ -382,10 +503,13 @@ class LinuxWeChat:
 _default: Optional[LinuxWeChat] = None
 
 
-def client() -> LinuxWeChat:
+def client(allowed_recipients: Optional[Iterable[str]] = None) -> LinuxWeChat:
+    '''取模块级单例。``allowed_recipients=None`` 时保持单例原样(默认不限制)。'''
     global _default
     if _default is None:
-        _default = LinuxWeChat()
+        _default = LinuxWeChat(allowed_recipients=allowed_recipients)
+    elif allowed_recipients is not None:
+        _default.allowed_recipients = normalize_allowed_recipients(allowed_recipients)
     return _default
 
 

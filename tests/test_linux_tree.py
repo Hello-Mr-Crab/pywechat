@@ -100,7 +100,7 @@ WECHAT_TREE = {
             {'role': 'list', 'name': '会话', 'rect': (241, 141, 240, 797), 'children': [
                 {'role': 'list item', 'name': '文件传输助手\n\n\n',
                  'rect': (241, 141, 240, 65)},
-                {'role': 'list item', 'name': '依依\n\n\n',
+                {'role': 'list item', 'name': '好友A\n\n\n',
                  'rect': (241, 206, 240, 65)},
             ]},
             {'role': 'text', 'name': '搜索', 'rect': (279, 106, 148, 22)},
@@ -192,7 +192,7 @@ class TestSpecificationResolution(BaseCase):
         first = self.spec(control_type='ListItem').resolve()
         second = self.spec(control_type='ListItem', found_index=1).resolve()
         self.assertEqual(first.window_text(), '文件传输助手\n\n\n')
-        self.assertEqual(second.window_text(), '依依\n\n\n')
+        self.assertEqual(second.window_text(), '好友A\n\n\n')
 
     def test_children_only_direct(self):
         kids = self.spec(control_type='Frame', title='微信').children()
@@ -283,3 +283,65 @@ class TestNoPlatformLeak(BaseCase):
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
+
+
+#: 内嵌渲染：聊天区直接画在主窗口里，没有独立 frame（真机上出现过这种形态）
+INLINE_CHAT_TREE = {
+    'role': 'application', 'name': 'wechat', 'rect': (0, 0, 0, 0),
+    'children': [
+        {'role': 'frame', 'name': '微信', 'rect': (180, 60, 1240, 880), 'children': [
+            {'role': 'list', 'name': '会话', 'rect': (241, 141, 240, 797), 'children': [
+                {'role': 'list item', 'name': '文件传输助手\n\n\n',
+                 'rect': (241, 596, 240, 65)},
+            ]},
+            {'role': 'text', 'name': '搜索', 'rect': (279, 106, 148, 22)},
+            {'role': 'label', 'name': '文件传输助手', 'rect': (497, 106, 84, 21)},
+            {'role': 'list', 'name': '消息', 'rect': (481, 141, 937, 657), 'children': [
+                {'role': 'list item', 'name': '你好', 'rect': (481, 182, 937, 57)},
+            ]},
+            {'role': 'text', 'name': '文件传输助手', 'rect': (501, 807, 901, 79)},
+        ]},
+    ],
+}
+
+#: 没有任何会话打开时：没有「消息」列表
+NO_CHAT_TREE = {
+    'role': 'application', 'name': 'wechat', 'rect': (0, 0, 0, 0),
+    'children': [
+        {'role': 'frame', 'name': '微信', 'rect': (180, 60, 1240, 880), 'children': [
+            {'role': 'list', 'name': '会话', 'rect': (241, 141, 240, 797), 'children': []},
+            {'role': 'text', 'name': '搜索', 'rect': (279, 106, 148, 22)},
+        ]},
+    ],
+}
+
+
+class _ChatBotMixin:
+    def _bot(self, tree):
+        from pyweixin import linux_auto as wx
+
+        snap = build_snapshot(tree)
+        session = FakeSession(snap)
+        x11 = FakeX11()
+
+        class _Bot(wx.LinuxWeChat):
+            def main_window(self, timeout=5.0):
+                return LinuxWindowSpecification(
+                    session, x11, {'role': 'frame', 'title': '微信'}, app_name='wechat')
+
+        return _Bot()
+
+
+class TestCurrentChatDetection(_ChatBotMixin, unittest.TestCase):
+    def test_separate_frame_wins(self):
+        bot = self._bot(WECHAT_TREE)
+        self.assertEqual(bot.current_chat(), '文件传输助手')
+
+    def test_inline_render_detected_from_header_label(self):
+        # 没有独立 frame 时，靠「消息」列表正上方的标题 label 识别
+        bot = self._bot(INLINE_CHAT_TREE)
+        self.assertEqual(bot.current_chat(), '文件传输助手')
+
+    def test_no_chat_open(self):
+        bot = self._bot(NO_CHAT_TREE)
+        self.assertIsNone(bot.current_chat())
