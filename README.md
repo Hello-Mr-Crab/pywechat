@@ -11,9 +11,37 @@ pywechat是一个基于pywinauto实现的Windows系统下PC微信自动化(pure 
 ### 适用环境
 
 > 1. **微信版本**:3.9.12.x，4.1.6+
-> 2. **操作系统**:🪟7 🪟10 🪟11
+> 2. **操作系统**:🪟7 🪟10 🪟11，🐧Linux(最小闭环，见下)
 > 3. **python版本**:3.10+(支持TypeHint)
 > 4. **支持语言**:简体中文,English,繁體中文
+
+### Linux 支持
+
+`pyweixin` 有一套基于 **AT-SPI2(读) + XTest(写)** 的 Linux 后端，实现最小闭环：
+
+- 登录态检测、登录二维码截图
+- 按名字打开会话
+- 发送文本消息、读取最近消息
+
+```python
+from pyweixin import linux_auto as wx
+
+wx.is_logged_in()
+wx.open_chat('文件传输助手')
+wx.send_message('文件传输助手', 'hello')
+wx.read_messages(5)
+```
+
+**收件人默认不限制**（与 Windows 行为一致）。需要收敛范围时显式传白名单：
+
+```python
+bot = wx.LinuxWeChat(allowed_recipients={'文件传输助手', '某个群'})
+```
+
+白名单只约束"真正发出去"的动作，`open_chat()` 不受限；校验发生在按回车之前。
+详见 [docs/LINUX.md](/docs/LINUX.md)。
+
+> Windows 侧(`WeChatAuto` / `WeChatTools` / `WinSettings`)**功能与行为均未改动**。
 
 ### UI可见性相关问题
 

@@ -55,7 +55,7 @@ pyweixin/
 │       ├── element.py        LinuxElement + LinuxWindowSpecification（惰性定位）
 │       ├── x11.py            xdotool / xclip / ffmpeg
 │       └── driver.py         找应用、启动、主窗口、调窗口尺寸
-├── linux_auto.py             ← 新增：Linux 最小闭环 API + 收件人白名单
+├── linux_auto.py             ← 新增：Linux 最小闭环 API（含可选收件人白名单）
 ├── Config.py                 ← 改：版本号/语言在 Linux 上也能探测
 ├── Uielements.py             ← 改：选择器表在 Linux 上可复用（仅 1 处 import 兜底）
 └── __init__.py               ← 改：非 Windows 平台不再 import pywinauto 系模块
@@ -160,24 +160,43 @@ chat = win.child_window(control_type='List', title='会话')
 print([c.window_text().split('\n')[0] for c in chat.children()])
 ```
 
-### 4.4 收件人白名单（硬规则）
+### 4.4 收件人白名单（可选，默认不限制）
 
-`linux_auto.ALLOWED_RECIPIENTS` **只允许**向两个会话发送任何内容：
-
-```python
-ALLOWED_RECIPIENTS = frozenset({'文件传输助手', '依依'})
-```
-
-其它收件人在**触碰 UI 之前**就抛 `RecipientNotAllowed`：
+**默认行为与 Windows 一致：可以发给任意会话。** 需要收敛范围时，显式传
+`allowed_recipients`：
 
 ```python
->>> wx.send_message('某个好友', 'hi')
-RecipientNotAllowed: 拒绝向 '某个好友' 发送:收件人不在白名单 ['依依', '文件传输助手'] 内。
+from pyweixin import linux_auto as wx
+
+wx.LinuxWeChat()                                   # 不限制（默认）
+wx.LinuxWeChat(allowed_recipients={'文件传输助手'})  # 只允许这一个
+
+bot = wx.LinuxWeChat(allowed_recipients={'文件传输助手', '某个群'})
+bot.send_message('某个群', 'ok')       # 放行
+bot.send_message('别人', 'hi')         # -> RecipientNotAllowed
 ```
 
-这是硬编码的，**不提供运行时覆盖入口**；放宽必须改代码并同步改
-`tests/test_recipient_whitelist.py`。测试里用一个"碰一下就炸"的假后端证明
-拒绝发生在任何 UI 动作之前。
+语义：
+
+| 传参 | 行为 |
+|---|---|
+| `None`（默认） | 不限制收件人 |
+| 空集合 `set()` / `[]` / `{'  '}` | 同样视为**不限制** |
+| 非空集合 | 只允许这些名字，`strip()` 后**精确匹配**（`'好友A'` 不会命中 `'好友A（备注）'`）|
+
+三个设计细节：
+
+1. **`open_chat()` 不受白名单约束。** 打开会话只是导航/读取，Windows 端也不拦；
+   白名单只约束"真正发出去"的动作。所以做只读监控时不需要放行任何发送权限。
+2. **校验下沉到 `_compose_and_send()`（按回车之前的最后一步）。** 绕过 `send_message`
+   直接调私有方法同样会被挡住；而且用的是**当前实际打开的会话名**，不是调用方传入的
+   名字——会话开错了人也会拒绝。
+3. **fail closed**：开了白名单却拿不到当前会话名时，直接拒绝而不是盲发。
+
+> 为什么改过：PR #306 最初把这里硬编码成 `{'文件传输助手', '<某位联系人>'}`。那是移植期
+> 为避免自动化误发而临时加的自保护栏，不属于上游产品行为，还与 Windows 端不一致，
+> 并且只挡住了公开接口（私有路径可绕过）。现已按 Windows 行为对齐，白名单改为可选。
+> 排查过程见 `docs/WHITELIST-INVESTIGATION.md`。
 
 ## 5. 与 Windows 实现的差异
 
@@ -303,7 +322,7 @@ AT-SPI 的 `Component.GetExtents` 以 96 DPI 为基准，而 Xvfb 不给 `-dpi` 
 
 ```
 [OK] 登录态检测: {"is_logged_in": true}
-[OK] 白名单拦截: {"rejected": "25王超越", "error": "RecipientNotAllowed"}
+[OK] 白名单拦截: {"rejected": "25王超越", "error": "RecipientNotAllowed"}  # 当时显式传了白名单
 [OK] 打开会话: {"friend": "文件传输助手"}
 [OK] 发送并回读: {"sent": "[pyweixin][linux] 闭环测试 2026-11-26 20:27:59",
                  "read_back": "[pyweixin][linux] 闭环测试 2026-11-26 20:27:59", "type": "文本"}
@@ -315,7 +334,7 @@ RESULT: PASS
 `evidence/linux_closed_loop.json`。
 
 单元测试：`python3 -m unittest discover -s tests` → **57 项通过**
-（选择器翻译 21 + 快照/定位/动作 26 + 收件人白名单 10）。
+（选择器翻译 21 + 快照/定位/动作 26 + 收件人白名单 24）。
 
 ## 9. Windows 侧怎么保证没被改坏
 
